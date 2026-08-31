@@ -77,25 +77,6 @@ export const PortalHomeView: React.FC = () => {
             <PropertyFilterBar />
           </div>
 
-          {/* Quick Categories Bar */}
-          <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
-            {[
-              { label: 'Casas em Condomínio', type: 'condo_house', purpose: 'sale' },
-              { label: 'Apartamentos no Campolim', type: 'apartment', purpose: 'sale' },
-              { label: 'Lançamentos na Planta', type: 'apartment', purpose: 'launch' },
-              { label: 'Locação Residencial', type: 'apartment', purpose: 'rent' },
-              { label: 'Terrenos e Lotes', type: 'land', purpose: 'sale' }
-            ].map(cat => (
-              <button
-                key={cat.label}
-                onClick={() => handleCategorySearch(cat.type, cat.purpose)}
-                className="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 border border-white/10 backdrop-blur-md text-xs font-bold text-white transition-all hover:scale-105 active:scale-95"
-              >
-                {cat.label}
-              </button>
-            ))}
-          </div>
-
         </div>
       </section>
 

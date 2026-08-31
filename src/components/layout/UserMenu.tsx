@@ -59,22 +59,22 @@ export const UserMenu: React.FC = () => {
   const unreadMessages = conversations.reduce((sum, c) => sum + c.unreadCount, 0);
 
   return (
-    <div ref={menuRef} className="relative inline-block text-left">
+    <div ref={menuRef} className="relative inline-block text-left shrink-0">
       <button
         id="user-profile-menu-btn"
         type="button"
         onClick={() => setIsOpen(!isOpen)}
         aria-expanded={isOpen}
-        className="flex items-center gap-2 p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700/80 transition-colors focus:outline-none focus:ring-2 focus:ring-rose-500/20"
+        className="flex items-center gap-1.5 p-1 sm:p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700/80 transition-colors focus:outline-none focus:ring-2 focus:ring-rose-500/20 shrink-0 cursor-pointer"
       >
-        <div className="relative">
+        <div className="relative shrink-0 flex items-center justify-center">
           <img
             src={currentUser.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=256&q=80'}
             alt={currentUser.name}
-            className="w-8 h-8 rounded-lg object-cover ring-2 ring-rose-500/20"
+            className="w-7 h-7 sm:w-8 sm:h-8 min-w-[28px] min-h-[28px] sm:min-w-[32px] sm:min-h-[32px] aspect-square rounded-lg object-cover ring-2 ring-rose-500/20 shrink-0"
           />
           {currentUser.verified && (
-            <span className="absolute -bottom-1 -right-1 w-3.5 h-3.5 bg-emerald-500 rounded-full border-2 border-white dark:border-slate-900 flex items-center justify-center">
+            <span className="absolute -bottom-1 -right-1 w-3.5 h-3.5 bg-emerald-500 rounded-full border-2 border-white dark:border-slate-900 flex items-center justify-center shrink-0">
               <CheckCircle2 className="w-2.5 h-2.5 text-white" />
             </span>
           )}
@@ -89,7 +89,7 @@ export const UserMenu: React.FC = () => {
           </div>
         </div>
 
-        <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
+        <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform duration-200 shrink-0 ${isOpen ? 'rotate-180' : ''}`} />
       </button>
 
       {isOpen && (

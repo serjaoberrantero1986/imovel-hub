@@ -151,7 +151,7 @@ export const Navbar: React.FC = () => {
           </div>
 
           {/* Right Action Section */}
-          <div className="flex items-center gap-2 sm:gap-3">
+          <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
 
             {/* Comparison button */}
             {comparisonIds.length > 0 && (
@@ -159,10 +159,10 @@ export const Navbar: React.FC = () => {
                 id="btn-comparator-nav"
                 onClick={() => handleNavigate('comparator')}
                 title="Comparar imóveis lado a lado"
-                className="relative p-2 rounded-xl text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 transition-colors cursor-pointer"
+                className="relative w-8 h-8 sm:w-10 sm:h-10 p-0 flex items-center justify-center rounded-xl text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 transition-colors cursor-pointer shrink-0"
               >
-                <Scale className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
-                <span className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-indigo-600 text-white text-[10px] font-extrabold flex items-center justify-center shadow-sm">
+                <Scale className="w-4 h-4 sm:w-5 sm:h-5 text-indigo-600 dark:text-indigo-400" />
+                <span className="absolute -top-1 -right-1 w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-indigo-600 text-white text-[9px] sm:text-[10px] font-extrabold flex items-center justify-center shadow-sm">
                   {comparisonIds.length}
                 </span>
               </button>
@@ -173,11 +173,11 @@ export const Navbar: React.FC = () => {
               id="btn-favorites-nav"
               onClick={() => handleNavigate('favorites')}
               title="Meus Favoritos"
-              className="relative p-2 rounded-xl text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 transition-colors cursor-pointer"
+              className="relative w-8 h-8 sm:w-10 sm:h-10 p-0 flex items-center justify-center rounded-xl text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 transition-colors cursor-pointer shrink-0"
             >
-              <Heart className={`w-5 h-5 ${favoriteIds.length > 0 ? 'text-rose-500 fill-rose-500' : 'text-slate-500 dark:text-slate-400'}`} />
+              <Heart className={`w-4 h-4 sm:w-5 sm:h-5 ${favoriteIds.length > 0 ? 'text-rose-500 fill-rose-500' : 'text-slate-500 dark:text-slate-400'}`} />
               {favoriteIds.length > 0 && (
-                <span className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-rose-600 text-white text-[10px] font-extrabold flex items-center justify-center shadow-sm">
+                <span className="absolute -top-1 -right-1 w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-rose-600 text-white text-[9px] sm:text-[10px] font-extrabold flex items-center justify-center shadow-sm">
                   {favoriteIds.length}
                 </span>
               )}
@@ -188,11 +188,11 @@ export const Navbar: React.FC = () => {
               id="btn-messages-nav"
               onClick={() => handleNavigate('messages')}
               title="Mensagens e Chats"
-              className="relative p-2 rounded-xl text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 transition-colors cursor-pointer"
+              className="relative w-8 h-8 sm:w-10 sm:h-10 p-0 flex items-center justify-center rounded-xl text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 transition-colors cursor-pointer shrink-0"
             >
-              <MessageSquare className="w-5 h-5 text-slate-600 dark:text-slate-300" />
+              <MessageSquare className="w-4 h-4 sm:w-5 sm:h-5 text-slate-600 dark:text-slate-300" />
               {totalUnread > 0 && (
-                <span className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-amber-500 text-white text-[10px] font-extrabold flex items-center justify-center animate-bounce">
+                <span className="absolute -top-1 -right-1 w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-amber-500 text-white text-[9px] sm:text-[10px] font-extrabold flex items-center justify-center animate-bounce">
                   {totalUnread}
                 </span>
               )}
@@ -203,12 +203,12 @@ export const Navbar: React.FC = () => {
               id="theme-toggle-btn"
               onClick={toggleTheme}
               title={`Alternar para tema ${theme === 'light' ? 'escuro' : 'claro'}`}
-              className="p-2 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 transition-colors cursor-pointer"
+              className="w-8 h-8 sm:w-10 sm:h-10 p-0 flex items-center justify-center rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 transition-colors cursor-pointer shrink-0"
             >
               {theme === 'light' ? (
-                <Moon className="w-5 h-5 text-slate-700" />
+                <Moon className="w-4 h-4 sm:w-5 sm:h-5 text-slate-700" />
               ) : (
-                <Sun className="w-5 h-5 text-amber-400" />
+                <Sun className="w-4 h-4 sm:w-5 sm:h-5 text-amber-400" />
               )}
             </button>
 
@@ -217,9 +217,9 @@ export const Navbar: React.FC = () => {
               id="cta-anunciar-imovel"
               variant="primary"
               size="sm"
-              leftIcon={<PlusCircle className="w-4 h-4" />}
+              leftIcon={<PlusCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4" />}
               onClick={handleStartNewListing}
-              className="hidden sm:inline-flex"
+              className="h-8 sm:h-10 px-2.5 sm:px-3.5 py-0 text-xs sm:text-sm font-bold shrink-0 rounded-xl whitespace-nowrap"
             >
               Anunciar
             </Button>
@@ -231,9 +231,9 @@ export const Navbar: React.FC = () => {
             <button
               id="mobile-menu-toggle"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="lg:hidden p-2 rounded-xl text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+              className="lg:hidden w-8 h-8 sm:w-10 sm:h-10 p-0 flex items-center justify-center rounded-xl text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer shrink-0"
             >
-              {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+              {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
             </button>
 
           </div>

@@ -99,10 +99,10 @@ export const PropertyFilterBar: React.FC = () => {
       <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-100 dark:border-slate-800">
         
         {/* Purpose Buttons */}
-        <div className="flex items-center gap-1.5 p-1 bg-slate-100 dark:bg-slate-800 rounded-2xl">
+        <div className="w-full sm:w-auto grid grid-cols-4 sm:flex items-center gap-1 sm:gap-1.5 p-1 bg-slate-100 dark:bg-slate-800 rounded-2xl">
           <button
             onClick={() => handlePurposeChange('all')}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+            className={`px-1.5 sm:px-4 py-2 rounded-xl text-[11px] sm:text-xs font-bold transition-all text-center truncate ${
               filters.purpose === 'all'
                 ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm'
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
@@ -112,7 +112,7 @@ export const PropertyFilterBar: React.FC = () => {
           </button>
           <button
             onClick={() => handlePurposeChange('sale')}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+            className={`px-1.5 sm:px-4 py-2 rounded-xl text-[11px] sm:text-xs font-bold transition-all text-center truncate ${
               filters.purpose === 'sale'
                 ? 'bg-rose-600 text-white shadow-md shadow-rose-600/20'
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
@@ -122,7 +122,7 @@ export const PropertyFilterBar: React.FC = () => {
           </button>
           <button
             onClick={() => handlePurposeChange('rent')}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+            className={`px-1.5 sm:px-4 py-2 rounded-xl text-[11px] sm:text-xs font-bold transition-all text-center truncate ${
               filters.purpose === 'rent'
                 ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/20'
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
@@ -132,14 +132,14 @@ export const PropertyFilterBar: React.FC = () => {
           </button>
           <button
             onClick={() => handlePurposeChange('launch')}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+            className={`px-1.5 sm:px-4 py-2 rounded-xl text-[11px] sm:text-xs font-bold transition-all flex items-center justify-center gap-1 sm:gap-1.5 text-center truncate ${
               filters.purpose === 'launch'
                 ? 'bg-amber-600 text-white shadow-md shadow-amber-600/20'
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
             }`}
           >
-            <span>Lançamentos</span>
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+            <span className="truncate">Lançamentos</span>
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0"></span>
           </button>
         </div>
 
