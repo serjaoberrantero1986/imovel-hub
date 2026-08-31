@@ -12,18 +12,22 @@ import {
   Pause, 
   Sparkles, 
   MapPin, 
-  CheckCircle2,
-  AlertCircle
+  CheckCircle2, 
+  AlertCircle,
+  Image as ImageIcon,
+  X
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
-import { Property, PropertyStatus } from '../types';
+import { Property, PropertyStatus, PropertyMedia } from '../types';
 import { formatCurrency, formatDate } from '../lib/utils';
+import { PropertyImageManager } from '../components/media/PropertyImageManager';
 
 export const MyPropertiesView: React.FC = () => {
   const { 
     properties, 
     currentUser, 
     deleteProperty, 
+    updateProperty,
     togglePropertyStatus, 
     setIsWizardOpen, 
     setEditingProperty, 
@@ -32,6 +36,9 @@ export const MyPropertiesView: React.FC = () => {
 
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState<string>('');
+  
+  // Dedicated Quick Photos Manager Modal
+  const [managingPhotosProperty, setManagingPhotosProperty] = useState<Property | null>(null);
 
   const myProperties = properties.filter(p => {
     const matchesStatus = filterStatus === 'all' || p.status === filterStatus;
@@ -50,6 +57,15 @@ export const MyPropertiesView: React.FC = () => {
   const handleCreateNew = () => {
     setEditingProperty(null);
     setIsWizardOpen(true);
+  };
+
+  const handleUpdatePropertyMedia = (newMedia: PropertyMedia[], newVideoUrl?: string) => {
+    if (!managingPhotosProperty) return;
+    updateProperty(managingPhotosProperty.id, {
+      media: newMedia,
+      videoUrl: newVideoUrl !== undefined ? newVideoUrl : managingPhotosProperty.videoUrl
+    });
+    setManagingPhotosProperty(prev => prev ? { ...prev, media: newMedia, videoUrl: newVideoUrl !== undefined ? newVideoUrl : prev.videoUrl } : null);
   };
 
   return (
@@ -197,6 +213,15 @@ export const MyPropertiesView: React.FC = () => {
                 {/* Actions Button Group */}
                 <div className="flex items-center gap-2">
                   <button
+                    onClick={() => setManagingPhotosProperty(prop)}
+                    title="Gerenciar Fotos & Mídia"
+                    className="p-2 rounded-xl bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/50 dark:hover:bg-rose-900/60 text-rose-600 dark:text-rose-300 transition-colors flex items-center gap-1 text-xs font-bold"
+                  >
+                    <ImageIcon className="w-4 h-4" />
+                    <span className="hidden sm:inline">Fotos ({prop.media.length})</span>
+                  </button>
+
+                  <button
                     onClick={() => handleEdit(prop)}
                     title="Editar Anúncio"
                     className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 transition-colors"
@@ -250,6 +275,62 @@ export const MyPropertiesView: React.FC = () => {
             </div>
           )}
         </div>
+
+        {/* Quick Media Manager Modal */}
+        {managingPhotosProperty && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/75 backdrop-blur-md overflow-y-auto animate-in fade-in duration-200">
+            <div className="relative w-full max-w-4xl bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col max-h-[90vh]">
+              
+              {/* Modal Header */}
+              <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-800/30">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-2xl bg-rose-600/10 text-rose-600 flex items-center justify-center">
+                    <ImageIcon className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-bold text-slate-900 dark:text-white font-['Outfit']">
+                      Gerenciar Fotos e Mídia
+                    </h2>
+                    <p className="text-xs text-slate-500">
+                      {managingPhotosProperty.title} (Código: {managingPhotosProperty.code})
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => setManagingPhotosProperty(null)}
+                  className="p-2 rounded-2xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-700 dark:hover:text-white transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Modal Body */}
+              <div className="p-6 overflow-y-auto flex-1">
+                <PropertyImageManager
+                  propertyId={managingPhotosProperty.id}
+                  propertyOwnerId={managingPhotosProperty.userId}
+                  mediaList={managingPhotosProperty.media}
+                  onMediaChange={(newMedia) => handleUpdatePropertyMedia(newMedia)}
+                  videoUrl={managingPhotosProperty.videoUrl}
+                  onVideoUrlChange={(newVideo) => handleUpdatePropertyMedia(managingPhotosProperty.media, newVideo)}
+                />
+              </div>
+
+              {/* Modal Footer */}
+              <div className="px-6 py-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30 flex items-center justify-end">
+                <button
+                  type="button"
+                  onClick={() => setManagingPhotosProperty(null)}
+                  className="px-6 py-2.5 rounded-2xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold shadow-md shadow-rose-600/20 active:scale-98"
+                >
+                  Concluído
+                </button>
+              </div>
+
+            </div>
+          </div>
+        )}
 
       </div>
     </div>

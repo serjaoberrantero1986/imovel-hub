@@ -46,6 +46,13 @@ export interface PropertyMedia {
   category?: 'fachada' | 'sala' | 'quarto' | 'cozinha' | 'banheiro' | 'lazer' | 'planta' | 'outros';
   isCover: boolean;
   order: number;
+  size?: number;
+  width?: number;
+  height?: number;
+  hash?: string;
+  storagePath?: string;
+  originalName?: string;
+  mimeType?: string;
 }
 
 export interface PropertyAmenity {

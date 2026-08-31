@@ -23,11 +23,13 @@ import {
   FileText,
   X,
   Send,
-  Sparkles
+  Sparkles,
+  Video
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { AMENITIES_LIST } from '../../lib/mockData';
 import { formatCurrency, formatArea, formatDateTime } from '../../lib/utils';
+import { parseYouTubeUrl } from '../../lib/imageProcessing';
 import { PropertyCard } from './PropertyCard';
 
 export const PropertyDetailView: React.FC = () => {
@@ -408,6 +410,39 @@ export const PropertyDetailView: React.FC = () => {
                 })}
               </div>
             </div>
+
+            {/* YouTube Video Tour Player (if available) */}
+            {property.videoUrl && (() => {
+              const yt = parseYouTubeUrl(property.videoUrl);
+              if (!yt.isValid) return null;
+              return (
+                <div className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-9 h-9 rounded-xl bg-red-100 dark:bg-red-950/60 text-red-600 flex items-center justify-center">
+                      <Video className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-bold text-slate-900 dark:text-white font-['Outfit']">
+                        Tour em Vídeo do Imóvel
+                      </h3>
+                      <p className="text-xs text-slate-500">
+                        Assista ao vídeo e conheça cada detalhe deste imóvel
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="relative aspect-video rounded-2xl overflow-hidden bg-black shadow-lg">
+                    <iframe
+                      src={yt.embedUrl}
+                      title="Tour do Imóvel no YouTube"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                      allowFullScreen
+                      className="w-full h-full border-0"
+                    />
+                  </div>
+                </div>
+              );
+            })()}
 
             {/* Mortgage Simulator */}
             <div className="p-6 rounded-3xl bg-gradient-to-br from-slate-900 to-indigo-950 text-white shadow-xl space-y-6">

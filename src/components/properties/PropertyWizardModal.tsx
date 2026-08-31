@@ -22,6 +22,7 @@ import { useApp } from '../../context/AppContext';
 import { Property, PropertyType, PropertyPurpose, PropertyMedia } from '../../types';
 import { AMENITIES_LIST, POPULAR_CITIES, POPULAR_NEIGHBORHOODS } from '../../lib/mockData';
 import { formatCurrency } from '../../lib/utils';
+import { PropertyImageManager } from '../media/PropertyImageManager';
 
 export const PropertyWizardModal: React.FC = () => {
   const { 
@@ -70,11 +71,11 @@ export const PropertyWizardModal: React.FC = () => {
   // Amenities & Media
   const [selectedAmenities, setSelectedAmenities] = useState<string[]>(['academia', 'piscina', 'churrasqueira', 'elevador']);
   const [mediaList, setMediaList] = useState<PropertyMedia[]>([
-    { id: 'm1', url: 'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&w=1000&q=80', isCover: true, order: 1, mediaType: 'image', caption: 'Sala de Estar Integrada' },
-    { id: 'm2', url: 'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=1000&q=80', isCover: false, order: 2, mediaType: 'image', caption: 'Fachada do Edifício' },
-    { id: 'm3', url: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1000&q=80', isCover: false, order: 3, mediaType: 'image', caption: 'Varanda Gourmet' }
+    { id: 'm1', url: 'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&w=1000&q=80', isCover: true, order: 1, mediaType: 'image', caption: 'Sala de Estar Integrada', category: 'sala' },
+    { id: 'm2', url: 'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=1000&q=80', isCover: false, order: 2, mediaType: 'image', caption: 'Fachada do Edifício', category: 'fachada' },
+    { id: 'm3', url: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1000&q=80', isCover: false, order: 3, mediaType: 'image', caption: 'Varanda Gourmet', category: 'lazer' }
   ]);
-  const [newImageUrl, setNewImageUrl] = useState('');
+  const [videoUrl, setVideoUrl] = useState('');
 
   // Pre-fill when editing
   useEffect(() => {
@@ -104,12 +105,14 @@ export const PropertyWizardModal: React.FC = () => {
       setAcceptsExchange(editingProperty.acceptsExchange ?? false);
       setSelectedAmenities(editingProperty.amenities || []);
       setMediaList(editingProperty.media.length > 0 ? editingProperty.media : []);
+      setVideoUrl(editingProperty.videoUrl || '');
     } else {
       // Default new
       setTitle('');
       setDescription('');
       setAddressStreet('Av. Professora Izoraida Marques Peres');
       setAddressNumber('1200');
+      setVideoUrl('');
     }
   }, [editingProperty]);
 
@@ -124,27 +127,6 @@ export const PropertyWizardModal: React.FC = () => {
     { number: 6, title: 'Descrição & Lazer', icon: FileText },
     { number: 7, title: 'Revisão & Publicar', icon: CheckCircle2 }
   ];
-
-  const handleAddMedia = () => {
-    if (!newImageUrl.trim()) return;
-    const newMedia: PropertyMedia = {
-      id: `img-${Date.now()}`,
-      url: newImageUrl.trim(),
-      isCover: mediaList.length === 0,
-      order: mediaList.length + 1,
-      mediaType: 'image'
-    };
-    setMediaList([...mediaList, newMedia]);
-    setNewImageUrl('');
-  };
-
-  const handleSetCover = (id: string) => {
-    setMediaList(prev => prev.map(m => ({ ...m, isCover: m.id === id })));
-  };
-
-  const handleRemoveMedia = (id: string) => {
-    setMediaList(prev => prev.filter(m => m.id !== id));
-  };
 
   const handleAmenityToggle = (id: string) => {
     setSelectedAmenities(prev => 
@@ -185,7 +167,8 @@ export const PropertyWizardModal: React.FC = () => {
       featured: true,
       isExclusive: false,
       amenities: selectedAmenities,
-      media: mediaList
+      media: mediaList,
+      videoUrl: videoUrl.trim() || undefined
     };
 
     if (editingProperty) {
@@ -563,69 +546,14 @@ export const PropertyWizardModal: React.FC = () => {
           {/* STEP 5: Fotos & Mídia */}
           {currentStep === 5 && (
             <div className="space-y-6 animate-in fade-in">
-              {/* Add image by URL */}
-              <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 space-y-3">
-                <label className="text-xs font-bold uppercase tracking-wider text-slate-500">Adicionar Foto por Link URL</label>
-                <div className="flex gap-2">
-                  <input
-                    type="url"
-                    placeholder="https://images.unsplash.com/photo-..."
-                    value={newImageUrl}
-                    onChange={(e) => setNewImageUrl(e.target.value)}
-                    className="flex-1 px-3.5 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs font-medium text-slate-900 dark:text-white"
-                  />
-                  <button
-                    type="button"
-                    onClick={handleAddMedia}
-                    className="px-4 py-2 bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-xs font-bold rounded-xl flex items-center gap-1.5"
-                  >
-                    <Plus className="w-4 h-4" />
-                    <span>Adicionar</span>
-                  </button>
-                </div>
-              </div>
-
-              {/* Photos List Grid */}
-              <div className="space-y-2">
-                <label className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                  Fotos Cadastradas ({mediaList.length}) - Clique na estrela para definir a Foto de Capa
-                </label>
-                
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                  {mediaList.map((m) => (
-                    <div key={m.id} className="relative aspect-video rounded-2xl overflow-hidden group border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800">
-                      <img src={m.url} className="w-full h-full object-cover" />
-                      {m.isCover && (
-                        <span className="absolute top-2 left-2 px-2 py-0.5 rounded bg-rose-600 text-white text-[10px] font-extrabold flex items-center gap-1 shadow-md">
-                          <Star className="w-3 h-3 fill-current" />
-                          <span>Capa</span>
-                        </span>
-                      )}
-                      
-                      <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                        {!m.isCover && (
-                          <button
-                            type="button"
-                            onClick={() => handleSetCover(m.id)}
-                            title="Tornar capa"
-                            className="p-2 rounded-xl bg-white text-slate-900 hover:bg-rose-600 hover:text-white text-xs font-bold"
-                          >
-                            <Star className="w-4 h-4" />
-                          </button>
-                        )}
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveMedia(m.id)}
-                          title="Excluir foto"
-                          className="p-2 rounded-xl bg-rose-600 text-white text-xs font-bold"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
+              <PropertyImageManager
+                propertyId={editingProperty?.id || 'new-listing'}
+                propertyOwnerId={editingProperty?.userId}
+                mediaList={mediaList}
+                onMediaChange={setMediaList}
+                videoUrl={videoUrl}
+                onVideoUrlChange={setVideoUrl}
+              />
             </div>
           )}
 

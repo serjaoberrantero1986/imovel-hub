@@ -13,7 +13,9 @@ import {
   Palette,
   Sparkles,
   Hash,
-  ArrowRight
+  ArrowRight,
+  Database,
+  RefreshCw
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { UserMenu } from './UserMenu';
@@ -32,7 +34,10 @@ export const Navbar: React.FC = () => {
     setIsWizardOpen,
     setEditingProperty,
     setFilters,
-    properties
+    properties,
+    isDbConnected,
+    isSyncing,
+    refreshData
   } = useApp();
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -152,6 +157,25 @@ export const Navbar: React.FC = () => {
           {/* Right Action Section */}
           <div className="flex items-center gap-2 sm:gap-3">
             
+            {/* Supabase Database Connection & Sync Status */}
+            <button
+              id="btn-db-status-sync"
+              onClick={() => refreshData()}
+              disabled={isSyncing}
+              title={isDbConnected ? 'Banco de Dados Supabase Conectado. Clique para sincronizar agora.' : 'Banco Local Sincronizado.'}
+              className={`p-1.5 sm:px-2.5 sm:py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer border ${
+                isDbConnected
+                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800/80 hover:bg-emerald-100 dark:hover:bg-emerald-900/80'
+                  : 'bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700'
+              }`}
+            >
+              <Database className={`w-3.5 h-3.5 ${isDbConnected ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400'}`} />
+              <span className="hidden xl:inline text-[11px]">
+                {isDbConnected ? 'Supabase Live' : 'Banco Ativo'}
+              </span>
+              <RefreshCw className={`w-3 h-3 text-slate-400 ${isSyncing ? 'animate-spin text-emerald-600' : ''}`} />
+            </button>
+
             {/* Property Code Search trigger button */}
             <button
               id="btn-code-search-nav"

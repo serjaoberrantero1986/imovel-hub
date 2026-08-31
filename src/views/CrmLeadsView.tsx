@@ -2,27 +2,21 @@ import React, { useState } from 'react';
 import { 
   Users, 
   Search, 
-  Filter, 
   Phone, 
-  Mail, 
   MessageSquare, 
   Calendar, 
-  Clock, 
-  ArrowRight, 
-  CheckCircle2, 
-  XCircle, 
   FileText, 
-  Building, 
-  DollarSign,
   ChevronRight,
-  Sparkles
+  Trash2,
+  XCircle,
+  RefreshCw
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { Lead, LeadStatus } from '../types';
-import { formatCurrency, formatDateTime } from '../lib/utils';
+import { formatDateTime } from '../lib/utils';
 
 export const CrmLeadsView: React.FC = () => {
-  const { leads, updateLeadStatus, updateLeadNotes, openPropertyDetail, addToast } = useApp();
+  const { leads, updateLeadStatus, updateLeadNotes, deleteLead, openPropertyDetail, addToast, isSyncing, refreshData } = useApp();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedLeadForNotes, setSelectedLeadForNotes] = useState<Lead | null>(null);
   const [notesText, setNotesText] = useState('');
@@ -35,7 +29,7 @@ export const CrmLeadsView: React.FC = () => {
     { id: 'closed_won', title: 'Fechado / Ganho', color: 'border-emerald-500 text-emerald-600', bg: 'bg-emerald-50 dark:bg-emerald-950/40' },
   ];
 
-  const filteredLeads紧 = leads.filter(l => {
+  const filteredLeads = leads.filter(l => {
     if (!searchTerm.trim()) return true;
     const term = searchTerm.toLowerCase();
     return (
@@ -51,19 +45,25 @@ export const CrmLeadsView: React.FC = () => {
     setNotesText(lead.notes || '');
   };
 
-  const handleSaveNotes = () => {
+  const handleSaveNotes = async () => {
     if (selectedLeadForNotes) {
-      updateLeadNotes(selectedLeadForNotes.id, notesText);
-      addToast({ type: 'success', title: 'Anotações Salvas', message: 'Histórico do lead atualizado.' });
+      await updateLeadNotes(selectedLeadForNotes.id, notesText);
+      addToast({ type: 'success', title: 'Anotações Salvas', message: 'Histórico do lead atualizado no banco.' });
       setSelectedLeadForNotes(null);
     }
   };
 
-  const handleAdvanceStatus = (lead: Lead) => {
+  const handleAdvanceStatus = async (lead: Lead) => {
     const currentIndex = statusColumns.findIndex(c => c.id === lead.status);
     if (currentIndex < statusColumns.length - 1) {
       const nextStatus = statusColumns[currentIndex + 1].id;
-      updateLeadStatus(lead.id, nextStatus);
+      await updateLeadStatus(lead.id, nextStatus);
+    }
+  };
+
+  const handleDeleteLead = async (lead: Lead) => {
+    if (window.confirm(`Deseja realmente excluir o lead "${lead.buyerName}" do banco de dados?`)) {
+      await deleteLead(lead.id);
     }
   };
 
@@ -84,26 +84,38 @@ export const CrmLeadsView: React.FC = () => {
               Gestão de Leads & Oportunidades
             </h1>
             <p className="text-xs sm:text-sm text-slate-500">
-              Acompanhe o estágio de cada cliente desde o primeiro contato até o fechamento
+              Acompanhe o estágio de cada cliente em tempo real no banco de dados Supabase
             </p>
           </div>
 
-          <div className="w-full sm:w-72 relative">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-            <input
-              type="text"
-              placeholder="Buscar por cliente, fone ou código..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs font-medium text-slate-900 dark:text-white focus:outline-none focus:border-rose-500 shadow-sm"
-            />
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => refreshData()}
+              disabled={isSyncing}
+              className="p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors flex items-center gap-2 text-xs font-bold"
+              title="Sincronizar com banco de dados"
+            >
+              <RefreshCw className={`w-4 h-4 text-emerald-500 ${isSyncing ? 'animate-spin' : ''}`} />
+              <span className="hidden sm:inline">Atualizar</span>
+            </button>
+
+            <div className="w-full sm:w-72 relative">
+              <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                placeholder="Buscar por cliente, fone ou código..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs font-medium text-slate-900 dark:text-white focus:outline-none focus:border-rose-500 shadow-sm"
+              />
+            </div>
           </div>
         </div>
 
         {/* Kanban Board Horizontal Columns Container */}
         <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4 items-start overflow-x-auto pb-4 scrollbar-none">
           {statusColumns.map(col => {
-            const columnLeads = filteredLeads紧.filter(l => l.status === col.id);
+            const columnLeads = filteredLeads.filter(l => l.status === col.id);
             
             return (
               <div
@@ -202,6 +214,13 @@ export const CrmLeadsView: React.FC = () => {
                             title="Anotações do Corretor"
                           >
                             <FileText className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteLead(lead)}
+                            className="p-1.5 rounded-lg bg-rose-50 dark:bg-rose-950/50 text-rose-600 hover:bg-rose-100 dark:hover:bg-rose-900"
+                            title="Excluir Lead do Banco"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
                           </button>
                         </div>
 

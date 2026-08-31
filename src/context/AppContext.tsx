@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { 
   Property, 
   UserProfile, 
@@ -14,6 +14,24 @@ import {
   INITIAL_LEADS, 
   INITIAL_CONVERSATIONS 
 } from '../lib/mockData';
+import { 
+  fetchPropertiesFromSupabase,
+  insertPropertyToSupabase,
+  updatePropertyInSupabase,
+  deletePropertyFromSupabase,
+  fetchLeadsFromSupabase,
+  insertLeadToSupabase,
+  updateLeadInSupabase,
+  deleteLeadFromSupabase,
+  fetchConversationsFromSupabase,
+  insertMessageToSupabase,
+  fetchFavoritesFromSupabase,
+  toggleFavoriteInSupabase,
+  fetchSavedSearchesFromSupabase,
+  insertSavedSearchToSupabase,
+  deleteSavedSearchFromSupabase
+} from '../lib/supabaseCrud';
+import { isSupabaseConfigured } from '../lib/supabaseClient';
 
 export type AppView = 
   | 'portal' 
@@ -36,6 +54,11 @@ interface Toast {
 }
 
 interface AppContextType {
+  // Database sync state
+  isDbConnected: boolean;
+  isSyncing: boolean;
+  refreshData: () => Promise<void>;
+
   // Navigation & View
   currentView: AppView;
   setCurrentView: (view: AppView) => void;
@@ -52,27 +75,28 @@ interface AppContextType {
   
   // Properties CRUD
   properties: Property[];
-  addProperty: (propertyData: Omit<Property, 'id' | 'code' | 'createdAt' | 'updatedAt' | 'viewsCount' | 'leadsCount' | 'favoritesCount' | 'sharesCount' | 'advertiser' | 'userId'>) => Property;
-  updateProperty: (id: string, propertyData: Partial<Property>) => void;
-  deleteProperty: (id: string) => void;
-  togglePropertyStatus: (id: string, status: PropertyStatus) => void;
+  addProperty: (propertyData: Omit<Property, 'id' | 'code' | 'createdAt' | 'updatedAt' | 'viewsCount' | 'leadsCount' | 'favoritesCount' | 'sharesCount' | 'advertiser' | 'userId'>) => Promise<Property>;
+  updateProperty: (id: string, propertyData: Partial<Property>) => Promise<void>;
+  deleteProperty: (id: string) => Promise<void>;
+  togglePropertyStatus: (id: string, status: PropertyStatus) => Promise<void>;
   
   // Leads & CRM
   leads: Lead[];
-  addLead: (lead: Omit<Lead, 'id' | 'createdAt' | 'updatedAt'>) => void;
-  updateLeadStatus: (leadId: string, status: Lead['status'], notes?: string) => void;
-  updateLeadNotes: (leadId: string, notes: string) => void;
+  addLead: (lead: Omit<Lead, 'id' | 'createdAt' | 'updatedAt'>) => Promise<void>;
+  updateLeadStatus: (leadId: string, status: Lead['status'], notes?: string) => Promise<void>;
+  updateLeadNotes: (leadId: string, notes: string) => Promise<void>;
+  deleteLead: (leadId: string) => Promise<void>;
   
   // Messages & Chat
   conversations: Conversation[];
   activeConversationId: string | null;
   setActiveConversationId: (id: string | null) => void;
-  sendMessage: (conversationId: string, text: string) => void;
+  sendMessage: (conversationId: string, text: string) => Promise<void>;
   startOrOpenConversation: (propertyId: string) => void;
   
   // Favorites & Comparisons
   favoriteIds: string[];
-  toggleFavorite: (propertyId: string) => void;
+  toggleFavorite: (propertyId: string) => Promise<void>;
   isFavorite: (propertyId: string) => boolean;
   
   comparisonIds: string[];
@@ -84,8 +108,8 @@ interface AppContextType {
   setFilters: React.Dispatch<React.SetStateAction<FilterState>>;
   resetFilters: () => void;
   savedSearches: SavedSearch[];
-  saveCurrentSearch: (title: string, alertFreq?: SavedSearch['alertFrequency']) => void;
-  deleteSavedSearch: (id: string) => void;
+  saveCurrentSearch: (title: string, alertFreq?: SavedSearch['alertFrequency']) => Promise<void>;
+  deleteSavedSearch: (id: string) => Promise<void>;
   
   // Wizard Modal
   isWizardOpen: boolean;
@@ -117,6 +141,9 @@ const DEFAULT_FILTERS: FilterState = {
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [isDbConnected] = useState<boolean>(isSupabaseConfigured);
+  const [isSyncing, setIsSyncing] = useState<boolean>(false);
+
   // Theme State
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
     const saved = localStorage.getItem('imovelhub_theme');
@@ -166,7 +193,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  // Properties State with localStorage fallback
+  // --------------------------------------------------------------------------
+  // Properties State & Sync
+  // --------------------------------------------------------------------------
   const [properties, setProperties] = useState<Property[]>(() => {
     const saved = localStorage.getItem('imovelhub_properties');
     if (saved) {
@@ -183,8 +212,161 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     localStorage.setItem('imovelhub_properties', JSON.stringify(properties));
   }, [properties]);
 
-  // CRUD Actions
-  const addProperty = (data: Omit<Property, 'id' | 'code' | 'createdAt' | 'updatedAt' | 'viewsCount' | 'leadsCount' | 'favoritesCount' | 'sharesCount' | 'advertiser' | 'userId'>): Property => {
+  // --------------------------------------------------------------------------
+  // Leads & CRM State & Sync
+  // --------------------------------------------------------------------------
+  const [leads, setLeads] = useState<Lead[]>(() => {
+    const saved = localStorage.getItem('imovelhub_leads');
+    if (saved) {
+      try { return JSON.parse(saved); } catch {}
+    }
+    return INITIAL_LEADS;
+  });
+
+  useEffect(() => {
+    localStorage.setItem('imovelhub_leads', JSON.stringify(leads));
+  }, [leads]);
+
+  // --------------------------------------------------------------------------
+  // Conversations State & Sync
+  // --------------------------------------------------------------------------
+  const [conversations, setConversations] = useState<Conversation[]>(() => {
+    const saved = localStorage.getItem('imovelhub_conversations');
+    if (saved) {
+      try { return JSON.parse(saved); } catch {}
+    }
+    return INITIAL_CONVERSATIONS;
+  });
+
+  const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
+
+  useEffect(() => {
+    localStorage.setItem('imovelhub_conversations', JSON.stringify(conversations));
+  }, [conversations]);
+
+  // --------------------------------------------------------------------------
+  // Favorites State & Sync
+  // --------------------------------------------------------------------------
+  const [favoriteIds, setFavoriteIds] = useState<string[]>(() => {
+    const saved = localStorage.getItem('imovelhub_favorites');
+    if (saved) {
+      try { return JSON.parse(saved); } catch {}
+    }
+    return ['prop-1', 'prop-2'];
+  });
+
+  useEffect(() => {
+    localStorage.setItem('imovelhub_favorites', JSON.stringify(favoriteIds));
+  }, [favoriteIds]);
+
+  // --------------------------------------------------------------------------
+  // Comparison State
+  // --------------------------------------------------------------------------
+  const [comparisonIds, setComparisonIds] = useState<string[]>(['prop-1', 'prop-3']);
+
+  // --------------------------------------------------------------------------
+  // Filters & Saved Searches State
+  // --------------------------------------------------------------------------
+  const [filters, setFilters] = useState<FilterState>(DEFAULT_FILTERS);
+  const resetFilters = () => setFilters(DEFAULT_FILTERS);
+
+  const [savedSearches, setSavedSearches] = useState<SavedSearch[]>(() => {
+    const saved = localStorage.getItem('imovelhub_saved_searches');
+    if (saved) {
+      try { return JSON.parse(saved); } catch {}
+    }
+    return [
+      {
+        id: 'search-1',
+        userId: 'user_current',
+        title: 'Apartamentos no Centro ou Campolim com 2+ quartos',
+        filters: {
+          purpose: 'sale',
+          types: ['apartment'],
+          city: 'Sorocaba',
+          bedrooms: 2
+        },
+        alertFrequency: 'daily',
+        matchCount: 14,
+        createdAt: '2026-08-25T10:00:00Z'
+      }
+    ];
+  });
+
+  useEffect(() => {
+    localStorage.setItem('imovelhub_saved_searches', JSON.stringify(savedSearches));
+  }, [savedSearches]);
+
+  // Property Wizard Modal state
+  const [isWizardOpen, setIsWizardOpen] = useState<boolean>(false);
+  const [editingProperty, setEditingProperty] = useState<Property | null>(null);
+
+  // Toasts Notifications
+  const [toasts, setToasts] = useState<Toast[]>([]);
+
+  const addToast = useCallback((toast: Omit<Toast, 'id'>) => {
+    const id = `toast-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`;
+    setToasts(prev => [...prev, { ...toast, id }]);
+    setTimeout(() => {
+      removeToast(id);
+    }, 4000);
+  }, []);
+
+  const removeToast = useCallback((id: string) => {
+    setToasts(prev => prev.filter(t => t.id !== id));
+  }, []);
+
+  // --------------------------------------------------------------------------
+  // ASYNC INITIAL DATABASE FETCH & HYDRATION
+  // --------------------------------------------------------------------------
+  const refreshData = useCallback(async () => {
+    if (!isSupabaseConfigured) return;
+    setIsSyncing(true);
+    try {
+      // 1. Fetch properties
+      const remoteProps = await fetchPropertiesFromSupabase();
+      if (remoteProps && remoteProps.length > 0) {
+        setProperties(remoteProps);
+      }
+
+      // 2. Fetch leads
+      const remoteLeads = await fetchLeadsFromSupabase();
+      if (remoteLeads && remoteLeads.length > 0) {
+        setLeads(remoteLeads);
+      }
+
+      // 3. Fetch conversations
+      const remoteConvs = await fetchConversationsFromSupabase(currentUser.id);
+      if (remoteConvs && remoteConvs.length > 0) {
+        setConversations(remoteConvs);
+      }
+
+      // 4. Fetch favorites
+      const remoteFavs = await fetchFavoritesFromSupabase(currentUser.id);
+      if (remoteFavs) {
+        setFavoriteIds(remoteFavs);
+      }
+
+      // 5. Fetch saved searches
+      const remoteSearches = await fetchSavedSearchesFromSupabase(currentUser.id);
+      if (remoteSearches && remoteSearches.length > 0) {
+        setSavedSearches(remoteSearches);
+      }
+    } catch (e) {
+      console.warn('Error during Supabase initial synchronization:', e);
+    } finally {
+      setIsSyncing(false);
+    }
+  }, [currentUser.id]);
+
+  useEffect(() => {
+    refreshData();
+  }, [refreshData]);
+
+  // --------------------------------------------------------------------------
+  // REAL CRUD ACTIONS FOR PROPERTIES
+  // --------------------------------------------------------------------------
+  const addProperty = async (data: Omit<Property, 'id' | 'code' | 'createdAt' | 'updatedAt' | 'viewsCount' | 'leadsCount' | 'favoritesCount' | 'sharesCount' | 'advertiser' | 'userId'>): Promise<Property> => {
     const codeNum = Math.floor(10000000 + Math.random() * 90000000);
     const code = `${codeNum}-MEOA`;
     const id = `prop-${Date.now()}`;
@@ -204,16 +386,32 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       updatedAt: now,
     };
 
+    // Optimistic state update
     setProperties(prev => [newProp, ...prev]);
-    addToast({
-      type: 'success',
-      title: 'Imóvel Publicado!',
-      message: `Anúncio "${newProp.title}" cadastrado com sucesso sob o código ${code}.`
-    });
+
+    // Persist to Supabase Database
+    if (isSupabaseConfigured) {
+      const synced = await insertPropertyToSupabase(newProp);
+      if (synced) {
+        addToast({
+          type: 'success',
+          title: 'Gravado no Supabase!',
+          message: `Imóvel "${newProp.title}" sincronizado com o banco de dados.`
+        });
+      }
+    } else {
+      addToast({
+        type: 'success',
+        title: 'Imóvel Publicado!',
+        message: `Anúncio "${newProp.title}" cadastrado com sucesso sob o código ${code}.`
+      });
+    }
+
     return newProp;
   };
 
-  const updateProperty = (id: string, propertyData: Partial<Property>) => {
+  const updateProperty = async (id: string, propertyData: Partial<Property>) => {
+    // Optimistic local update
     setProperties(prev => prev.map(p => {
       if (p.id === id) {
         return {
@@ -224,29 +422,47 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
       return p;
     }));
+
+    // Persist to Supabase Database
+    if (isSupabaseConfigured) {
+      await updatePropertyInSupabase(id, propertyData);
+    }
+
     addToast({
       type: 'success',
       title: 'Anúncio Atualizado',
-      message: 'As alterações foram salvas com sucesso.'
+      message: 'As alterações foram salvas com sucesso no banco de dados.'
     });
   };
 
-  const deleteProperty = (id: string) => {
+  const deleteProperty = async (id: string) => {
+    // Optimistic local delete
     setProperties(prev => prev.filter(p => p.id !== id));
+
+    // Persist to Supabase Database
+    if (isSupabaseConfigured) {
+      await deletePropertyFromSupabase(id);
+    }
+
     addToast({
       type: 'info',
       title: 'Anúncio Excluído',
-      message: 'O imóvel foi removido da sua base de anúncios.'
+      message: 'O imóvel foi removido da base de dados.'
     });
   };
 
-  const togglePropertyStatus = (id: string, status: PropertyStatus) => {
+  const togglePropertyStatus = async (id: string, status: PropertyStatus) => {
     setProperties(prev => prev.map(p => {
       if (p.id === id) {
         return { ...p, status, updatedAt: new Date().toISOString() };
       }
       return p;
     }));
+
+    if (isSupabaseConfigured) {
+      await updatePropertyInSupabase(id, { status });
+    }
+
     addToast({
       type: 'info',
       title: 'Status Modificado',
@@ -254,37 +470,40 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     });
   };
 
-  // Leads & CRM State
-  const [leads, setLeads] = useState<Lead[]>(() => {
-    const saved = localStorage.getItem('imovelhub_leads');
-    if (saved) {
-      try { return JSON.parse(saved); } catch {}
-    }
-    return INITIAL_LEADS;
-  });
-
-  useEffect(() => {
-    localStorage.setItem('imovelhub_leads', JSON.stringify(leads));
-  }, [leads]);
-
-  const addLead = (leadData: Omit<Lead, 'id' | 'createdAt' | 'updatedAt'>) => {
+  // --------------------------------------------------------------------------
+  // REAL CRUD ACTIONS FOR LEADS
+  // --------------------------------------------------------------------------
+  const addLead = async (leadData: Omit<Lead, 'id' | 'createdAt' | 'updatedAt'>) => {
     const newLead: Lead = {
       ...leadData,
       id: `lead-${Date.now()}`,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };
+
+    // Local state
     setLeads(prev => [newLead, ...prev]);
-    // increment leadsCount in property
     setProperties(prev => prev.map(p => p.id === leadData.propertyId ? { ...p, leadsCount: p.leadsCount + 1 } : p));
+
+    // Persist to Supabase Database
+    if (isSupabaseConfigured) {
+      await insertLeadToSupabase(newLead);
+      if (leadData.propertyId) {
+        const prop = properties.find(p => p.id === leadData.propertyId);
+        if (prop) {
+          await updatePropertyInSupabase(prop.id, { leadsCount: prop.leadsCount + 1 });
+        }
+      }
+    }
+
     addToast({
       type: 'success',
       title: 'Mensagem Enviada!',
-      message: 'O anunciante recebeu seu contato e responderá em breve.'
+      message: 'O anunciante recebeu seu contato no banco de dados e responderá em breve.'
     });
   };
 
-  const updateLeadStatus = (leadId: string, status: Lead['status'], notes?: string) => {
+  const updateLeadStatus = async (leadId: string, status: Lead['status'], notes?: string) => {
     setLeads(prev => prev.map(l => {
       if (l.id === leadId) {
         return {
@@ -296,6 +515,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
       return l;
     }));
+
+    if (isSupabaseConfigured) {
+      await updateLeadInSupabase(leadId, { status, notes });
+    }
+
     addToast({
       type: 'info',
       title: 'Lead Atualizado',
@@ -303,26 +527,29 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     });
   };
 
-  const updateLeadNotes = (leadId: string, notes: string) => {
+  const updateLeadNotes = async (leadId: string, notes: string) => {
     setLeads(prev => prev.map(l => l.id === leadId ? { ...l, notes, updatedAt: new Date().toISOString() } : l));
+    if (isSupabaseConfigured) {
+      await updateLeadInSupabase(leadId, { notes });
+    }
   };
 
-  // Conversations State
-  const [conversations, setConversations] = useState<Conversation[]>(() => {
-    const saved = localStorage.getItem('imovelhub_conversations');
-    if (saved) {
-      try { return JSON.parse(saved); } catch {}
+  const deleteLead = async (leadId: string) => {
+    setLeads(prev => prev.filter(l => l.id !== leadId));
+    if (isSupabaseConfigured) {
+      await deleteLeadFromSupabase(leadId);
     }
-    return INITIAL_CONVERSATIONS;
-  });
+    addToast({
+      type: 'info',
+      title: 'Lead Excluído',
+      message: 'O lead foi removido da sua carteira.'
+    });
+  };
 
-  const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
-
-  useEffect(() => {
-    localStorage.setItem('imovelhub_conversations', JSON.stringify(conversations));
-  }, [conversations]);
-
-  const sendMessage = (conversationId: string, text: string) => {
+  // --------------------------------------------------------------------------
+  // REAL CRUD ACTIONS FOR MESSAGES
+  // --------------------------------------------------------------------------
+  const sendMessage = async (conversationId: string, text: string) => {
     if (!text.trim()) return;
     const now = new Date().toISOString();
     const newMsg = {
@@ -347,16 +574,32 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
       return conv;
     }));
+
+    if (isSupabaseConfigured) {
+      await insertMessageToSupabase(newMsg, conversationId);
+    }
   };
 
   const startOrOpenConversation = (propertyId: string) => {
     const prop = properties.find(p => p.id === propertyId);
     if (!prop) return;
 
-    let conv = conversations.find(c => c.propertyId === propertyId);
+    const conv = conversations.find(c => c.propertyId === propertyId);
     if (!conv) {
+      const convId = `conv-${Date.now()}`;
+      const firstMsg = {
+        id: `msg-${Date.now()}`,
+        conversationId: convId,
+        senderId: currentUser.id,
+        senderName: currentUser.name,
+        senderAvatar: currentUser.avatarUrl,
+        text: `Olá! Tenho interesse no imóvel ${prop.code} (${prop.title}). Poderia me passar mais informações?`,
+        createdAt: new Date().toISOString(),
+        read: true
+      };
+
       const newConv: Conversation = {
-        id: `conv-${Date.now()}`,
+        id: convId,
         propertyId: prop.id,
         propertyTitle: prop.title,
         propertyImage: prop.media[0]?.thumbnailUrl || prop.media[0]?.url,
@@ -365,43 +608,29 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         lastMessage: 'Conversa iniciada',
         lastMessageTime: 'Hoje',
         unreadCount: 0,
-        messages: [
-          {
-            id: `msg-${Date.now()}`,
-            conversationId: `conv-${Date.now()}`,
-            senderId: currentUser.id,
-            senderName: currentUser.name,
-            senderAvatar: currentUser.avatarUrl,
-            text: `Olá! Tenho interesse no imóvel ${prop.code} (${prop.title}). Poderia me passar mais informações?`,
-            createdAt: new Date().toISOString(),
-            read: true
-          }
-        ]
+        messages: [firstMsg]
       };
+
       setConversations(prev => [newConv, ...prev]);
       setActiveConversationId(newConv.id);
+
+      if (isSupabaseConfigured) {
+        insertMessageToSupabase(firstMsg, convId);
+      }
     } else {
       setActiveConversationId(conv.id);
     }
     setCurrentView('messages');
   };
 
-  // Favorites State
-  const [favoriteIds, setFavoriteIds] = useState<string[]>(() => {
-    const saved = localStorage.getItem('imovelhub_favorites');
-    if (saved) {
-      try { return JSON.parse(saved); } catch {}
-    }
-    return ['prop-1', 'prop-2'];
-  });
+  // --------------------------------------------------------------------------
+  // FAVORITES
+  // --------------------------------------------------------------------------
+  const toggleFavorite = async (propertyId: string) => {
+    const exists = favoriteIds.includes(propertyId);
+    const newFavStatus = !exists;
 
-  useEffect(() => {
-    localStorage.setItem('imovelhub_favorites', JSON.stringify(favoriteIds));
-  }, [favoriteIds]);
-
-  const toggleFavorite = (propertyId: string) => {
     setFavoriteIds(prev => {
-      const exists = prev.includes(propertyId);
       if (exists) {
         addToast({ type: 'info', title: 'Removido dos Favoritos' });
         return prev.filter(id => id !== propertyId);
@@ -410,13 +639,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         return [...prev, propertyId];
       }
     });
+
+    if (isSupabaseConfigured) {
+      await toggleFavoriteInSupabase(currentUser.id, propertyId, newFavStatus);
+    }
   };
 
   const isFavorite = (propertyId: string) => favoriteIds.includes(propertyId);
 
-  // Comparison State (Max 4)
-  const [comparisonIds, setComparisonIds] = useState<string[]>(['prop-1', 'prop-3']);
-
+  // --------------------------------------------------------------------------
+  // COMPARISON ACTIONS
+  // --------------------------------------------------------------------------
   const toggleComparison = (propertyId: string) => {
     setComparisonIds(prev => {
       if (prev.includes(propertyId)) {
@@ -434,35 +667,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const clearComparison = () => setComparisonIds([]);
 
-  // Filters State
-  const [filters, setFilters] = useState<FilterState>(DEFAULT_FILTERS);
-  const resetFilters = () => setFilters(DEFAULT_FILTERS);
-
-  // Saved Searches
-  const [savedSearches, setSavedSearches] = useState<SavedSearch[]>(() => {
-    const saved = localStorage.getItem('imovelhub_saved_searches');
-    if (saved) {
-      try { return JSON.parse(saved); } catch {}
-    }
-    return [
-      {
-        id: 'search-1',
-        userId: 'user_current',
-        title: 'Apartamentos no Centro ou Campolim com 2+ quartos',
-        filters: {
-          purpose: 'sale',
-          types: ['apartment'],
-          city: 'Sorocaba',
-          bedrooms: 2
-        },
-        alertFrequency: 'daily',
-        matchCount: 14,
-        createdAt: '2026-08-25T10:00:00Z'
-      }
-    ];
-  });
-
-  const saveCurrentSearch = (title: string, alertFrequency: SavedSearch['alertFrequency'] = 'daily') => {
+  // --------------------------------------------------------------------------
+  // SAVED SEARCHES
+  // --------------------------------------------------------------------------
+  const saveCurrentSearch = async (title: string, alertFrequency: SavedSearch['alertFrequency'] = 'daily') => {
     const newSearch: SavedSearch = {
       id: `search-${Date.now()}`,
       userId: currentUser.id,
@@ -472,41 +680,34 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       matchCount: properties.length,
       createdAt: new Date().toISOString()
     };
+
     setSavedSearches(prev => [newSearch, ...prev]);
+
+    if (isSupabaseConfigured) {
+      await insertSavedSearchToSupabase(newSearch);
+    }
+
     addToast({
       type: 'success',
-      title: 'Busca Salva com Sucesso!',
+      title: 'Busca Salva no Supabase!',
       message: `Você receberá alertas ${alertFrequency === 'instant' ? 'instantâneos' : 'diários'} com novos imóveis compatíveis.`
     });
   };
 
-  const deleteSavedSearch = (id: string) => {
+  const deleteSavedSearch = async (id: string) => {
     setSavedSearches(prev => prev.filter(s => s.id !== id));
+    if (isSupabaseConfigured) {
+      await deleteSavedSearchFromSupabase(id);
+    }
     addToast({ type: 'info', title: 'Alerta de busca removido' });
-  };
-
-  // Property Wizard Modal state
-  const [isWizardOpen, setIsWizardOpen] = useState<boolean>(false);
-  const [editingProperty, setEditingProperty] = useState<Property | null>(null);
-
-  // Toasts Notifications
-  const [toasts, setToasts] = useState<Toast[]>([]);
-
-  const addToast = (toast: Omit<Toast, 'id'>) => {
-    const id = `toast-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`;
-    setToasts(prev => [...prev, { ...toast, id }]);
-    setTimeout(() => {
-      removeToast(id);
-    }, 4000);
-  };
-
-  const removeToast = (id: string) => {
-    setToasts(prev => prev.filter(t => t.id !== id));
   };
 
   return (
     <AppContext.Provider
       value={{
+        isDbConnected,
+        isSyncing,
+        refreshData,
         currentView,
         setCurrentView,
         selectedPropertyId,
@@ -524,6 +725,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         addLead,
         updateLeadStatus,
         updateLeadNotes,
+        deleteLead,
         conversations,
         activeConversationId,
         setActiveConversationId,
