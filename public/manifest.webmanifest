@@ -1,0 +1,43 @@
+{
+  "name": "ImovelHub - Marketplace & CRM Imobiliário",
+  "short_name": "ImovelHub",
+  "description": "Plataforma profissional de classificados e gestão imobiliária com busca em mapa, CRM de corretores e anúncios.",
+  "start_url": "/",
+  "id": "/",
+  "display": "standalone",
+  "background_color": "#020617",
+  "theme_color": "#e11d48",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "192x192 512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["business", "productivity", "shopping", "utilities"],
+  "shortcuts": [
+    {
+      "name": "Buscar Imóveis",
+      "short_name": "Buscar",
+      "description": "Explorar catálogo de casas, apartamentos e lançamentos",
+      "url": "/?view=search",
+      "icons": [{ "src": "/icon.svg", "sizes": "192x192" }]
+    },
+    {
+      "name": "Meus Favoritos",
+      "short_name": "Favoritos",
+      "description": "Acessar imóveis salvos",
+      "url": "/?view=favorites",
+      "icons": [{ "src": "/icon.svg", "sizes": "192x192" }]
+    },
+    {
+      "name": "CRM Leads",
+      "short_name": "Leads",
+      "description": "Painel de atendimento e pipeline de clientes",
+      "url": "/?view=crm_leads",
+      "icons": [{ "src": "/icon.svg", "sizes": "192x192" }]
+    }
+  ]
+}

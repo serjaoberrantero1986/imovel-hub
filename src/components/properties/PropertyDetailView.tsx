@@ -32,6 +32,7 @@ import { formatCurrency, formatArea, formatDateTime } from '../../lib/utils';
 import { parseYouTubeUrl } from '../../lib/imageProcessing';
 import { PropertyCard } from './PropertyCard';
 import { verifyHoneypot, sanitizeHtml, auditService } from '../../lib/security';
+import { SwipeableImageGallery } from './SwipeableImageGallery';
 
 export const PropertyDetailView: React.FC = () => {
   const { 
@@ -258,52 +259,11 @@ export const PropertyDetailView: React.FC = () => {
           </div>
         </div>
 
-        {/* Main Photo Gallery Grid */}
-        <div className="relative grid grid-cols-1 md:grid-cols-4 gap-2.5 rounded-3xl overflow-hidden shadow-xl bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
-          
-          {/* Main Large Photo */}
-          <div 
-            onClick={() => { setActivePhotoIdx(0); setGalleryModalOpen(true); }}
-            className="md:col-span-2 aspect-[4/3] md:aspect-auto md:h-[460px] relative overflow-hidden cursor-pointer group"
-          >
-            <img
-              src={images[0]?.url}
-              alt={images[0]?.caption || property.title}
-              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-            />
-            <div className="absolute inset-0 bg-black/10 group-hover:bg-transparent transition-colors" />
-          </div>
-
-          {/* Sub Photos Grid */}
-          <div className="hidden md:grid md:col-span-2 grid-cols-2 gap-2.5 h-[460px]">
-            {images.slice(1, 5).map((img, idx) => (
-              <div
-                key={img.id || idx}
-                onClick={() => { setActivePhotoIdx(idx + 1); setGalleryModalOpen(true); }}
-                className="relative overflow-hidden cursor-pointer group rounded-xl"
-              >
-                <img
-                  src={img.url}
-                  alt={img.caption || `Foto ${idx + 2}`}
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                />
-                <div className="absolute inset-0 bg-black/10 group-hover:bg-transparent transition-colors" />
-              </div>
-            ))}
-          </div>
-
-          {/* Trigger to open all photos */}
-          <button
-            onClick={() => { setActivePhotoIdx(0); setGalleryModalOpen(true); }}
-            className="absolute bottom-4 right-4 px-4 py-2.5 rounded-2xl bg-white/95 dark:bg-slate-900/95 backdrop-blur-md shadow-2xl border border-slate-200 dark:border-slate-700 text-xs font-extrabold text-slate-900 dark:text-white flex items-center gap-2 hover:scale-105 active:scale-95 transition-all"
-          >
-            <Eye className="w-4 h-4 text-rose-500" />
-            <span>Ver todas as {images.length} fotos</span>
-          </button>
-        </div>
+        {/* Touch & Desktop Swipeable Photo Gallery */}
+        <SwipeableImageGallery media={images} title={property.title} />
 
         {/* Content Layout: Left Details + Right Sticky Contact Sidebar */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start pb-20 lg:pb-0">
           
           {/* LEFT COLUMN (8 cols): Specs, Description, Amenities, Mortgage */}
           <div className="lg:col-span-8 space-y-8">
@@ -780,6 +740,36 @@ export const PropertyDetailView: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Sticky Mobile Contact Actions Bar (Above Mobile Nav) */}
+      <div className="lg:hidden fixed bottom-14 left-0 right-0 z-30 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border-t border-slate-200 dark:border-slate-800 px-4 py-2.5 shadow-[0_-4px_20px_rgba(0,0,0,0.1)] flex items-center justify-between gap-3 safe-bottom-fixed">
+        <div>
+          <span className="text-[10px] uppercase font-bold text-slate-400">Valor</span>
+          <div className="text-base font-black text-slate-900 dark:text-white font-['Outfit'] leading-tight">
+            {formatCurrency(property.price)}
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <a
+            href={`https://wa.me/5515999999999?text=Ol%C3%A1,%20gostaria%20de%20informa%C3%A7%C3%B5es%20sobre%20o%20im%C3%B3vel%20c%C3%B3digo%20${property.code}:%20${encodeURIComponent(property.title)}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="min-h-[44px] px-3 py-2 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center gap-1.5 shadow-md active:scale-95 transition-all"
+          >
+            <MessageSquare className="w-4 h-4" />
+            <span>WhatsApp</span>
+          </a>
+
+          <button
+            onClick={() => setScheduleModalOpen(true)}
+            className="min-h-[44px] px-4 py-2 rounded-2xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold flex items-center gap-1.5 shadow-md shadow-rose-600/30 active:scale-95 transition-all"
+          >
+            <Calendar className="w-4 h-4" />
+            <span>Agendar Visita</span>
+          </button>
+        </div>
+      </div>
 
     </div>
   );

@@ -5,6 +5,8 @@ import { Footer } from './components/layout/Footer';
 import { MobileNav } from './components/layout/MobileNav';
 import { ToastContainer } from './components/ui/ToastContainer';
 import { PropertyWizardModal } from './components/properties/PropertyWizardModal';
+import { PwaInstallPrompt } from './components/layout/PwaInstallPrompt';
+import { OfflineBanner } from './components/layout/OfflineBanner';
 
 // Views
 import { PortalHomeView } from './views/PortalHomeView';
@@ -23,7 +25,10 @@ const MainContent: React.FC = () => {
   const { currentView } = useApp();
 
   return (
-    <div className="flex flex-col min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 transition-colors duration-200 pb-16 lg:pb-0">
+    <div className="flex flex-col min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 transition-colors duration-200 pb-16 lg:pb-0 overflow-x-hidden">
+      {/* Offline Status Listener */}
+      <OfflineBanner />
+
       <Navbar />
 
       <main className="flex-1">
@@ -42,6 +47,7 @@ const MainContent: React.FC = () => {
 
       <Footer />
       <MobileNav />
+      <PwaInstallPrompt />
       <PropertyWizardModal />
       <ToastContainer />
     </div>

@@ -1,83 +1,79 @@
 import React from 'react';
-import { cn } from '../../lib/utils';
 
-export interface SkeletonProps extends React.HTMLAttributes<HTMLDivElement> {
-  variant?: 'text' | 'rectangular' | 'circular';
-  width?: string | number;
-  height?: string | number;
+interface SkeletonProps {
+  className?: string;
+  variant?: 'text' | 'rectangular' | 'circular' | 'card';
 }
 
-export const Skeleton: React.FC<SkeletonProps> = ({
-  className,
-  variant = 'rectangular',
-  width,
-  height,
-  style,
-  ...props
+export const Skeleton: React.FC<SkeletonProps> = ({ 
+  className = '', 
+  variant = 'rectangular' 
 }) => {
-  const variantClasses = {
-    text: 'h-4 w-full rounded-md',
-    rectangular: 'rounded-xl w-full h-full',
-    circular: 'rounded-full',
-  };
+  const baseClasses = 'animate-shimmer rounded-xl';
+  
+  if (variant === 'circular') {
+    return <div className={`animate-shimmer rounded-full ${className}`} />;
+  }
 
+  if (variant === 'text') {
+    return <div className={`animate-shimmer rounded-md h-4 ${className}`} />;
+  }
+
+  return <div className={`${baseClasses} ${className}`} />;
+};
+
+export const CardSkeleton: React.FC<{ className?: string }> = ({ className = '' }) => {
   return (
-    <div
-      className={cn(
-        'animate-shimmer bg-slate-200 dark:bg-slate-800',
-        variantClasses[variant],
-        className
-      )}
-      style={{
-        width,
-        height,
-        ...style,
-      }}
-      {...props}
-    />
+    <div className={`p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-4 shadow-sm ${className}`}>
+      <Skeleton variant="text" className="w-1/3 h-5" />
+      <Skeleton className="h-28 w-full" />
+      <div className="flex gap-2">
+        <Skeleton className="h-8 w-20" />
+        <Skeleton className="h-8 w-20" />
+      </div>
+    </div>
   );
 };
 
-export const PropertyCardSkeleton: React.FC = () => (
-  <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden shadow-xs">
-    <div className="relative aspect-16/10 w-full animate-shimmer bg-slate-200 dark:bg-slate-800" />
-    <div className="p-5 space-y-3">
-      <div className="flex items-center justify-between">
-        <Skeleton variant="text" className="w-24 h-4" />
-        <Skeleton variant="text" className="w-16 h-4" />
+export const TableSkeleton: React.FC<{ rows?: number; cols?: number }> = ({ rows = 5, cols = 4 }) => {
+  return (
+    <div className="w-full space-y-3 p-4 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm">
+      <div className="grid grid-cols-4 gap-4 pb-3 border-b border-slate-100 dark:border-slate-800">
+        {Array.from({ length: cols }).map((_, i) => (
+          <Skeleton key={i} variant="text" className="h-4 w-3/4" />
+        ))}
       </div>
-      <Skeleton variant="text" className="w-3/4 h-6" />
-      <Skeleton variant="text" className="w-1/2 h-4" />
-      <div className="grid grid-cols-4 gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
-        <Skeleton variant="text" className="h-4" />
-        <Skeleton variant="text" className="h-4" />
-        <Skeleton variant="text" className="h-4" />
-        <Skeleton variant="text" className="h-4" />
-      </div>
-      <div className="pt-2 flex items-center justify-between">
-        <Skeleton variant="text" className="w-28 h-7" />
-        <Skeleton variant="rectangular" className="w-20 h-8 rounded-lg" />
-      </div>
-    </div>
-  </div>
-);
-
-export const TableSkeleton: React.FC<{ rows?: number }> = ({ rows = 5 }) => (
-  <div className="space-y-3 p-4">
-    <div className="flex justify-between items-center pb-2 border-b border-slate-200 dark:border-slate-800">
-      <Skeleton variant="text" className="w-32 h-5" />
-      <Skeleton variant="rectangular" className="w-24 h-8 rounded-lg" />
-    </div>
-    {Array.from({ length: rows }).map((_, i) => (
-      <div key={i} className="flex items-center gap-4 py-2">
-        <Skeleton variant="rectangular" className="w-12 h-12 rounded-lg shrink-0" />
-        <div className="flex-1 space-y-2">
-          <Skeleton variant="text" className="w-2/3 h-4" />
-          <Skeleton variant="text" className="w-1/3 h-3" />
+      {Array.from({ length: rows }).map((_, r) => (
+        <div key={r} className="grid grid-cols-4 gap-4 py-2">
+          {Array.from({ length: cols }).map((_, c) => (
+            <Skeleton key={c} variant="text" className="h-4 w-5/6" />
+          ))}
         </div>
-        <Skeleton variant="text" className="w-20 h-4" />
-        <Skeleton variant="rectangular" className="w-16 h-6 rounded-md" />
+      ))}
+    </div>
+  );
+};
+
+export const PropertyCardSkeleton: React.FC = () => {
+  return (
+    <div className="bg-white dark:bg-slate-900 rounded-3xl overflow-hidden border border-slate-200/80 dark:border-slate-800 shadow-sm p-0 flex flex-col space-y-3">
+      <Skeleton className="aspect-[16/10] w-full rounded-b-none" />
+      <div className="p-4 sm:p-5 space-y-3 flex-1 flex flex-col justify-between">
+        <div className="space-y-2">
+          <Skeleton variant="text" className="w-1/3 h-3" />
+          <Skeleton variant="text" className="w-4/5 h-5" />
+        </div>
+        <div className="grid grid-cols-4 gap-2 py-2 border-y border-slate-100 dark:border-slate-800">
+          <Skeleton className="h-4" />
+          <Skeleton className="h-4" />
+          <Skeleton className="h-4" />
+          <Skeleton className="h-4" />
+        </div>
+        <div className="flex items-center justify-between pt-1">
+          <Skeleton className="w-24 h-6" />
+          <Skeleton className="w-20 h-8 rounded-xl" />
+        </div>
       </div>
-    ))}
-  </div>
-);
+    </div>
+  );
+};

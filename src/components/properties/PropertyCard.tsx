@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, TouchEvent } from 'react';
 import { 
   Heart, 
   Scale, 
@@ -37,6 +37,9 @@ export const PropertyCard: React.FC<PropertyCardProps> = ({
   } = useApp();
 
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [touchStart, setTouchStart] = useState<number | null>(null);
+  const [touchEnd, setTouchEnd] = useState<number | null>(null);
+
   const favorited = isFavorite(property.id);
   const inComparison = comparisonIds.includes(property.id);
 
@@ -44,14 +47,35 @@ export const PropertyCard: React.FC<PropertyCardProps> = ({
     ? property.media 
     : [{ id: 'default', url: 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?auto=format&fit=crop&w=800&q=80', isCover: true, order: 1, mediaType: 'image' as const }];
 
-  const nextImage = (e: React.MouseEvent) => {
-    e.stopPropagation();
+  const nextImage = (e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
     setCurrentImageIndex((prev) => (prev + 1) % images.length);
   };
 
-  const prevImage = (e: React.MouseEvent) => {
-    e.stopPropagation();
+  const prevImage = (e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
     setCurrentImageIndex((prev) => (prev - 1 + images.length) % images.length);
+  };
+
+  const handleTouchStart = (e: TouchEvent) => {
+    setTouchEnd(null);
+    setTouchStart(e.targetTouches[0].clientX);
+  };
+
+  const handleTouchMove = (e: TouchEvent) => {
+    setTouchEnd(e.targetTouches[0].clientX);
+  };
+
+  const handleTouchEnd = (e: TouchEvent) => {
+    if (!touchStart || !touchEnd) return;
+    const distance = touchStart - touchEnd;
+    if (distance > 40) {
+      e.stopPropagation();
+      nextImage();
+    } else if (distance < -40) {
+      e.stopPropagation();
+      prevImage();
+    }
   };
 
   const purposeLabels: Record<string, { label: string; bg: string; text: string }> = {
@@ -69,14 +93,19 @@ export const PropertyCard: React.FC<PropertyCardProps> = ({
       onMouseEnter={() => onHover && onHover(property.id)}
       onMouseLeave={() => onHover && onHover(null)}
       onClick={() => openPropertyDetail(property.id)}
-      className="group relative bg-white dark:bg-slate-900 rounded-2xl overflow-hidden border border-slate-200/80 dark:border-slate-800 shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col cursor-pointer transform hover:-translate-y-1"
+      className="group relative bg-white dark:bg-slate-900 rounded-3xl overflow-hidden border border-slate-200/80 dark:border-slate-800 shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col cursor-pointer transform hover:-translate-y-1 active:scale-[0.99]"
     >
-      {/* Image Media Container */}
-      <div className="relative aspect-[16/10] overflow-hidden bg-slate-100 dark:bg-slate-800">
+      {/* Image Media Container with Touch Gestures */}
+      <div 
+        className="relative aspect-[16/10] overflow-hidden bg-slate-100 dark:bg-slate-800 select-none touch-pan-y"
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+      >
         <img
           src={images[currentImageIndex]?.url || images[0]?.url}
           alt={property.title}
-          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 pointer-events-none"
           loading="lazy"
         />
 
@@ -102,7 +131,7 @@ export const PropertyCard: React.FC<PropertyCardProps> = ({
             )}
           </div>
 
-          {/* Quick Action Buttons (Favorite & Compare) */}
+          {/* Quick Action Buttons (Favorite & Compare) - 44px hit targets */}
           <div className="flex items-center gap-1.5 pointer-events-auto">
             <button
               id={`btn-compare-${property.id}`}
@@ -111,10 +140,11 @@ export const PropertyCard: React.FC<PropertyCardProps> = ({
                 toggleComparison(property.id);
               }}
               title={inComparison ? 'Remover da comparação' : 'Comparar imóvel'}
-              className={`p-2 rounded-xl backdrop-blur-md transition-all ${
+              aria-label={inComparison ? 'Remover da comparação' : 'Comparar imóvel'}
+              className={`w-10 h-10 rounded-2xl backdrop-blur-md flex items-center justify-center transition-all active:scale-90 ${
                 inComparison
                   ? 'bg-indigo-600 text-white shadow-md'
-                  : 'bg-black/40 text-white hover:bg-black/60'
+                  : 'bg-black/50 text-white hover:bg-black/70'
               }`}
             >
               <Scale className="w-4 h-4" />
@@ -126,10 +156,11 @@ export const PropertyCard: React.FC<PropertyCardProps> = ({
                 toggleFavorite(property.id);
               }}
               title={favorited ? 'Remover dos favoritos' : 'Favoritar'}
-              className={`p-2 rounded-xl backdrop-blur-md transition-all ${
+              aria-label={favorited ? 'Remover dos favoritos' : 'Favoritar'}
+              className={`w-10 h-10 rounded-2xl backdrop-blur-md flex items-center justify-center transition-all active:scale-90 ${
                 favorited
                   ? 'bg-rose-600 text-white shadow-md'
-                  : 'bg-black/40 text-white hover:bg-black/60'
+                  : 'bg-black/50 text-white hover:bg-black/70'
               }`}
             >
               <Heart className={`w-4 h-4 ${favorited ? 'fill-current' : ''}`} />
@@ -137,31 +168,31 @@ export const PropertyCard: React.FC<PropertyCardProps> = ({
           </div>
         </div>
 
-        {/* Image Slider Controls (if multiple images) */}
+        {/* Desktop Carousel Arrows */}
         {images.length > 1 && (
           <>
             <button
               onClick={prevImage}
               aria-label="Imagem anterior"
-              className="absolute left-2 top-1/2 -translate-y-1/2 p-1.5 rounded-full bg-black/40 text-white hover:bg-black/70 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity"
+              className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/50 text-white hover:bg-black/80 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity hidden sm:flex items-center justify-center cursor-pointer"
             >
               <ChevronLeft className="w-4 h-4" />
             </button>
             <button
               onClick={nextImage}
               aria-label="Próxima imagem"
-              className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-full bg-black/40 text-white hover:bg-black/70 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity"
+              className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/50 text-white hover:bg-black/80 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity hidden sm:flex items-center justify-center cursor-pointer"
             >
               <ChevronRight className="w-4 h-4" />
             </button>
 
             {/* Pagination dots */}
             <div className="absolute bottom-2.5 left-1/2 -translate-x-1/2 flex items-center gap-1">
-              {images.slice(0, 5).map((_, idx) => (
+              {images.slice(0, 6).map((_, idx) => (
                 <span
                   key={idx}
-                  className={`w-1.5 h-1.5 rounded-full transition-all ${
-                    idx === currentImageIndex ? 'w-4 bg-white' : 'bg-white/50'
+                  className={`h-1.5 rounded-full transition-all duration-300 ${
+                    idx === currentImageIndex ? 'w-4 bg-rose-500' : 'w-1.5 bg-white/60'
                   }`}
                 />
               ))}
@@ -171,10 +202,10 @@ export const PropertyCard: React.FC<PropertyCardProps> = ({
 
         {/* Code & Views Counter on bottom image */}
         <div className="absolute bottom-2 left-3 right-3 flex items-center justify-between text-[11px] text-white/90 font-medium pointer-events-none">
-          <span className="bg-black/50 px-2 py-0.5 rounded backdrop-blur-sm">
+          <span className="bg-black/60 px-2 py-0.5 rounded-md backdrop-blur-sm text-[10px] font-mono font-bold">
             Cód: {property.code}
           </span>
-          <span className="bg-black/50 px-2 py-0.5 rounded backdrop-blur-sm flex items-center gap-1">
+          <span className="bg-black/60 px-2 py-0.5 rounded-md backdrop-blur-sm flex items-center gap-1 text-[10px]">
             <Eye className="w-3 h-3" />
             {property.viewsCount}
           </span>
@@ -198,38 +229,38 @@ export const PropertyCard: React.FC<PropertyCardProps> = ({
 
         {/* Specs Grid */}
         <div className="grid grid-cols-4 gap-2 py-2.5 border-y border-slate-100 dark:border-slate-800 text-xs text-slate-700 dark:text-slate-300">
-          <div className="flex items-center gap-1.5" title={`${property.bedrooms} Dormitórios`}>
-            <BedDouble className="w-4 h-4 text-slate-400 shrink-0" />
+          <div className="flex items-center gap-1" title={`${property.bedrooms} Dormitórios`}>
+            <BedDouble className="w-3.5 h-3.5 text-slate-400 shrink-0" />
             <span className="font-semibold">{property.bedrooms} <span className="text-[10px] text-slate-400 font-normal hidden sm:inline">qts</span></span>
           </div>
 
-          <div className="flex items-center gap-1.5" title={`${property.bathrooms} Banheiros`}>
-            <Bath className="w-4 h-4 text-slate-400 shrink-0" />
+          <div className="flex items-center gap-1" title={`${property.bathrooms} Banheiros`}>
+            <Bath className="w-3.5 h-3.5 text-slate-400 shrink-0" />
             <span className="font-semibold">{property.bathrooms} <span className="text-[10px] text-slate-400 font-normal hidden sm:inline">ban</span></span>
           </div>
 
-          <div className="flex items-center gap-1.5" title={`${property.parkingSpots} Vagas`}>
-            <Car className="w-4 h-4 text-slate-400 shrink-0" />
+          <div className="flex items-center gap-1" title={`${property.parkingSpots} Vagas`}>
+            <Car className="w-3.5 h-3.5 text-slate-400 shrink-0" />
             <span className="font-semibold">{property.parkingSpots} <span className="text-[10px] text-slate-400 font-normal hidden sm:inline">vgs</span></span>
           </div>
 
-          <div className="flex items-center gap-1.5" title={`${property.usefulArea || property.totalArea} m² área útil`}>
-            <Maximize2 className="w-4 h-4 text-slate-400 shrink-0" />
-            <span className="font-semibold">{property.usefulArea || property.totalArea} <span className="text-[10px] text-slate-400 font-normal">m²</span></span>
+          <div className="flex items-center gap-1" title={`${property.usefulArea || property.totalArea} m² área útil`}>
+            <Maximize2 className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+            <span className="font-semibold truncate">{property.usefulArea || property.totalArea} <span className="text-[10px] text-slate-400 font-normal">m²</span></span>
           </div>
         </div>
 
         {/* Pricing & CTA */}
         <div className="flex items-center justify-between pt-1">
           <div>
-            <div className="text-xl font-extrabold text-slate-900 dark:text-white tracking-tight">
+            <div className="text-lg sm:text-xl font-extrabold text-slate-900 dark:text-white tracking-tight">
               {formatCurrency(property.price)}
               {property.purpose === 'rent' && (
                 <span className="text-xs font-normal text-slate-500 dark:text-slate-400">/mês</span>
               )}
             </div>
             {property.condoFee && property.condoFee > 0 && (
-              <div className="text-[11px] text-slate-500 dark:text-slate-400">
+              <div className="text-[10px] sm:text-[11px] text-slate-500 dark:text-slate-400">
                 Condomínio: {formatCurrency(property.condoFee)}
               </div>
             )}
@@ -241,7 +272,7 @@ export const PropertyCard: React.FC<PropertyCardProps> = ({
               e.stopPropagation();
               openPropertyDetail(property.id);
             }}
-            className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-rose-600 dark:bg-slate-800 dark:hover:bg-rose-600 text-slate-800 hover:text-white dark:text-slate-200 text-xs font-bold transition-all"
+            className="min-h-[40px] px-3.5 py-1.5 rounded-xl bg-slate-100 hover:bg-rose-600 dark:bg-slate-800 dark:hover:bg-rose-600 text-slate-800 hover:text-white dark:text-slate-200 text-xs font-bold transition-all active:scale-95 cursor-pointer"
           >
             Ver Detalhes
           </button>

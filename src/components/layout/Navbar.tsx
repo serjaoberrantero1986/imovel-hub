@@ -16,7 +16,8 @@ import {
   ArrowRight,
   Database,
   RefreshCw,
-  ShieldCheck
+  ShieldCheck,
+  Download
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { UserMenu } from './UserMenu';
@@ -52,6 +53,11 @@ export const Navbar: React.FC = () => {
   const handleStartNewListing = () => {
     setEditingProperty(null);
     setIsWizardOpen(true);
+  };
+
+  const handleTriggerInstall = () => {
+    window.dispatchEvent(new CustomEvent('trigger-pwa-install'));
+    setMobileMenuOpen(false);
   };
 
   const handleNavigate = (view: any, purpose?: any) => {
@@ -92,7 +98,7 @@ export const Navbar: React.FC = () => {
               <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-amber-600 via-rose-600 to-indigo-600 flex items-center justify-center text-white shadow-md shadow-rose-500/20 group-hover:scale-105 transition-transform duration-200">
                 <Building2 className="w-6 h-6 stroke-[2.2]" />
               </div>
-              <div>
+              <div className="hidden sm:block">
                 <div className="flex items-center gap-1.5">
                   <span className="font-extrabold text-xl tracking-tight text-slate-900 dark:text-white font-['Outfit']">
                     Imovel<span className="text-rose-600 dark:text-rose-500">Hub</span>
@@ -101,7 +107,7 @@ export const Navbar: React.FC = () => {
                     Pro
                   </span>
                 </div>
-                <span className="text-[11px] text-slate-500 dark:text-slate-400 font-medium hidden sm:block">
+                <span className="text-[11px] text-slate-500 dark:text-slate-400 font-medium hidden md:block">
                   Classificados & Gestão Imobiliária
                 </span>
               </div>
@@ -141,66 +147,11 @@ export const Navbar: React.FC = () => {
                 <MapPin className="w-4 h-4 text-rose-500" />
                 <span>Explorar no Mapa</span>
               </button>
-              <button
-                id="nav-design-system-btn"
-                onClick={() => handleNavigate('design_system')}
-                className={`px-3 py-2 text-xs font-bold rounded-xl transition-colors flex items-center gap-1.5 cursor-pointer ${
-                  currentView === 'design_system'
-                    ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300'
-                    : 'text-indigo-600/80 hover:text-indigo-600 dark:text-indigo-400/80 dark:hover:text-indigo-300 hover:bg-indigo-50/50 dark:hover:bg-indigo-950/30'
-                }`}
-                title="Visualizar Componentes e Tokens do Design System"
-              >
-                <Palette className="w-3.5 h-3.5" />
-                <span>Design System</span>
-              </button>
-              <button
-                id="nav-security-audit-btn"
-                onClick={() => handleNavigate('security_audit')}
-                className={`px-3 py-2 text-xs font-bold rounded-xl transition-colors flex items-center gap-1.5 cursor-pointer ${
-                  currentView === 'security_audit'
-                    ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300'
-                    : 'text-emerald-700/80 hover:text-emerald-700 dark:text-emerald-400/80 dark:hover:text-emerald-300 hover:bg-emerald-50/50 dark:hover:bg-emerald-950/30'
-                }`}
-                title="Centro de Segurança, Defesas e Auditoria LGPD"
-              >
-                <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
-                <span>Segurança & LGPD</span>
-              </button>
             </nav>
           </div>
 
           {/* Right Action Section */}
           <div className="flex items-center gap-2 sm:gap-3">
-            
-            {/* Supabase Database Connection & Sync Status */}
-            <button
-              id="btn-db-status-sync"
-              onClick={() => setSupabaseModalOpen(true)}
-              title={isDbConnected ? 'Banco de Dados Supabase Conectado. Clique para ver tabelas e sincronizar.' : 'Banco Local Sincronizado. Clique para configurar o Supabase.'}
-              className={`p-1.5 sm:px-2.5 sm:py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer border ${
-                isDbConnected
-                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800/80 hover:bg-emerald-100 dark:hover:bg-emerald-900/80'
-                  : 'bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700'
-              }`}
-            >
-              <Database className={`w-3.5 h-3.5 ${isDbConnected ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400'}`} />
-              <span className="hidden xl:inline text-[11px]">
-                {isDbConnected ? 'Supabase Live' : 'Banco Ativo'}
-              </span>
-              <RefreshCw className={`w-3 h-3 text-slate-400 ${isSyncing ? 'animate-spin text-emerald-600' : ''}`} />
-            </button>
-
-            {/* Property Code Search trigger button */}
-            <button
-              id="btn-code-search-nav"
-              onClick={() => setNavCodeModalOpen(true)}
-              title="Buscar por código do imóvel"
-              className="p-2 rounded-xl text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 transition-colors cursor-pointer flex items-center gap-1 text-xs font-bold font-mono"
-            >
-              <Hash className="w-4 h-4 text-rose-500" />
-              <span className="hidden xl:inline text-[11px]">Código</span>
-            </button>
 
             {/* Comparison button */}
             {comparisonIds.length > 0 && (
@@ -261,7 +212,7 @@ export const Navbar: React.FC = () => {
               )}
             </button>
 
-            {/* Anunciar Imóvel CTA */}
+            {/* Anunciar CTA */}
             <Button
               id="cta-anunciar-imovel"
               variant="primary"
@@ -270,7 +221,7 @@ export const Navbar: React.FC = () => {
               onClick={handleStartNewListing}
               className="hidden sm:inline-flex"
             >
-              Anunciar Imóvel
+              Anunciar
             </Button>
 
             {/* Dedicated User Menu Dropdown */}
@@ -325,39 +276,18 @@ export const Navbar: React.FC = () => {
           </div>
 
           <button
-            id="mobile-code-search"
-            onClick={() => {
-              setMobileMenuOpen(false);
-              setNavCodeModalOpen(true);
-            }}
-            className="w-full py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 font-mono font-bold text-xs flex items-center justify-center gap-2 mb-2"
+            id="mobile-install-pwa"
+            onClick={handleTriggerInstall}
+            className="w-full min-h-[44px] py-2.5 rounded-xl bg-gradient-to-r from-amber-500/15 via-rose-500/15 to-indigo-500/15 border border-rose-500/30 text-slate-900 dark:text-white font-bold text-xs flex items-center justify-center gap-2 mb-2 transition-colors cursor-pointer"
           >
-            <Hash className="w-4 h-4 text-rose-500" />
-            <span>Buscar por Código do Imóvel</span>
-          </button>
-
-          <button
-            id="mobile-design-system"
-            onClick={() => handleNavigate('design_system')}
-            className="w-full py-2.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 font-bold text-xs flex items-center justify-center gap-2 mb-2"
-          >
-            <Palette className="w-4 h-4" />
-            <span>Guia & Componentes do Design System</span>
-          </button>
-
-          <button
-            id="mobile-security-audit"
-            onClick={() => handleNavigate('security_audit')}
-            className="w-full py-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 font-bold text-xs flex items-center justify-center gap-2 mb-2"
-          >
-            <ShieldCheck className="w-4 h-4 text-emerald-500" />
-            <span>Centro de Segurança, LGPD & Auditoria</span>
+            <Download className="w-4 h-4 text-rose-500" />
+            <span>Instalar Aplicativo ImovelHub (PWA)</span>
           </button>
 
           <button
             id="mobile-theme-toggle"
             onClick={toggleTheme}
-            className="w-full py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 font-bold text-xs flex items-center justify-center gap-2 mb-2 transition-colors cursor-pointer"
+            className="w-full min-h-[44px] py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 font-bold text-xs flex items-center justify-center gap-2 mb-2 transition-colors cursor-pointer"
           >
             {theme === 'light' ? (
               <>

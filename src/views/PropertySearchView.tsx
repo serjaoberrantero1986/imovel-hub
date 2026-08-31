@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { 
   LayoutGrid, 
   Map as MapIcon, 
@@ -8,18 +8,45 @@ import {
   SearchX, 
   RotateCcw,
   Sparkles,
-  Building2
+  Building2,
+  List,
+  ChevronDown
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { PropertyCard } from '../components/properties/PropertyCard';
 import { PropertyMap } from '../components/properties/PropertyMap';
 import { PropertyFilterBar } from '../components/properties/PropertyFilterBar';
+import { FilterDrawerBottomSheet } from '../components/properties/FilterDrawerBottomSheet';
+import { PropertyCardSkeleton } from '../components/ui/Skeleton';
 import { Property } from '../types';
 
 export const PropertySearchView: React.FC = () => {
   const { properties, filters, setFilters, resetFilters } = useApp();
-  const [viewMode, setViewMode] = useState<'split' | 'grid' | 'map'>('split');
+  const [viewMode, setViewMode] = useState<'split' | 'grid' | 'map'>('grid');
   const [hoveredPropertyId, setHoveredPropertyId] = useState<string | null>(null);
+  const [isFilterDrawerOpen, setIsFilterDrawerOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+
+  // Set default view mode based on screen width
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth >= 1024) {
+        setViewMode('split');
+      } else {
+        setViewMode('grid');
+      }
+    };
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // Brief shimmer effect on filter change for polished UX
+  useEffect(() => {
+    setIsLoading(true);
+    const timer = setTimeout(() => setIsLoading(false), 200);
+    return () => clearTimeout(timer);
+  }, [filters]);
 
   // Filter properties based on current filter state
   const filteredProperties = useMemo(() => {
@@ -103,48 +130,105 @@ export const PropertySearchView: React.FC = () => {
     });
   }, [properties, filters]);
 
+  const activeFiltersCount = 
+    (filters.purpose !== 'all' ? 1 : 0) +
+    filters.types.length +
+    (filters.bedrooms !== 'any' ? 1 : 0) +
+    (filters.minPrice || filters.maxPrice ? 1 : 0) +
+    (filters.minArea || filters.maxArea ? 1 : 0) +
+    filters.amenities.length +
+    (filters.searchTerm ? 1 : 0) +
+    (filters.propertyCode ? 1 : 0);
+
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 py-6 transition-colors">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 py-4 sm:py-6 transition-colors safe-bottom-padding">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-4 sm:space-y-6">
         
-        {/* Top Filters Bar */}
+        {/* Top Filters Bar (Desktop & Tablet) */}
         <PropertyFilterBar />
 
+        {/* Mobile Quick Filter & Map Bar (Visible on mobile/small tablet) */}
+        <div className="flex lg:hidden items-center justify-between gap-2 pt-1">
+          <button
+            type="button"
+            onClick={() => setIsFilterDrawerOpen(true)}
+            className="flex-1 min-h-[44px] px-4 py-2.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm flex items-center justify-between text-xs font-bold text-slate-800 dark:text-slate-200 active:scale-95 transition-all"
+          >
+            <div className="flex items-center gap-2">
+              <SlidersHorizontal className="w-4 h-4 text-rose-500" />
+              <span>Filtrar</span>
+            </div>
+            {activeFiltersCount > 0 && (
+              <span className="w-5 h-5 rounded-full bg-rose-600 text-white text-[10px] font-black flex items-center justify-center">
+                {activeFiltersCount}
+              </span>
+            )}
+          </button>
+
+          {/* Mobile View Switcher Pill */}
+          <div className="flex items-center p-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm">
+            <button
+              type="button"
+              onClick={() => setViewMode('grid')}
+              className={`min-h-[38px] px-3 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors ${
+                viewMode === 'grid'
+                  ? 'bg-rose-600 text-white shadow-sm'
+                  : 'text-slate-600 dark:text-slate-400'
+              }`}
+            >
+              <List className="w-3.5 h-3.5" />
+              <span>Lista</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode('map')}
+              className={`min-h-[38px] px-3 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors ${
+                viewMode === 'map'
+                  ? 'bg-rose-600 text-white shadow-sm'
+                  : 'text-slate-600 dark:text-slate-400'
+              }`}
+            >
+              <MapIcon className="w-3.5 h-3.5" />
+              <span>Mapa</span>
+            </button>
+          </div>
+        </div>
+
         {/* Results Header & Layout Switcher */}
-        <div className="flex flex-wrap items-center justify-between gap-4 pt-2">
+        <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
           <div>
-            <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 dark:text-white font-['Outfit'] flex items-center gap-2">
-              <span>Resultados da Busca</span>
-              <span className="text-sm font-semibold text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/50 px-2.5 py-0.5 rounded-full">
+            <h1 className="text-lg sm:text-2xl font-extrabold text-slate-900 dark:text-white font-['Outfit'] flex items-center gap-2">
+              <span>Resultados</span>
+              <span className="text-xs sm:text-sm font-semibold text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/50 px-2.5 py-0.5 rounded-full">
                 {filteredProperties.length} {filteredProperties.length === 1 ? 'imóvel' : 'imóveis'}
               </span>
             </h1>
-            <p className="text-xs text-slate-500">
-              {filters.city && filters.city !== 'all' ? `Em ${filters.city}` : 'Sorocaba e Região Metropolitana'} • Preços atualizados
+            <p className="text-[11px] sm:text-xs text-slate-500 truncate max-w-sm sm:max-w-md">
+              {filters.city && filters.city !== 'all' ? `Em ${filters.city}` : 'Sorocaba e Região'} • Atualizado hoje
             </p>
           </div>
 
-          {/* Right Controls: Sort Dropdown & View Mode Switcher */}
-          <div className="flex items-center gap-3">
+          {/* Right Controls: Sort Dropdown & Desktop View Mode Switcher */}
+          <div className="flex items-center gap-2 sm:gap-3 ml-auto">
             
             {/* Sort Selector */}
-            <div className="flex items-center gap-1.5 p-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm text-xs font-semibold">
+            <div className="flex items-center gap-1 p-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm text-xs font-semibold">
               <ArrowUpDown className="w-3.5 h-3.5 text-slate-400 ml-2" />
               <select
                 value={filters.sortBy || 'relevance'}
                 onChange={(e) => setFilters(prev => ({ ...prev, sortBy: e.target.value as any }))}
-                className="bg-transparent text-slate-800 dark:text-slate-200 py-1.5 pr-3 pl-1 font-semibold focus:outline-none cursor-pointer"
+                className="bg-transparent text-slate-800 dark:text-slate-200 py-1.5 pr-3 pl-1 font-semibold focus:outline-none cursor-pointer text-xs"
               >
-                <option value="relevance" className="dark:bg-slate-900">Relevância / Destaques</option>
+                <option value="relevance" className="dark:bg-slate-900">Destaques</option>
                 <option value="price_asc" className="dark:bg-slate-900">Menor Preço</option>
                 <option value="price_desc" className="dark:bg-slate-900">Maior Preço</option>
-                <option value="area_desc" className="dark:bg-slate-900">Maior Área Útil</option>
+                <option value="area_desc" className="dark:bg-slate-900">Maior Área</option>
                 <option value="newest" className="dark:bg-slate-900">Mais Recentes</option>
               </select>
             </div>
 
-            {/* View Mode Toggle Buttons */}
-            <div className="hidden sm:flex items-center p-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm">
+            {/* Desktop View Mode Toggle Buttons */}
+            <div className="hidden lg:flex items-center p-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm">
               <button
                 onClick={() => setViewMode('split')}
                 title="Visualização Dividida (Lista + Mapa)"
@@ -183,10 +267,16 @@ export const PropertySearchView: React.FC = () => {
           </div>
         </div>
 
-        {/* View Mode Rendering */}
-        {filteredProperties.length === 0 ? (
+        {/* View Mode Rendering with Skeletons */}
+        {isLoading ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+            {[1, 2, 3, 4, 5, 6].map(n => (
+              <PropertyCardSkeleton key={n} />
+            ))}
+          </div>
+        ) : filteredProperties.length === 0 ? (
           /* Empty state */
-          <div className="py-20 text-center bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-8 space-y-4 shadow-sm">
+          <div className="py-16 sm:py-20 text-center bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-6 sm:p-8 space-y-4 shadow-sm">
             <div className="w-16 h-16 rounded-3xl bg-rose-50 dark:bg-rose-950/50 text-rose-600 flex items-center justify-center mx-auto">
               <SearchX className="w-8 h-8" />
             </div>
@@ -198,7 +288,7 @@ export const PropertySearchView: React.FC = () => {
             </p>
             <button
               onClick={resetFilters}
-              className="px-6 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold shadow-md inline-flex items-center gap-2"
+              className="min-h-[44px] px-6 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold shadow-md inline-flex items-center gap-2 active:scale-95 transition-all"
             >
               <RotateCcw className="w-3.5 h-3.5" />
               <span>Limpar todos os filtros</span>
@@ -206,11 +296,11 @@ export const PropertySearchView: React.FC = () => {
           </div>
         ) : (
           <>
-            {/* SPLIT VIEW (Cards on Left + Sticky Map on Right) */}
+            {/* SPLIT VIEW (Cards on Left + Sticky Map on Right for Desktop/Large Screens) */}
             {viewMode === 'split' && (
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
                 <div className="lg:col-span-7 space-y-6">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
                     {filteredProperties.map(property => (
                       <PropertyCard
                         key={property.id}
@@ -221,7 +311,7 @@ export const PropertySearchView: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="lg:col-span-5 sticky top-24 h-[calc(100vh-140px)] hidden lg:block">
+                <div className="lg:col-span-5 sticky top-24 h-[calc(100vh-130px)] hidden lg:block rounded-3xl overflow-hidden shadow-lg border border-slate-200 dark:border-slate-800">
                   <PropertyMap
                     properties={filteredProperties}
                     hoveredPropertyId={hoveredPropertyId}
@@ -231,9 +321,9 @@ export const PropertySearchView: React.FC = () => {
               </div>
             )}
 
-            {/* GRID ONLY VIEW */}
+            {/* GRID ONLY VIEW (Mobile, Tablet, Desktop) */}
             {viewMode === 'grid' && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
                 {filteredProperties.map(property => (
                   <PropertyCard
                     key={property.id}
@@ -246,7 +336,7 @@ export const PropertySearchView: React.FC = () => {
 
             {/* MAP ONLY VIEW */}
             {viewMode === 'map' && (
-              <div className="h-[75vh] w-full">
+              <div className="h-[75vh] sm:h-[80vh] w-full rounded-3xl overflow-hidden shadow-lg border border-slate-200 dark:border-slate-800">
                 <PropertyMap
                   properties={filteredProperties}
                   hoveredPropertyId={hoveredPropertyId}
@@ -258,6 +348,26 @@ export const PropertySearchView: React.FC = () => {
         )}
 
       </div>
+
+      {/* Mobile Floating Action Button (FAB) for Instant Filters / Map toggle on Mobile */}
+      <div className="lg:hidden fixed bottom-20 right-4 z-30 flex flex-col gap-2">
+        <button
+          type="button"
+          onClick={() => setViewMode(prev => prev === 'map' ? 'grid' : 'map')}
+          className="w-12 h-12 rounded-full bg-slate-900 dark:bg-white text-white dark:text-slate-900 shadow-2xl flex items-center justify-center active:scale-90 transition-all border border-white/20 dark:border-slate-800"
+          title={viewMode === 'map' ? 'Ver em Lista' : 'Ver no Mapa'}
+          aria-label={viewMode === 'map' ? 'Ver em Lista' : 'Ver no Mapa'}
+        >
+          {viewMode === 'map' ? <List className="w-5 h-5" /> : <MapIcon className="w-5 h-5" />}
+        </button>
+      </div>
+
+      {/* Filter Bottom Sheet Drawer */}
+      <FilterDrawerBottomSheet
+        isOpen={isFilterDrawerOpen}
+        onClose={() => setIsFilterDrawerOpen(false)}
+        filteredCount={filteredProperties.length}
+      />
     </div>
   );
 };
