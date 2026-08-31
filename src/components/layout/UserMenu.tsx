@@ -13,7 +13,9 @@ import {
   ChevronDown,
   Sparkles,
   ShieldAlert,
-  Settings
+  Settings,
+  Moon,
+  Sun
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { Badge } from '../ui/Badge';
@@ -27,7 +29,9 @@ export const UserMenu: React.FC = () => {
     favoriteIds, 
     comparisonIds, 
     conversations,
-    savedSearches
+    savedSearches,
+    theme,
+    toggleTheme
   } = useApp();
 
   const [isOpen, setIsOpen] = useState(false);
@@ -222,10 +226,42 @@ export const UserMenu: React.FC = () => {
                 </span>
               )}
             </button>
+
+            <button
+              onClick={() => handleNav('security_audit')}
+              className="w-full text-left px-4 py-2 hover:bg-slate-50 dark:hover:bg-slate-800 text-emerald-700 dark:text-emerald-400 flex items-center justify-between"
+            >
+              <div className="flex items-center gap-2.5">
+                <ShieldAlert className="w-4 h-4 text-emerald-500" />
+                <span>Segurança & Auditoria</span>
+              </div>
+              <span className="text-[10px] px-1.5 py-0.5 rounded-full font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+                Ativo
+              </span>
+            </button>
           </div>
 
-          {/* Role Switcher & Sign Out */}
-          <div className="border-t border-slate-100 dark:border-slate-800 pt-1.5 mt-1 px-2">
+          {/* Role Switcher, Theme & Options */}
+          <div className="border-t border-slate-100 dark:border-slate-800 pt-1.5 mt-1 px-2 space-y-1">
+            <button
+              onClick={() => {
+                toggleTheme();
+              }}
+              className="w-full text-left px-3 py-2 text-xs font-semibold rounded-xl text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors flex items-center justify-between"
+            >
+              <div className="flex items-center gap-2">
+                {theme === 'light' ? (
+                  <Moon className="w-3.5 h-3.5 text-indigo-600" />
+                ) : (
+                  <Sun className="w-3.5 h-3.5 text-amber-400" />
+                )}
+                <span>{theme === 'light' ? 'Modo Escuro' : 'Modo Claro'}</span>
+              </div>
+              <span className="text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-wider font-bold">
+                {theme === 'light' ? 'OFF' : 'ON'}
+              </span>
+            </button>
+
             <button
               onClick={() => {
                 setIsOpen(false);

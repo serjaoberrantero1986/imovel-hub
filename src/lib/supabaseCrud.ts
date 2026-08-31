@@ -293,9 +293,12 @@ export async function updatePropertyInSupabase(id: string, updates: Partial<Prop
 export async function deletePropertyFromSupabase(id: string): Promise<boolean> {
   if (!supabase) return false;
   try {
+    // Delete all dependent/related rows first
     await supabase.from('property_images').delete().eq('property_id', id);
     await supabase.from('property_locations').delete().eq('property_id', id);
     await supabase.from('property_features').delete().eq('property_id', id);
+    await supabase.from('leads').delete().eq('property_id', id);
+    await supabase.from('favorites').delete().eq('property_id', id);
     const { error } = await supabase.from('properties').delete().eq('id', id);
     if (error) {
       console.warn('Supabase property delete error:', error);

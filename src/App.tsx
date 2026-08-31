@@ -17,12 +17,13 @@ import { MessagesChatView } from './views/MessagesChatView';
 import { ComparatorView } from './views/ComparatorView';
 import { FavoritesView } from './views/FavoritesView';
 import { DesignSystemView } from './views/DesignSystemView';
+import { SecurityAuditView } from './views/SecurityAuditView';
 
 const MainContent: React.FC = () => {
   const { currentView } = useApp();
 
   return (
-    <div className="flex flex-col min-h-screen pb-16 lg:pb-0">
+    <div className="flex flex-col min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 transition-colors duration-200 pb-16 lg:pb-0">
       <Navbar />
 
       <main className="flex-1">
@@ -36,6 +37,7 @@ const MainContent: React.FC = () => {
         {currentView === 'comparator' && <ComparatorView />}
         {currentView === 'favorites' && <FavoritesView />}
         {currentView === 'design_system' && <DesignSystemView />}
+        {currentView === 'security_audit' && <SecurityAuditView />}
       </main>
 
       <Footer />

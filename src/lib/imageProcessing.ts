@@ -3,6 +3,8 @@
  * Professional client-side image processing, compression, cropping, and validation.
  */
 
+import { inspectFileMagicBytes } from './security';
+
 export const MAX_FILE_SIZE_BYTES = 3 * 1024 * 1024; // 3 MB
 export const MAX_PHOTOS_PER_LISTING = 10;
 export const MIN_IMAGE_DIMENSION = 200; // minimum width/height in px
@@ -152,6 +154,16 @@ export async function validateImageFile(
       valid: false,
       code: 'FILE_TOO_LARGE',
       error: `O arquivo "${file.name}" tem ${sizeMb} MB e ultrapassa o limite máximo de 3 MB.`
+    };
+  }
+
+  // 4.5. Binary Magic Bytes & Antivirus/Anti-Executable Signature Check
+  const magicCheck = await inspectFileMagicBytes(file);
+  if (!magicCheck.isSafe) {
+    return {
+      valid: false,
+      code: 'INVALID_TYPE',
+      error: magicCheck.error || 'Arquivo bloqueado por políticas de segurança (formato não autorizado ou executável detectado).'
     };
   }
 

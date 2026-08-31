@@ -119,25 +119,137 @@ export interface Property {
   updatedAt: string;
 }
 
-export type LeadStatus = 'new' | 'contacted' | 'visit_scheduled' | 'proposal_sent' | 'proposal_made' | 'closed_won' | 'won' | 'lost';
+export type LeadStatus = 
+  | 'new'              // NOVO LEAD
+  | 'contacted'        // CONTATO REALIZADO
+  | 'interested'       // INTERESSADO
+  | 'visit_scheduled'  // VISITA AGENDADA
+  | 'proposal'         // PROPOSTA
+  | 'negotiation'      // NEGOCIAÇÃO
+  | 'closed_won'       // FECHADO
+  | 'lost';            // PERDIDO
+
+export type LeadOrigin = 
+  | 'portal_form'
+  | 'whatsapp'
+  | 'whatsapp_click'
+  | 'phone_call'
+  | 'schedule_visit'
+  | 'referral'
+  | 'social_media'
+  | 'walk_in'
+  | 'campaign'
+  | 'manual_entry';
+
+export type TaskType = 'call' | 'whatsapp' | 'visit' | 'meeting' | 'proposal' | 'follow_up' | 'email';
+export type TaskPriority = 'low' | 'medium' | 'high' | 'urgent';
+
+export interface LeadTask {
+  id: string;
+  leadId: string;
+  title: string;
+  dueDate: string; // YYYY-MM-DD or ISO
+  dueTime?: string; // HH:mm
+  type: TaskType;
+  priority: TaskPriority;
+  completed: boolean;
+  completedAt?: string;
+  notes?: string;
+  assignedTo?: string;
+}
+
+export type InteractionType = 'call' | 'whatsapp' | 'email' | 'visit' | 'proposal' | 'note' | 'status_change' | 'system';
+
+export interface LeadInteraction {
+  id: string;
+  leadId: string;
+  type: InteractionType;
+  title: string;
+  description: string;
+  createdAt: string;
+  createdBy: string;
+}
+
+export interface CustomerPreferences {
+  purpose?: PropertyPurpose;
+  types?: PropertyType[];
+  minPrice?: number;
+  maxPrice?: number;
+  minBedrooms?: number;
+  minBathrooms?: number;
+  minParkingSpots?: number;
+  minArea?: number;
+  desiredNeighborhoods?: string[];
+  desiredCity?: string;
+  desiredAmenities?: string[];
+}
+
+export interface LeadInterestProperty {
+  propertyId: string;
+  addedAt: string;
+  compatibilityScore: number;
+  status: 'interested' | 'visited' | 'proposed' | 'discarded';
+  notes?: string;
+}
 
 export interface Lead {
   id: string;
-  propertyId: string;
+  propertyId: string; // Imóvel de origem
   propertyTitle: string;
   propertyCode: string;
   propertyPrice: number;
   propertyImage?: string;
   advertiserId: string;
+  
+  // Dados Pessoais & Contato
   buyerName: string;
   buyerEmail: string;
   buyerPhone: string;
+  buyerWhatsapp?: string;
+  buyerDocument?: string; // CPF/CNPJ (com controle de privacidade)
+  buyerOccupation?: string;
+  buyerEstimatedIncome?: number;
+  
+  // Mensagem e Origem
   message: string;
-  origin: 'portal_form' | 'whatsapp_click' | 'phone_call' | 'schedule_visit';
+  origin: LeadOrigin;
+  originDetails?: string; // ex: "Anúncio Campolim Facebook", "Indicação do Dr. Silva"
+  
+  // Status & Funil
   status: LeadStatus;
-  notes?: string;
+  pipelineStage?: string;
+  priority?: 'low' | 'medium' | 'high' | 'vip' | 'urgent';
+  
+  // Orçamento & Preferências de Imóvel
   budget?: number;
+  budgetMin?: number;
+  budgetMax?: number;
+  desiredLocation?: string;
+  preferences?: CustomerPreferences;
+  
+  // Imóveis de Interesse
+  interestedPropertyIds?: string[];
+  interestedProperties?: LeadInterestProperty[];
+  
+  // Histórico, Tarefas e Observações
+  notes?: string;
+  privateNotes?: string; // Notas confidenciais
   scheduledVisitDate?: string;
+  nextFollowUpDate?: string;
+  lastContactDate?: string;
+  tasks?: LeadTask[];
+  interactions?: LeadInteraction[];
+  tags?: string[];
+  
+  // Controle de Acesso e Privacidade
+  accessRestricted?: boolean; // Se ativo, mascara CPF/Telefone para não-autorizados
+  assignedBrokerId?: string;
+  assignedBrokerName?: string;
+  
+  // Fechamento / Perda
+  closedValue?: number;
+  lostReason?: string;
+  
   createdAt: string;
   updatedAt: string;
 }

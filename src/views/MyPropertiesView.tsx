@@ -40,6 +40,10 @@ export const MyPropertiesView: React.FC = () => {
   // Dedicated Quick Photos Manager Modal
   const [managingPhotosProperty, setManagingPhotosProperty] = useState<Property | null>(null);
 
+  // Dedicated Delete Confirmation Modal
+  const [propertyToDelete, setPropertyToDelete] = useState<Property | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
   const myProperties = properties.filter(p => {
     const matchesStatus = filterStatus === 'all' || p.status === filterStatus;
     const matchesSearch = !searchTerm.trim() || 
@@ -57,6 +61,17 @@ export const MyPropertiesView: React.FC = () => {
   const handleCreateNew = () => {
     setEditingProperty(null);
     setIsWizardOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!propertyToDelete) return;
+    try {
+      setIsDeleting(true);
+      await deleteProperty(propertyToDelete.id);
+      setPropertyToDelete(null);
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   const handleUpdatePropertyMedia = (newMedia: PropertyMedia[], newVideoUrl?: string) => {
@@ -246,11 +261,8 @@ export const MyPropertiesView: React.FC = () => {
                   </button>
 
                   <button
-                    onClick={() => {
-                      if (confirm(`Tem certeza que deseja excluir o anúncio "${prop.title}"?`)) {
-                        deleteProperty(prop.id);
-                      }
-                    }}
+                    id={`btn-delete-${prop.id}`}
+                    onClick={() => setPropertyToDelete(prop)}
                     title="Excluir Anúncio"
                     className="p-2 rounded-xl bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/40 dark:hover:bg-rose-900/50 text-rose-600 transition-colors"
                   >
@@ -275,6 +287,75 @@ export const MyPropertiesView: React.FC = () => {
             </div>
           )}
         </div>
+
+        {/* Delete Confirmation Modal */}
+        {propertyToDelete && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md animate-in fade-in duration-200">
+            <div className="relative w-full max-w-md bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col p-6 space-y-5">
+              
+              {/* Header Icon + Title */}
+              <div className="flex items-center gap-3.5">
+                <div className="w-12 h-12 rounded-2xl bg-rose-100 dark:bg-rose-950/60 text-rose-600 flex items-center justify-center shrink-0">
+                  <Trash2 className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-slate-900 dark:text-white font-['Outfit']">
+                    Excluir Anúncio?
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Esta ação removerá o imóvel de forma permanente
+                  </p>
+                </div>
+              </div>
+
+              {/* Property Summary Card */}
+              <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800 flex items-center gap-3">
+                <img
+                  src={propertyToDelete.media[0]?.thumbnailUrl || propertyToDelete.media[0]?.url || 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?auto=format&fit=crop&w=400&q=80'}
+                  alt={propertyToDelete.title}
+                  className="w-14 h-14 rounded-xl object-cover shrink-0"
+                />
+                <div className="min-w-0 flex-1">
+                  <div className="text-xs font-bold text-slate-900 dark:text-white truncate">
+                    {propertyToDelete.title}
+                  </div>
+                  <div className="text-[11px] text-slate-400 font-mono">
+                    Cód: {propertyToDelete.code} • {formatCurrency(propertyToDelete.price)}
+                  </div>
+                  <div className="text-[11px] text-slate-500 truncate">
+                    {propertyToDelete.neighborhood}, {propertyToDelete.city}
+                  </div>
+                </div>
+              </div>
+
+              <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                Tem certeza que deseja apagar este anúncio? O imóvel será excluído do portal e todas as fotos e registros vinculados serão removidos do banco de dados.
+              </p>
+
+              {/* Modal Actions */}
+              <div className="flex items-center justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  disabled={isDeleting}
+                  onClick={() => setPropertyToDelete(null)}
+                  className="px-4 py-2.5 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors disabled:opacity-50"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  disabled={isDeleting}
+                  onClick={handleConfirmDelete}
+                  className="px-5 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold shadow-md shadow-rose-600/30 flex items-center gap-2 active:scale-98 disabled:opacity-50"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  <span>{isDeleting ? 'Excluindo...' : 'Sim, Excluir Anúncio'}</span>
+                </button>
+              </div>
+
+            </div>
+          </div>
+        )}
 
         {/* Quick Media Manager Modal */}
         {managingPhotosProperty && (

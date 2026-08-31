@@ -15,12 +15,14 @@ import {
   Hash,
   ArrowRight,
   Database,
-  RefreshCw
+  RefreshCw,
+  ShieldCheck
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { UserMenu } from './UserMenu';
 import { Button } from '../ui/Button';
 import { formatCurrency } from '../../lib/utils';
+import { SupabaseSqlModal } from '../modals/SupabaseSqlModal';
 
 export const Navbar: React.FC = () => {
   const { 
@@ -42,6 +44,7 @@ export const Navbar: React.FC = () => {
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [navCodeModalOpen, setNavCodeModalOpen] = useState(false);
+  const [supabaseModalOpen, setSupabaseModalOpen] = useState(false);
   const [navCodeInput, setNavCodeInput] = useState('');
 
   const totalUnread = conversations.reduce((sum, c) => sum + c.unreadCount, 0);
@@ -151,6 +154,19 @@ export const Navbar: React.FC = () => {
                 <Palette className="w-3.5 h-3.5" />
                 <span>Design System</span>
               </button>
+              <button
+                id="nav-security-audit-btn"
+                onClick={() => handleNavigate('security_audit')}
+                className={`px-3 py-2 text-xs font-bold rounded-xl transition-colors flex items-center gap-1.5 cursor-pointer ${
+                  currentView === 'security_audit'
+                    ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300'
+                    : 'text-emerald-700/80 hover:text-emerald-700 dark:text-emerald-400/80 dark:hover:text-emerald-300 hover:bg-emerald-50/50 dark:hover:bg-emerald-950/30'
+                }`}
+                title="Centro de Segurança, Defesas e Auditoria LGPD"
+              >
+                <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
+                <span>Segurança & LGPD</span>
+              </button>
             </nav>
           </div>
 
@@ -160,9 +176,8 @@ export const Navbar: React.FC = () => {
             {/* Supabase Database Connection & Sync Status */}
             <button
               id="btn-db-status-sync"
-              onClick={() => refreshData()}
-              disabled={isSyncing}
-              title={isDbConnected ? 'Banco de Dados Supabase Conectado. Clique para sincronizar agora.' : 'Banco Local Sincronizado.'}
+              onClick={() => setSupabaseModalOpen(true)}
+              title={isDbConnected ? 'Banco de Dados Supabase Conectado. Clique para ver tabelas e sincronizar.' : 'Banco Local Sincronizado. Clique para configurar o Supabase.'}
               className={`p-1.5 sm:px-2.5 sm:py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer border ${
                 isDbConnected
                   ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800/80 hover:bg-emerald-100 dark:hover:bg-emerald-900/80'
@@ -330,6 +345,33 @@ export const Navbar: React.FC = () => {
             <span>Guia & Componentes do Design System</span>
           </button>
 
+          <button
+            id="mobile-security-audit"
+            onClick={() => handleNavigate('security_audit')}
+            className="w-full py-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 font-bold text-xs flex items-center justify-center gap-2 mb-2"
+          >
+            <ShieldCheck className="w-4 h-4 text-emerald-500" />
+            <span>Centro de Segurança, LGPD & Auditoria</span>
+          </button>
+
+          <button
+            id="mobile-theme-toggle"
+            onClick={toggleTheme}
+            className="w-full py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 font-bold text-xs flex items-center justify-center gap-2 mb-2 transition-colors cursor-pointer"
+          >
+            {theme === 'light' ? (
+              <>
+                <Moon className="w-4 h-4 text-indigo-600" />
+                <span>Ativar Modo Escuro</span>
+              </>
+            ) : (
+              <>
+                <Sun className="w-4 h-4 text-amber-400" />
+                <span>Ativar Modo Claro</span>
+              </>
+            )}
+          </button>
+
           <Button
             id="mobile-anunciar-cta"
             variant="primary"
@@ -424,6 +466,12 @@ export const Navbar: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Supabase SQL Database Setup Modal */}
+      <SupabaseSqlModal
+        isOpen={supabaseModalOpen}
+        onClose={() => setSupabaseModalOpen(false)}
+      />
     </header>
   );
 };

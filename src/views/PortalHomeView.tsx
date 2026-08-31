@@ -63,17 +63,12 @@ export const PortalHomeView: React.FC = () => {
           
           {/* Main Hero Header */}
           <div className="text-center max-w-3xl mx-auto space-y-4">
-            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/10 border border-white/15 backdrop-blur-md text-xs font-bold text-rose-300">
-              <Sparkles className="w-3.5 h-3.5 text-rose-400" />
-              <span>O Portal Imobiliário mais Moderno do Interior de SP</span>
-            </div>
-
             <h1 className="text-3xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight font-['Outfit'] leading-tight">
-              Encontre o Imóvel Perfeito para <span className="text-transparent bg-clip-text bg-gradient-to-r from-rose-400 via-amber-300 to-rose-400">Viver Seus Melhores Momentos</span>
+              Encontre o <span className="text-transparent bg-clip-text bg-gradient-to-r from-rose-400 via-amber-300 to-rose-400">Imóvel Perfeito</span>
             </h1>
 
             <p className="text-base sm:text-lg text-slate-300 font-normal max-w-2xl mx-auto">
-              Milhares de casas em condomínio, apartamentos e lançamentos exclusivos em Sorocaba e região com atendimento direto de corretores credenciados.
+              Chácaras, casas em condomínio e outros lançamentos com atendimento personalizado para melhor atendê-lo.
             </p>
           </div>
 

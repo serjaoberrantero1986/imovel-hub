@@ -31,6 +31,7 @@ import { AMENITIES_LIST } from '../../lib/mockData';
 import { formatCurrency, formatArea, formatDateTime } from '../../lib/utils';
 import { parseYouTubeUrl } from '../../lib/imageProcessing';
 import { PropertyCard } from './PropertyCard';
+import { verifyHoneypot, sanitizeHtml, auditService } from '../../lib/security';
 
 export const PropertyDetailView: React.FC = () => {
   const { 
@@ -56,6 +57,7 @@ export const PropertyDetailView: React.FC = () => {
   const [leadName, setLeadName] = useState('');
   const [leadEmail, setLeadEmail] = useState('');
   const [leadPhone, setLeadPhone] = useState('');
+  const [leadHoneypot, setLeadHoneypot] = useState('');
   const [leadMessage, setLeadMessage] = useState(`Olá! Tenho interesse no imóvel código ${property.code}. Gostaria de mais informações e disponibilidade para visita.`);
   const [isSubmittingLead, setIsSubmittingLead] = useState(false);
 
@@ -107,6 +109,19 @@ export const PropertyDetailView: React.FC = () => {
 
   const handleSubmitLead = (e: React.FormEvent) => {
     e.preventDefault();
+
+    // 1. Honeypot Anti-Spambot check
+    if (!verifyHoneypot(leadHoneypot)) {
+      // Fake success for bots
+      setIsSubmittingLead(false);
+      setLeadName('');
+      setLeadPhone('');
+      setLeadEmail('');
+      setLeadHoneypot('');
+      addToast({ type: 'success', title: 'Mensagem Enviada!', message: 'O corretor responsável entrará em contato em breve.' });
+      return;
+    }
+
     if (!leadName.trim() || !leadPhone.trim()) {
       addToast({ type: 'warning', title: 'Campos Obrigatórios', message: 'Por favor, informe seu nome e telefone para contato.' });
       return;
@@ -121,10 +136,10 @@ export const PropertyDetailView: React.FC = () => {
         propertyPrice: property.price,
         propertyImage: property.media[0]?.thumbnailUrl || property.media[0]?.url,
         advertiserId: property.userId,
-        buyerName: leadName,
-        buyerEmail: leadEmail || 'cliente@contato.com',
-        buyerPhone: leadPhone,
-        message: leadMessage,
+        buyerName: sanitizeHtml(leadName),
+        buyerEmail: sanitizeHtml(leadEmail) || 'cliente@contato.com',
+        buyerPhone: sanitizeHtml(leadPhone),
+        message: sanitizeHtml(leadMessage),
         origin: 'portal_form',
         status: 'new'
       });
@@ -132,6 +147,7 @@ export const PropertyDetailView: React.FC = () => {
       setLeadName('');
       setLeadPhone('');
       setLeadEmail('');
+      setLeadHoneypot('');
     }, 600);
   };
 
@@ -558,6 +574,18 @@ export const PropertyDetailView: React.FC = () => {
 
               {/* Contact Lead Form */}
               <form onSubmit={handleSubmitLead} className="space-y-3 pt-2">
+                {/* Honeypot field (hidden from legitimate humans, traps bots) */}
+                <input
+                  type="text"
+                  name="website_secondary_check"
+                  tabIndex={-1}
+                  autoComplete="off"
+                  value={leadHoneypot}
+                  onChange={(e) => setLeadHoneypot(e.target.value)}
+                  className="opacity-0 absolute -z-50 pointer-events-none w-0 h-0 p-0 m-0 border-0"
+                  aria-hidden="true"
+                />
+
                 <div className="text-xs font-bold uppercase tracking-wider text-slate-400">
                   Ou envie uma mensagem direta:
                 </div>

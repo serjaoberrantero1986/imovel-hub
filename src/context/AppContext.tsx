@@ -3,6 +3,8 @@ import {
   Property, 
   UserProfile, 
   Lead, 
+  LeadTask,
+  LeadInteraction,
   Conversation, 
   FilterState, 
   SavedSearch,
@@ -44,7 +46,8 @@ export type AppView =
   | 'favorites' 
   | 'saved_searches'
   | 'comparator'
-  | 'design_system';
+  | 'design_system'
+  | 'security_audit';
 
 interface Toast {
   id: string;
@@ -83,8 +86,17 @@ interface AppContextType {
   // Leads & CRM
   leads: Lead[];
   addLead: (lead: Omit<Lead, 'id' | 'createdAt' | 'updatedAt'>) => Promise<void>;
+  updateLead: (leadId: string, updates: Partial<Lead>) => Promise<void>;
   updateLeadStatus: (leadId: string, status: Lead['status'], notes?: string) => Promise<void>;
-  updateLeadNotes: (leadId: string, notes: string) => Promise<void>;
+  updateLeadNotes: (leadId: string, notes: string, privateNotes?: string) => Promise<void>;
+  addLeadTask: (leadId: string, task: Omit<LeadTask, 'id'>) => Promise<void>;
+  toggleLeadTask: (leadId: string, taskId: string) => Promise<void>;
+  deleteLeadTask: (leadId: string, taskId: string) => Promise<void>;
+  addLeadInteraction: (leadId: string, interaction: Omit<LeadInteraction, 'id' | 'createdAt'>) => Promise<void>;
+  addLeadTag: (leadId: string, tag: string) => Promise<void>;
+  removeLeadTag: (leadId: string, tag: string) => Promise<void>;
+  toggleLeadInterestProperty: (leadId: string, propertyId: string) => Promise<void>;
+  toggleLeadPrivacy: (leadId: string) => Promise<void>;
   deleteLead: (leadId: string) => Promise<void>;
   
   // Messages & Chat
@@ -503,13 +515,53 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     });
   };
 
-  const updateLeadStatus = async (leadId: string, status: Lead['status'], notes?: string) => {
+  const updateLead = async (leadId: string, updates: Partial<Lead>) => {
     setLeads(prev => prev.map(l => {
       if (l.id === leadId) {
         return {
           ...l,
+          ...updates,
+          updatedAt: new Date().toISOString()
+        };
+      }
+      return l;
+    }));
+
+    if (isSupabaseConfigured) {
+      await updateLeadInSupabase(leadId, updates);
+    }
+  };
+
+  const updateLeadStatus = async (leadId: string, status: Lead['status'], notes?: string) => {
+    const stageNameMap: Record<string, string> = {
+      new: 'NOVO LEAD',
+      contacted: 'CONTATO REALIZADO',
+      interested: 'INTERESSADO',
+      visit_scheduled: 'VISITA AGENDADA',
+      proposal: 'PROPOSTA',
+      negotiation: 'NEGOCIAÇÃO',
+      closed_won: 'FECHADO',
+      lost: 'PERDIDO'
+    };
+
+    const newInteraction = {
+      id: `int-${Date.now()}`,
+      leadId,
+      type: 'status_change' as const,
+      title: `Estágio alterado para ${stageNameMap[status] || status}`,
+      description: notes || `Lead movimentado no funil de vendas para a etapa ${stageNameMap[status] || status}.`,
+      createdAt: new Date().toISOString(),
+      createdBy: currentUser.name
+    };
+
+    setLeads(prev => prev.map(l => {
+      if (l.id === leadId) {
+        const interactions = l.interactions ? [newInteraction, ...l.interactions] : [newInteraction];
+        return {
+          ...l,
           status,
           notes: notes !== undefined ? notes : l.notes,
+          interactions,
           updatedAt: new Date().toISOString()
         };
       }
@@ -522,16 +574,159 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     addToast({
       type: 'info',
-      title: 'Lead Atualizado',
-      message: `Lead movido para a etapa "${status.replace('_', ' ').toUpperCase()}".`
+      title: 'Funil CRM Atualizado',
+      message: `Lead movido para a etapa "${stageNameMap[status] || status}".`
     });
   };
 
-  const updateLeadNotes = async (leadId: string, notes: string) => {
-    setLeads(prev => prev.map(l => l.id === leadId ? { ...l, notes, updatedAt: new Date().toISOString() } : l));
+  const updateLeadNotes = async (leadId: string, notes: string, privateNotes?: string) => {
+    setLeads(prev => prev.map(l => {
+      if (l.id === leadId) {
+        return {
+          ...l,
+          notes,
+          privateNotes: privateNotes !== undefined ? privateNotes : l.privateNotes,
+          updatedAt: new Date().toISOString()
+        };
+      }
+      return l;
+    }));
     if (isSupabaseConfigured) {
       await updateLeadInSupabase(leadId, { notes });
     }
+  };
+
+  const addLeadTask = async (leadId: string, taskData: Omit<LeadTask, 'id'>) => {
+    const newTask: LeadTask = {
+      ...taskData,
+      id: `task-${Date.now()}`
+    };
+
+    setLeads(prev => prev.map(l => {
+      if (l.id === leadId) {
+        const tasks = l.tasks ? [...l.tasks, newTask] : [newTask];
+        return { ...l, tasks, updatedAt: new Date().toISOString() };
+      }
+      return l;
+    }));
+
+    addToast({
+      type: 'success',
+      title: 'Tarefa Criada',
+      message: `Tarefa "${newTask.title}" agendada com sucesso.`
+    });
+  };
+
+  const toggleLeadTask = async (leadId: string, taskId: string) => {
+    setLeads(prev => prev.map(l => {
+      if (l.id === leadId && l.tasks) {
+        const tasks = l.tasks.map(t => {
+          if (t.id === taskId) {
+            const nextCompleted = !t.completed;
+            return {
+              ...t,
+              completed: nextCompleted,
+              completedAt: nextCompleted ? new Date().toISOString() : undefined
+            };
+          }
+          return t;
+        });
+        return { ...l, tasks, updatedAt: new Date().toISOString() };
+      }
+      return l;
+    }));
+  };
+
+  const deleteLeadTask = async (leadId: string, taskId: string) => {
+    setLeads(prev => prev.map(l => {
+      if (l.id === leadId && l.tasks) {
+        return { ...l, tasks: l.tasks.filter(t => t.id !== taskId), updatedAt: new Date().toISOString() };
+      }
+      return l;
+    }));
+    addToast({ type: 'info', title: 'Tarefa removida' });
+  };
+
+  const addLeadInteraction = async (leadId: string, interactionData: Omit<LeadInteraction, 'id' | 'createdAt'>) => {
+    const newInt: LeadInteraction = {
+      ...interactionData,
+      id: `int-${Date.now()}`,
+      createdAt: new Date().toISOString()
+    };
+
+    setLeads(prev => prev.map(l => {
+      if (l.id === leadId) {
+        const interactions = l.interactions ? [newInt, ...l.interactions] : [newInt];
+        return { 
+          ...l, 
+          interactions, 
+          lastContactDate: new Date().toISOString(),
+          updatedAt: new Date().toISOString() 
+        };
+      }
+      return l;
+    }));
+
+    addToast({
+      type: 'success',
+      title: 'Histórico Registrado',
+      message: 'Nova interação adicionada à timeline do cliente.'
+    });
+  };
+
+  const addLeadTag = async (leadId: string, tag: string) => {
+    const cleanTag = tag.trim();
+    if (!cleanTag) return;
+    setLeads(prev => prev.map(l => {
+      if (l.id === leadId) {
+        const currentTags = l.tags || [];
+        if (!currentTags.includes(cleanTag)) {
+          return { ...l, tags: [...currentTags, cleanTag], updatedAt: new Date().toISOString() };
+        }
+      }
+      return l;
+    }));
+  };
+
+  const removeLeadTag = async (leadId: string, tag: string) => {
+    setLeads(prev => prev.map(l => {
+      if (l.id === leadId && l.tags) {
+        return { ...l, tags: l.tags.filter(t => t !== tag), updatedAt: new Date().toISOString() };
+      }
+      return l;
+    }));
+  };
+
+  const toggleLeadInterestProperty = async (leadId: string, propertyId: string) => {
+    setLeads(prev => prev.map(l => {
+      if (l.id === leadId) {
+        const current = l.interestedPropertyIds || [];
+        const isSelected = current.includes(propertyId);
+        const nextIds = isSelected ? current.filter(id => id !== propertyId) : [...current, propertyId];
+        return { ...l, interestedPropertyIds: nextIds, updatedAt: new Date().toISOString() };
+      }
+      return l;
+    }));
+    addToast({
+      type: 'info',
+      title: 'Imóveis de Interesse Atualizados',
+      message: 'A carteira de interesse do cliente foi atualizada.'
+    });
+  };
+
+  const toggleLeadPrivacy = async (leadId: string) => {
+    setLeads(prev => prev.map(l => {
+      if (l.id === leadId) {
+        const nextRestricted = !l.accessRestricted;
+        return { ...l, accessRestricted: nextRestricted, updatedAt: new Date().toISOString() };
+      }
+      return l;
+    }));
+    addToast({
+      type: 'info',
+      title: 'Segurança de Dados',
+      message: 'Configuração de privacidade e controle de acesso atualizada.'
+    });
   };
 
   const deleteLead = async (leadId: string) => {
@@ -723,8 +918,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         togglePropertyStatus,
         leads,
         addLead,
+        updateLead,
         updateLeadStatus,
         updateLeadNotes,
+        addLeadTask,
+        toggleLeadTask,
+        deleteLeadTask,
+        addLeadInteraction,
+        addLeadTag,
+        removeLeadTag,
+        toggleLeadInterestProperty,
+        toggleLeadPrivacy,
         deleteLead,
         conversations,
         activeConversationId,
