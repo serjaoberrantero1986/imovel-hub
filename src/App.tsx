@@ -16,6 +16,7 @@ import { CrmLeadsView } from './views/CrmLeadsView';
 import { MessagesChatView } from './views/MessagesChatView';
 import { ComparatorView } from './views/ComparatorView';
 import { FavoritesView } from './views/FavoritesView';
+import { DesignSystemView } from './views/DesignSystemView';
 
 const MainContent: React.FC = () => {
   const { currentView } = useApp();
@@ -34,6 +35,7 @@ const MainContent: React.FC = () => {
         {currentView === 'messages' && <MessagesChatView />}
         {currentView === 'comparator' && <ComparatorView />}
         {currentView === 'favorites' && <FavoritesView />}
+        {currentView === 'design_system' && <DesignSystemView />}
       </main>
 
       <Footer />

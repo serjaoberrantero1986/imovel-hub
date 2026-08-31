@@ -25,7 +25,8 @@ export type AppView =
   | 'messages' 
   | 'favorites' 
   | 'saved_searches'
-  | 'comparator';
+  | 'comparator'
+  | 'design_system';
 
 interface Toast {
   id: string;
