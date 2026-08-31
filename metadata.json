@@ -1,0 +1,6 @@
+{
+  "name": "ImovelHub - Marketplace & CRM Imobiliário",
+  "description": "Plataforma profissional de classificados e gestão imobiliária com busca avançada em mapa, CRM de corretores, analytics e editor de anúncios.",
+  "requestFramePermissions": ["geolocation"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
