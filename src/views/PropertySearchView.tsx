@@ -24,6 +24,14 @@ export const PropertySearchView: React.FC = () => {
   // Filter properties based on current filter state
   const filteredProperties = useMemo(() => {
     return properties.filter((prop) => {
+      // Search by specific Property Code
+      if (filters.propertyCode && filters.propertyCode.trim() !== '') {
+        const codeFilter = filters.propertyCode.trim().toLowerCase();
+        if (!prop.code.toLowerCase().includes(codeFilter)) {
+          return false;
+        }
+      }
+
       // Purpose filter
       if (filters.purpose && filters.purpose !== 'all' && prop.purpose !== filters.purpose) {
         return false;

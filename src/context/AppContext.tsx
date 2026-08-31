@@ -110,7 +110,8 @@ const DEFAULT_FILTERS: FilterState = {
   parkingSpots: 'any',
   amenities: [],
   sortBy: 'relevance',
-  searchTerm: ''
+  searchTerm: '',
+  propertyCode: ''
 };
 
 const AppContext = createContext<AppContextType | undefined>(undefined);

@@ -12,7 +12,9 @@ import {
   BedDouble,
   Car,
   Bath,
-  Maximize2
+  Maximize2,
+  Hash,
+  ArrowRight
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { PropertyType, PropertyPurpose } from '../../types';
@@ -20,10 +22,12 @@ import { AMENITIES_LIST, POPULAR_NEIGHBORHOODS } from '../../lib/mockData';
 import { formatCurrency } from '../../lib/utils';
 
 export const PropertyFilterBar: React.FC = () => {
-  const { filters, setFilters, resetFilters, saveCurrentSearch } = useApp();
+  const { filters, setFilters, resetFilters, saveCurrentSearch, properties, openPropertyDetail } = useApp();
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [saveSearchModalOpen, setSaveSearchModalOpen] = useState(false);
+  const [codeModalOpen, setCodeModalOpen] = useState(false);
   const [searchTitleInput, setSearchTitleInput] = useState('');
+  const [codeQuery, setCodeQuery] = useState(filters.propertyCode || '');
 
   const propertyTypes: { id: PropertyType; label: string; icon: any }[] = [
     { id: 'apartment', label: 'Apartamento', icon: Building },
@@ -54,6 +58,18 @@ export const PropertyFilterBar: React.FC = () => {
     });
   };
 
+  const handleSearchByCode = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    const clean = codeQuery.trim();
+    setFilters(prev => ({ ...prev, propertyCode: clean }));
+    setCodeModalOpen(false);
+  };
+
+  const handleClearCode = () => {
+    setCodeQuery('');
+    setFilters(prev => ({ ...prev, propertyCode: '' }));
+  };
+
   const activeFiltersCount = 
     (filters.purpose !== 'all' ? 1 : 0) +
     filters.types.length +
@@ -61,7 +77,8 @@ export const PropertyFilterBar: React.FC = () => {
     (filters.minPrice || filters.maxPrice ? 1 : 0) +
     (filters.minArea || filters.maxArea ? 1 : 0) +
     filters.amenities.length +
-    (filters.searchTerm ? 1 : 0);
+    (filters.searchTerm ? 1 : 0) +
+    (filters.propertyCode ? 1 : 0);
 
   const handleConfirmSaveSearch = () => {
     if (!searchTitleInput.trim()) return;
@@ -69,6 +86,11 @@ export const PropertyFilterBar: React.FC = () => {
     setSaveSearchModalOpen(false);
     setSearchTitleInput('');
   };
+
+  // Code search matched suggestions
+  const codeMatches = codeQuery.trim()
+    ? properties.filter(p => p.code.toLowerCase().includes(codeQuery.trim().toLowerCase()))
+    : properties.slice(0, 4);
 
   return (
     <div className="w-full bg-white dark:bg-slate-900 rounded-3xl p-4 sm:p-6 shadow-xl border border-slate-200/80 dark:border-slate-800/80 space-y-4 transition-colors">
@@ -121,11 +143,27 @@ export const PropertyFilterBar: React.FC = () => {
           </button>
         </div>
 
-        {/* Action icons: Save Search & Reset */}
+        {/* Action buttons: Code Search, Save Search & Reset */}
         <div className="flex items-center gap-2">
+          {/* Quick Code Search Button */}
+          <button
+            onClick={() => setCodeModalOpen(true)}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-colors ${
+              filters.propertyCode
+                ? 'bg-rose-50 text-rose-600 dark:bg-rose-950/60 dark:text-rose-400 border border-rose-300 dark:border-rose-800'
+                : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
+            }`}
+          >
+            <Hash className="w-3.5 h-3.5 text-rose-500" />
+            <span>{filters.propertyCode ? `Cód: ${filters.propertyCode}` : 'Buscar por Código'}</span>
+          </button>
+
           {activeFiltersCount > 0 && (
             <button
-              onClick={resetFilters}
+              onClick={() => {
+                resetFilters();
+                setCodeQuery('');
+              }}
               title="Limpar todos os filtros"
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-500 hover:text-rose-600 dark:text-slate-400 dark:hover:text-rose-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
             >
@@ -148,7 +186,7 @@ export const PropertyFilterBar: React.FC = () => {
       {/* Main Search Input & Quick Controls */}
       <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-center">
         
-        {/* Search text box */}
+        {/* Search text box with Code Search Integrated */}
         <div className="md:col-span-6 relative">
           <Search className="w-5 h-5 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2" />
           <input
@@ -156,16 +194,27 @@ export const PropertyFilterBar: React.FC = () => {
             value={filters.searchTerm || ''}
             onChange={(e) => setFilters(prev => ({ ...prev, searchTerm: e.target.value }))}
             placeholder="Digite cidade, bairro (ex: Campolim), condomínio ou código..."
-            className="w-full pl-11 pr-10 py-3 rounded-2xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-sm font-medium text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 transition-all"
+            className="w-full pl-11 pr-28 py-3 rounded-2xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-sm font-medium text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 transition-all"
           />
-          {filters.searchTerm && (
+          
+          <div className="absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center gap-1">
+            {filters.searchTerm && (
+              <button
+                onClick={() => setFilters(prev => ({ ...prev, searchTerm: '' }))}
+                className="p-1 text-slate-400 hover:text-slate-600"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
             <button
-              onClick={() => setFilters(prev => ({ ...prev, searchTerm: '' }))}
-              className="absolute right-3.5 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600"
+              onClick={() => setCodeModalOpen(true)}
+              title="Buscar diretamente pelo código do imóvel"
+              className="px-2 py-1 rounded-lg bg-slate-200/80 dark:bg-slate-700 hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/40 text-[10px] font-mono font-bold text-slate-600 dark:text-slate-300 transition-colors flex items-center gap-1"
             >
-              <X className="w-4 h-4" />
+              <Hash className="w-3 h-3 text-rose-500" />
+              <span>Código</span>
             </button>
-          )}
+          </div>
         </div>
 
         {/* Bedrooms Quick Filter */}
@@ -215,6 +264,21 @@ export const PropertyFilterBar: React.FC = () => {
         </div>
 
       </div>
+
+      {/* Active Code Search Badge (if active) */}
+      {filters.propertyCode && (
+        <div className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800/60 text-xs text-rose-800 dark:text-rose-200">
+          <Hash className="w-4 h-4 text-rose-600" />
+          <span>Filtrando especificamente pelo código: <strong>{filters.propertyCode}</strong></span>
+          <button
+            onClick={handleClearCode}
+            className="ml-auto p-1 rounded-md text-rose-600 hover:bg-rose-200/50 dark:hover:bg-rose-900/60"
+            title="Remover filtro de código"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      )}
 
       {/* Property Types Chips */}
       <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
@@ -358,6 +422,97 @@ export const PropertyFilterBar: React.FC = () => {
             </button>
           </div>
 
+        </div>
+      )}
+
+      {/* Property Code Search Modal */}
+      {codeModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-150">
+          <div className="w-full max-w-md bg-white dark:bg-slate-900 rounded-3xl p-6 shadow-2xl border border-slate-200 dark:border-slate-800 space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <Hash className="w-5 h-5 text-rose-500" />
+                <span>Busca por Código do Imóvel</span>
+              </h3>
+              <button onClick={() => setCodeModalOpen(false)} className="p-1 text-slate-400 hover:text-slate-600">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              Digite o código completo ou os dígitos numéricos do imóvel (ex: <strong>10849201</strong> ou <strong>10849201-MEOA</strong>).
+            </p>
+
+            <form onSubmit={handleSearchByCode} className="space-y-3">
+              <div className="relative">
+                <Hash className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  autoFocus
+                  value={codeQuery}
+                  onChange={(e) => setCodeQuery(e.target.value)}
+                  placeholder="Ex: 10849201-MEOA"
+                  className="w-full pl-10 pr-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm font-mono font-bold text-slate-900 dark:text-white focus:outline-none focus:border-rose-500"
+                />
+              </div>
+
+              {/* Sample / Matching property codes */}
+              <div className="space-y-1.5 pt-1">
+                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                  {codeQuery.trim() ? 'Códigos Correspondentes:' : 'Códigos de Exemplo para Teste:'}
+                </span>
+                <div className="space-y-1 max-h-44 overflow-y-auto">
+                  {codeMatches.map(p => (
+                    <div
+                      key={p.id}
+                      onClick={() => {
+                        setCodeQuery(p.code);
+                        setFilters(prev => ({ ...prev, propertyCode: p.code }));
+                        setCodeModalOpen(false);
+                      }}
+                      className="p-2 rounded-xl bg-slate-50 dark:bg-slate-800/60 hover:bg-rose-50 dark:hover:bg-rose-950/40 border border-slate-200/60 dark:border-slate-700/60 cursor-pointer flex items-center justify-between transition-colors"
+                    >
+                      <div>
+                        <div className="text-xs font-mono font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+                          <span className="text-rose-600 dark:text-rose-400"># {p.code}</span>
+                          <span className="text-[10px] font-sans font-normal text-slate-500 truncate max-w-[180px]">{p.title}</span>
+                        </div>
+                        <div className="text-[10px] text-slate-400">
+                          {p.neighborhood} • {formatCurrency(p.price)}
+                        </div>
+                      </div>
+                      <ArrowRight className="w-3.5 h-3.5 text-slate-400" />
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={handleClearCode}
+                  className="text-xs font-bold text-slate-500 hover:text-rose-600"
+                >
+                  Limpar Código
+                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setCodeModalOpen(false)}
+                    className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-5 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold shadow-md shadow-rose-600/20"
+                  >
+                    Filtrar por Código
+                  </button>
+                </div>
+              </div>
+            </form>
+          </div>
         </div>
       )}
 

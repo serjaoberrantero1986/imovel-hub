@@ -11,11 +11,14 @@ import {
   X, 
   MessageSquare, 
   Palette,
-  Sparkles
+  Sparkles,
+  Hash,
+  ArrowRight
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { UserMenu } from './UserMenu';
 import { Button } from '../ui/Button';
+import { formatCurrency } from '../../lib/utils';
 
 export const Navbar: React.FC = () => {
   const { 
@@ -28,10 +31,13 @@ export const Navbar: React.FC = () => {
     conversations,
     setIsWizardOpen,
     setEditingProperty,
-    setFilters
+    setFilters,
+    properties
   } = useApp();
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [navCodeModalOpen, setNavCodeModalOpen] = useState(false);
+  const [navCodeInput, setNavCodeInput] = useState('');
 
   const totalUnread = conversations.reduce((sum, c) => sum + c.unreadCount, 0);
 
@@ -47,6 +53,21 @@ export const Navbar: React.FC = () => {
     setCurrentView(view);
     setMobileMenuOpen(false);
   };
+
+  const handleNavCodeSearch = (codeToSearch?: string) => {
+    const code = (codeToSearch || navCodeInput).trim();
+    if (code) {
+      setFilters(prev => ({ ...prev, propertyCode: code }));
+      setCurrentView('search');
+      setNavCodeModalOpen(false);
+      setNavCodeInput('');
+      setMobileMenuOpen(false);
+    }
+  };
+
+  const codeMatches = navCodeInput.trim()
+    ? properties.filter(p => p.code.toLowerCase().includes(navCodeInput.trim().toLowerCase()))
+    : properties.slice(0, 4);
 
   return (
     <header className="sticky top-0 z-40 w-full border-b border-slate-200/80 dark:border-slate-800/80 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md transition-colors duration-200">
@@ -131,6 +152,17 @@ export const Navbar: React.FC = () => {
           {/* Right Action Section */}
           <div className="flex items-center gap-2 sm:gap-3">
             
+            {/* Property Code Search trigger button */}
+            <button
+              id="btn-code-search-nav"
+              onClick={() => setNavCodeModalOpen(true)}
+              title="Buscar por código do imóvel"
+              className="p-2 rounded-xl text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 transition-colors cursor-pointer flex items-center gap-1 text-xs font-bold font-mono"
+            >
+              <Hash className="w-4 h-4 text-rose-500" />
+              <span className="hidden xl:inline text-[11px]">Código</span>
+            </button>
+
             {/* Comparison button */}
             {comparisonIds.length > 0 && (
               <button
@@ -254,6 +286,18 @@ export const Navbar: React.FC = () => {
           </div>
 
           <button
+            id="mobile-code-search"
+            onClick={() => {
+              setMobileMenuOpen(false);
+              setNavCodeModalOpen(true);
+            }}
+            className="w-full py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 font-mono font-bold text-xs flex items-center justify-center gap-2 mb-2"
+          >
+            <Hash className="w-4 h-4 text-rose-500" />
+            <span>Buscar por Código do Imóvel</span>
+          </button>
+
+          <button
             id="mobile-design-system"
             onClick={() => handleNavigate('design_system')}
             className="w-full py-2.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 font-bold text-xs flex items-center justify-center gap-2 mb-2"
@@ -275,6 +319,85 @@ export const Navbar: React.FC = () => {
           >
             Publicar Anúncio de Imóvel
           </Button>
+        </div>
+      )}
+
+      {/* Property Code Search Modal */}
+      {navCodeModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-150">
+          <div className="w-full max-w-md bg-white dark:bg-slate-900 rounded-3xl p-6 shadow-2xl border border-slate-200 dark:border-slate-800 space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <Hash className="w-5 h-5 text-rose-500" />
+                <span>Localizar Imóvel por Código</span>
+              </h3>
+              <button onClick={() => setNavCodeModalOpen(false)} className="p-1 text-slate-400 hover:text-slate-600">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              Digite o código identificador único do imóvel para ir direto aos detalhes ou resultados.
+            </p>
+
+            <form onSubmit={(e) => { e.preventDefault(); handleNavCodeSearch(); }} className="space-y-3">
+              <div className="relative">
+                <Hash className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  autoFocus
+                  value={navCodeInput}
+                  onChange={(e) => setNavCodeInput(e.target.value)}
+                  placeholder="Ex: 10849201 ou 10849201-MEOA"
+                  className="w-full pl-10 pr-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm font-mono font-bold text-slate-900 dark:text-white focus:outline-none focus:border-rose-500"
+                />
+              </div>
+
+              {/* Sample list */}
+              <div className="space-y-1.5 pt-1">
+                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                  {navCodeInput.trim() ? 'Imóveis Encontrados:' : 'Exemplos no Catálogo:'}
+                </span>
+                <div className="space-y-1 max-h-48 overflow-y-auto">
+                  {codeMatches.map(p => (
+                    <div
+                      key={p.id}
+                      onClick={() => handleNavCodeSearch(p.code)}
+                      className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 hover:bg-rose-50 dark:hover:bg-rose-950/40 border border-slate-200/60 dark:border-slate-700/60 cursor-pointer flex items-center justify-between transition-colors"
+                    >
+                      <div>
+                        <div className="text-xs font-mono font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+                          <span className="text-rose-600 dark:text-rose-400"># {p.code}</span>
+                          <span className="text-[10px] font-sans font-normal text-slate-500 truncate max-w-[180px]">{p.title}</span>
+                        </div>
+                        <div className="text-[10px] text-slate-400">
+                          {p.neighborhood} • {formatCurrency(p.price)}
+                        </div>
+                      </div>
+                      <ArrowRight className="w-3.5 h-3.5 text-slate-400" />
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setNavCodeModalOpen(false)}
+                  className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={!navCodeInput.trim()}
+                  className="px-5 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white text-xs font-bold shadow-md shadow-rose-600/20"
+                >
+                  Buscar Imóvel
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
     </header>

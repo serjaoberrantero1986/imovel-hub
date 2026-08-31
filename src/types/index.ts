@@ -176,6 +176,7 @@ export interface FilterState {
   status?: PropertyStatus | 'all';
   featuredOnly?: boolean;
   searchTerm?: string;
+  propertyCode?: string;
   sortBy: 'relevance' | 'price_asc' | 'price_desc' | 'area_desc' | 'recent';
 }
 
