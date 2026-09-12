@@ -12,7 +12,6 @@ import {
   CheckCircle2, 
   ChevronDown,
   Sparkles,
-  ShieldAlert,
   Settings,
   Moon,
   Sun
@@ -225,19 +224,6 @@ export const UserMenu: React.FC = () => {
                   {savedSearches.length}
                 </span>
               )}
-            </button>
-
-            <button
-              onClick={() => handleNav('security_audit')}
-              className="w-full text-left px-4 py-2 hover:bg-slate-50 dark:hover:bg-slate-800 text-emerald-700 dark:text-emerald-400 flex items-center justify-between"
-            >
-              <div className="flex items-center gap-2.5">
-                <ShieldAlert className="w-4 h-4 text-emerald-500" />
-                <span>Segurança & Auditoria</span>
-              </div>
-              <span className="text-[10px] px-1.5 py-0.5 rounded-full font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
-                Ativo
-              </span>
             </button>
           </div>
 

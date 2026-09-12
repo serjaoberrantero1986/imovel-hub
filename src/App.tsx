@@ -19,7 +19,6 @@ import { MessagesChatView } from './views/MessagesChatView';
 import { ComparatorView } from './views/ComparatorView';
 import { FavoritesView } from './views/FavoritesView';
 import { DesignSystemView } from './views/DesignSystemView';
-import { SecurityAuditView } from './views/SecurityAuditView';
 
 const MainContent: React.FC = () => {
   const { currentView } = useApp();
@@ -42,7 +41,6 @@ const MainContent: React.FC = () => {
         {currentView === 'comparator' && <ComparatorView />}
         {currentView === 'favorites' && <FavoritesView />}
         {currentView === 'design_system' && <DesignSystemView />}
-        {currentView === 'security_audit' && <SecurityAuditView />}
       </main>
 
       <Footer />

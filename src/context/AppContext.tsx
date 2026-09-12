@@ -46,8 +46,7 @@ export type AppView =
   | 'favorites' 
   | 'saved_searches'
   | 'comparator'
-  | 'design_system'
-  | 'security_audit';
+  | 'design_system';
 
 interface Toast {
   id: string;

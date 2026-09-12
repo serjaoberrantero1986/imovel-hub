@@ -139,8 +139,8 @@ export const CrmKanbanBoard: React.FC<CrmKanbanBoardProps> = ({
   };
 
   return (
-    <div className="w-full overflow-x-auto pb-6 scrollbar-thin">
-      <div className="flex gap-4 min-w-[1900px] items-start">
+    <div className="w-full pb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 items-start">
         
         {KANBAN_STAGES.map((stage, stageIndex) => {
           const stageLeads = leads.filter(l => l.status === stage.id);
@@ -152,7 +152,7 @@ export const CrmKanbanBoard: React.FC<CrmKanbanBoardProps> = ({
           return (
             <div
               key={stage.id}
-              className="flex-1 min-w-[280px] max-w-[320px] bg-slate-100/80 dark:bg-slate-900/60 rounded-3xl p-3.5 border border-slate-200/80 dark:border-slate-800 flex flex-col space-y-3 shadow-xs"
+              className="w-full bg-slate-100/80 dark:bg-slate-900/60 rounded-3xl p-3.5 border border-slate-200/80 dark:border-slate-800 flex flex-col space-y-3 shadow-xs"
             >
               {/* Column Header */}
               <div className="flex items-center justify-between px-1 pb-1 border-b border-slate-200/60 dark:border-slate-800">
