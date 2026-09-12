@@ -4,7 +4,7 @@ import { POPULAR_CITIES, POPULAR_NEIGHBORHOODS } from '../../lib/mockData';
 import { useApp } from '../../context/AppContext';
 
 export const Footer: React.FC = () => {
-  const { setCurrentView, setFilters } = useApp();
+  const { setCurrentView, setFilters, openLegalPage } = useApp();
 
   const handleCityClick = (city: string) => {
     setFilters(prev => ({ ...prev, city, searchTerm: city }));
@@ -110,6 +110,15 @@ export const Footer: React.FC = () => {
                   Comparador de Imóveis
                 </button>
               </li>
+              <li>
+                <button 
+                  onClick={() => openLegalPage('security')} 
+                  className="hover:text-amber-400 transition-colors flex items-center gap-1.5"
+                >
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
+                  <span>Dicas de Segurança Imobiliária</span>
+                </button>
+              </li>
             </ul>
           </div>
 
@@ -182,13 +191,34 @@ export const Footer: React.FC = () => {
           </div>
         </div>
 
-        {/* Bottom Copyright */}
+        {/* Bottom Copyright & Legal Links */}
         <div className="pt-6 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-500 gap-4">
           <p>© 2026 Web Imóvel Brasil S/A. Todos os direitos reservados. CNPJ: 20.433.428/0001-35.</p>
-          <div className="flex gap-6">
-            <a href="#" className="hover:text-slate-400">Termos de Uso</a>
-            <a href="#" className="hover:text-slate-400">Política de Privacidade</a>
-            <a href="#" className="hover:text-slate-400">Código de Defesa do Consumidor</a>
+          <div className="flex flex-wrap items-center justify-center sm:justify-end gap-x-5 gap-y-2">
+            <button 
+              onClick={() => openLegalPage('terms')} 
+              className="hover:text-slate-300 transition-colors cursor-pointer text-left"
+            >
+              Termos de Uso
+            </button>
+            <button 
+              onClick={() => openLegalPage('privacy')} 
+              className="hover:text-slate-300 transition-colors cursor-pointer text-left"
+            >
+              Política de Privacidade (LGPD)
+            </button>
+            <button 
+              onClick={() => openLegalPage('consumer')} 
+              className="hover:text-slate-300 transition-colors cursor-pointer text-left"
+            >
+              Código de Defesa do Consumidor
+            </button>
+            <button 
+              onClick={() => openLegalPage('cookies')} 
+              className="hover:text-slate-300 transition-colors cursor-pointer text-left"
+            >
+              Preferências de Cookies
+            </button>
           </div>
         </div>
 

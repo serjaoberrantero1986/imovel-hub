@@ -21,9 +21,10 @@ import { ComparatorView } from './views/ComparatorView';
 import { FavoritesView } from './views/FavoritesView';
 import { DesignSystemView } from './views/DesignSystemView';
 import { ProfileView } from './views/ProfileView';
+import { InstitutionalLegalView } from './views/InstitutionalLegalView';
 
 const MainContent: React.FC = () => {
-  const { currentView } = useApp();
+  const { currentView, activeLegalTab } = useApp();
 
   return (
     <div className="flex flex-col min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 transition-colors duration-200 pb-16 lg:pb-0 overflow-x-hidden">
@@ -44,6 +45,7 @@ const MainContent: React.FC = () => {
         {currentView === 'favorites' && <FavoritesView />}
         {currentView === 'design_system' && <DesignSystemView />}
         {currentView === 'profile' && <ProfileView />}
+        {currentView === 'legal' && <InstitutionalLegalView initialTab={activeLegalTab} />}
       </main>
 
       <Footer />

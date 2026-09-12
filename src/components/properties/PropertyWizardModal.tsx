@@ -97,7 +97,7 @@ export const PropertyWizardModal: React.FC = () => {
       setSuites(editingProperty.suites);
       setBathrooms(editingProperty.bathrooms);
       setParkingSpots(editingProperty.parkingSpots);
-      setSolarOrientation(editingProperty.solarOrientation || 'manhã');
+      setSolarOrientation((editingProperty.solarOrientation as any) || 'manhã');
       setPrice(editingProperty.price);
       setCondoFee(editingProperty.condoFee || 0);
       setIptuFee(editingProperty.iptuFee || 0);
@@ -134,7 +134,7 @@ export const PropertyWizardModal: React.FC = () => {
     );
   };
 
-  const handleSaveListing = () => {
+  const handleSaveListing = async () => {
     const propertyData = {
       title: title || `${type === 'apartment' ? 'Apartamento' : 'Casa'} com ${bedrooms} quartos no ${neighborhood}`,
       slug: (title || `${type}-${neighborhood}`).toLowerCase().replace(/[^a-z0-9]+/g, '-'),
@@ -154,7 +154,7 @@ export const PropertyWizardModal: React.FC = () => {
       suites,
       bathrooms,
       parkingSpots,
-      solarOrientation,
+      solarOrientation: solarOrientation as any,
       addressStreet,
       addressNumber,
       neighborhood,
@@ -172,11 +172,13 @@ export const PropertyWizardModal: React.FC = () => {
     };
 
     if (editingProperty) {
-      updateProperty(editingProperty.id, propertyData);
+      await updateProperty(editingProperty.id, propertyData);
       openPropertyDetail(editingProperty.id);
     } else {
-      const created = addProperty(propertyData);
-      openPropertyDetail(created.id);
+      const created = await addProperty(propertyData);
+      if (created?.id) {
+        openPropertyDetail(created.id);
+      }
     }
 
     setIsWizardOpen(false);

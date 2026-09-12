@@ -46,7 +46,8 @@ export const ProfileView: React.FC = () => {
     switchUserRole, 
     setCurrentView,
     addToast,
-    isDbConnected
+    isDbConnected,
+    openLegalPage
   } = useApp();
 
   const [activeTab, setActiveTab] = useState<'general' | 'role_specific' | 'security'>('general');
@@ -937,6 +938,27 @@ export const ProfileView: React.FC = () => {
                   <strong className="text-slate-800 dark:text-slate-200 font-mono text-[11px]">
                     {formData.id}
                   </strong>
+                </div>
+              </div>
+
+              {/* Legal & Privacy Navigation Links */}
+              <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex flex-wrap items-center justify-between gap-3 text-xs">
+                <span className="text-slate-500">Direitos do Titular de Dados (LGPD):</span>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => openLegalPage('privacy')}
+                    className="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-rose-50 dark:hover:bg-rose-950/40 text-slate-700 dark:text-slate-300 hover:text-rose-600 font-medium transition-colors"
+                  >
+                    Política de Privacidade
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => openLegalPage('terms')}
+                    className="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-rose-50 dark:hover:bg-rose-950/40 text-slate-700 dark:text-slate-300 hover:text-rose-600 font-medium transition-colors"
+                  >
+                    Termos de Uso
+                  </button>
                 </div>
               </div>
             </div>

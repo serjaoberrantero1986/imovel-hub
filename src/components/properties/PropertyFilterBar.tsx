@@ -13,6 +13,9 @@ import {
   Car,
   Bath,
   Maximize2,
+  Trees,
+  Tractor,
+  Store,
   Hash,
   ArrowRight
 } from 'lucide-react';
@@ -31,11 +34,13 @@ export const PropertyFilterBar: React.FC = () => {
 
   const propertyTypes: { id: PropertyType; label: string; icon: any }[] = [
     { id: 'apartment', label: 'Apartamento', icon: Building },
-    { id: 'condo_house', label: 'Casa em Condomínio', icon: Home },
     { id: 'house', label: 'Casa de Bairro', icon: Home },
-    { id: 'penthouse', label: 'Cobertura', icon: Sparkles },
-    { id: 'land', label: 'Terreno / Lote', icon: Building },
-    { id: 'commercial', label: 'Comercial', icon: Building }
+    { id: 'condo_house', label: 'Casa em Condomínio', icon: Home },
+    { id: 'land', label: 'Terreno', icon: Maximize2 },
+    { id: 'chacara', label: 'Chácara', icon: Trees },
+    { id: 'farm', label: 'Sítio/Fazenda', icon: Tractor },
+    { id: 'commercial', label: 'Comercial', icon: Store },
+    { id: 'launch', label: 'Lançamento', icon: Sparkles }
   ];
 
   const handlePurposeChange = (purpose: PropertyPurpose | 'all') => {
@@ -45,7 +50,7 @@ export const PropertyFilterBar: React.FC = () => {
   const handleTypeToggle = (type: PropertyType) => {
     setFilters(prev => {
       const exists = prev.types.includes(type);
-      const newTypes = exists ? prev.types.filter(t => t !== type) : [...prev.types, type];
+      const newTypes = exists ? [] : [type];
       return { ...prev, types: newTypes };
     });
   };
@@ -107,7 +112,7 @@ export const PropertyFilterBar: React.FC = () => {
       <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-100 dark:border-slate-800">
         
         {/* Purpose Buttons */}
-        <div className="w-full sm:w-auto grid grid-cols-4 sm:flex items-center gap-1 sm:gap-1.5 p-1 bg-slate-100 dark:bg-slate-800 rounded-2xl">
+        <div className="w-full sm:w-auto grid grid-cols-3 sm:flex items-center gap-1 sm:gap-1.5 p-1 bg-slate-100 dark:bg-slate-800 rounded-2xl">
           <button
             onClick={() => handlePurposeChange('all')}
             className={`px-1.5 sm:px-4 py-2 rounded-xl text-[11px] sm:text-xs font-bold transition-all text-center truncate ${
@@ -137,17 +142,6 @@ export const PropertyFilterBar: React.FC = () => {
             }`}
           >
             Alugar
-          </button>
-          <button
-            onClick={() => handlePurposeChange('launch')}
-            className={`px-1.5 sm:px-4 py-2 rounded-xl text-[11px] sm:text-xs font-bold transition-all flex items-center justify-center gap-1 sm:gap-1.5 text-center truncate ${
-              filters.purpose === 'launch'
-                ? 'bg-amber-600 text-white shadow-md shadow-amber-600/20'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-            }`}
-          >
-            <span className="truncate">Lançamentos</span>
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0"></span>
           </button>
         </div>
 
@@ -243,9 +237,9 @@ export const PropertyFilterBar: React.FC = () => {
             <span className="text-[11px] font-bold text-slate-400 pl-2 pr-1">Quartos:</span>
             {[
               { val: 'any', label: 'Todos' },
-              { val: 1, label: '1+' },
-              { val: 2, label: '2+' },
-              { val: 3, label: '3+' },
+              { val: 1, label: '1' },
+              { val: 2, label: '2' },
+              { val: 3, label: '3' },
               { val: 4, label: '4+' }
             ].map(item => (
               <button
@@ -301,8 +295,8 @@ export const PropertyFilterBar: React.FC = () => {
       )}
 
       {/* Property Types Chips */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
-        <span className="text-xs font-semibold text-slate-400 shrink-0">Tipo de Imóvel:</span>
+      <div className="flex flex-wrap items-center gap-2 pt-0.5">
+        <span className="text-xs font-semibold text-slate-400 shrink-0 mr-0.5">Tipo de Imóvel:</span>
         {propertyTypes.map(t => {
           const isSelected = filters.types.includes(t.id);
           const Icon = t.icon;
@@ -310,7 +304,7 @@ export const PropertyFilterBar: React.FC = () => {
             <button
               key={t.id}
               onClick={() => handleTypeToggle(t.id)}
-              className={`px-3 py-1.5 rounded-xl text-xs font-semibold shrink-0 flex items-center gap-1.5 transition-all ${
+              className={`px-3 py-1.5 rounded-xl text-xs font-semibold shrink-0 flex items-center gap-1.5 transition-all cursor-pointer ${
                 isSelected
                   ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 shadow-sm'
                   : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200/80 dark:hover:bg-slate-700'
@@ -384,9 +378,9 @@ export const PropertyFilterBar: React.FC = () => {
               <div className="flex items-center gap-1.5">
                 {[
                   { val: 'any', label: 'Todas' },
-                  { val: 1, label: '1+' },
-                  { val: 2, label: '2+' },
-                  { val: 3, label: '3+' },
+                  { val: 1, label: '1' },
+                  { val: 2, label: '2' },
+                  { val: 3, label: '3' },
                   { val: 4, label: '4+' }
                 ].map(spot => (
                   <button

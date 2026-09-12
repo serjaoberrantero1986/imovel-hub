@@ -11,6 +11,9 @@ import {
   Car, 
   Bath, 
   Maximize2,
+  Trees,
+  Tractor,
+  Store,
   ChevronDown
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
@@ -37,11 +40,13 @@ export const FilterDrawerBottomSheet: React.FC<FilterDrawerBottomSheetProps> = (
 
   const propertyTypes: { id: PropertyType; label: string; icon: any }[] = [
     { id: 'apartment', label: 'Apartamento', icon: Building },
-    { id: 'condo_house', label: 'Casa em Condomínio', icon: Home },
     { id: 'house', label: 'Casa de Bairro', icon: Home },
-    { id: 'penthouse', label: 'Cobertura', icon: Sparkles },
-    { id: 'land', label: 'Terreno / Lote', icon: Building },
-    { id: 'commercial', label: 'Comercial', icon: Building }
+    { id: 'condo_house', label: 'Casa em Condomínio', icon: Home },
+    { id: 'land', label: 'Terreno', icon: Maximize2 },
+    { id: 'chacara', label: 'Chácara', icon: Trees },
+    { id: 'farm', label: 'Sítio/Fazenda', icon: Tractor },
+    { id: 'commercial', label: 'Comercial', icon: Store },
+    { id: 'launch', label: 'Lançamento', icon: Sparkles }
   ];
 
   const handlePurposeChange = (purpose: PropertyPurpose | 'all') => {
@@ -51,7 +56,7 @@ export const FilterDrawerBottomSheet: React.FC<FilterDrawerBottomSheetProps> = (
   const handleTypeToggle = (type: PropertyType) => {
     setFilters(prev => {
       const exists = prev.types.includes(type);
-      const newTypes = exists ? prev.types.filter(t => t !== type) : [...prev.types, type];
+      const newTypes = exists ? [] : [type];
       return { ...prev, types: newTypes };
     });
   };
@@ -134,12 +139,11 @@ export const FilterDrawerBottomSheet: React.FC<FilterDrawerBottomSheetProps> = (
             <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
               Finalidade
             </label>
-            <div className="grid grid-cols-4 gap-2">
+            <div className="grid grid-cols-3 gap-2">
               {[
                 { id: 'all', label: 'Todos' },
                 { id: 'sale', label: 'Comprar' },
-                { id: 'rent', label: 'Alugar' },
-                { id: 'launch', label: 'Lançamento' }
+                { id: 'rent', label: 'Alugar' }
               ].map(opt => (
                 <button
                   key={opt.id}
@@ -193,18 +197,24 @@ export const FilterDrawerBottomSheet: React.FC<FilterDrawerBottomSheetProps> = (
                 <span>Quartos / Suítes</span>
               </label>
               <div className="flex gap-1.5">
-                {['any', '1', '2', '3', '4'].map(bed => (
+                {[
+                  { val: 'any', label: 'Qualquer' },
+                  { val: 1, label: '1' },
+                  { val: 2, label: '2' },
+                  { val: 3, label: '3' },
+                  { val: 4, label: '4+' }
+                ].map(item => (
                   <button
-                    key={bed}
+                    key={String(item.val)}
                     type="button"
-                    onClick={() => setFilters(prev => ({ ...prev, bedrooms: bed as any }))}
+                    onClick={() => setFilters(prev => ({ ...prev, bedrooms: item.val as any }))}
                     className={`flex-1 min-h-[44px] rounded-xl text-xs font-bold transition-all flex items-center justify-center ${
-                      filters.bedrooms === bed
+                      filters.bedrooms === item.val
                         ? 'bg-rose-600 text-white shadow-md'
                         : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300'
                     }`}
                   >
-                    {bed === 'any' ? 'Qualquer' : `${bed}+`}
+                    {item.label}
                   </button>
                 ))}
               </div>
@@ -216,18 +226,24 @@ export const FilterDrawerBottomSheet: React.FC<FilterDrawerBottomSheetProps> = (
                 <span>Vagas de Garagem</span>
               </label>
               <div className="flex gap-1.5">
-                {['any', '1', '2', '3', '4'].map(car => (
+                {[
+                  { val: 'any', label: 'Qualquer' },
+                  { val: 1, label: '1' },
+                  { val: 2, label: '2' },
+                  { val: 3, label: '3' },
+                  { val: 4, label: '4+' }
+                ].map(item => (
                   <button
-                    key={car}
+                    key={String(item.val)}
                     type="button"
-                    onClick={() => setFilters(prev => ({ ...prev, parkingSpots: car as any }))}
+                    onClick={() => setFilters(prev => ({ ...prev, parkingSpots: item.val as any }))}
                     className={`flex-1 min-h-[44px] rounded-xl text-xs font-bold transition-all flex items-center justify-center ${
-                      filters.parkingSpots === car
+                      filters.parkingSpots === item.val
                         ? 'bg-rose-600 text-white shadow-md'
                         : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300'
                     }`}
                   >
-                    {car === 'any' ? 'Qualquer' : `${car}+`}
+                    {item.label}
                   </button>
                 ))}
               </div>

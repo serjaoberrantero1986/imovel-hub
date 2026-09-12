@@ -45,7 +45,8 @@ export const PropertyDetailView: React.FC = () => {
     toggleComparison,
     addLead,
     startOrOpenConversation,
-    addToast 
+    addToast,
+    openLegalPage
   } = useApp();
 
   const property = properties.find(p => p.id === selectedPropertyId) || properties[0];
@@ -601,7 +602,22 @@ export const PropertyDetailView: React.FC = () => {
                 </button>
 
                 <p className="text-[10px] text-slate-400 text-center leading-tight">
-                  Ao enviar, você concorda com nossos Termos de Uso e Política de Privacidade.
+                  Ao enviar, você concorda com nossos{' '}
+                  <button
+                    type="button"
+                    onClick={() => openLegalPage('terms')}
+                    className="underline text-slate-600 dark:text-slate-300 hover:text-rose-600 dark:hover:text-rose-400"
+                  >
+                    Termos de Uso
+                  </button>{' '}
+                  e{' '}
+                  <button
+                    type="button"
+                    onClick={() => openLegalPage('privacy')}
+                    className="underline text-slate-600 dark:text-slate-300 hover:text-rose-600 dark:hover:text-rose-400"
+                  >
+                    Política de Privacidade
+                  </button>.
                 </p>
               </form>
 

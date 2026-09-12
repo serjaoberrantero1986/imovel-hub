@@ -7,7 +7,10 @@ export type PropertyType =
   | 'penthouse' 
   | 'commercial' 
   | 'land' 
-  | 'rural';
+  | 'rural'
+  | 'chacara'
+  | 'farm'
+  | 'launch';
 
 export type PropertyStatus = 
   | 'draft' 
@@ -116,7 +119,11 @@ export interface Property {
   parkingSpots: number;
   floor?: number;
   totalFloors?: number;
-  solarOrientation?: 'Manhã' | 'Tarde' | 'Norte' | 'Sul';
+  solarOrientation?: 'Manhã' | 'Tarde' | 'Norte' | 'Sul' | 'manhã' | 'tarde' | 'ambas';
+  condoName?: string;
+  acceptsFinancing?: boolean;
+  acceptsExchange?: boolean;
+  images?: string[];
   constructionYear?: number;
   deliveryDate?: string;
   
@@ -274,6 +281,14 @@ export interface Lead {
   accessRestricted?: boolean; // Se ativo, mascara CPF/Telefone para não-autorizados
   assignedBrokerId?: string;
   assignedBrokerName?: string;
+  assignedTo?: string;
+
+  // Preferências adicionais do Lead
+  preferredPropertyTypes?: string[];
+  preferredNeighborhoods?: string[];
+  preferredCity?: string;
+  minBedrooms?: number;
+  minParkingSpaces?: number;
   
   // Fechamento / Perda
   closedValue?: number;

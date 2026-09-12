@@ -190,7 +190,9 @@ export const CrmLeadsTable: React.FC<CrmLeadsTableProps> = ({
                                 {lead.buyerName}
                               </span>
                               {lead.accessRestricted && (
-                                <ShieldCheck className="w-3.5 h-3.5 text-indigo-500 shrink-0" title="Protegido por LGPD" />
+                                <span title="Protegido por LGPD" className="inline-flex">
+                                  <ShieldCheck className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
+                                </span>
                               )}
                             </div>
                             <div className="flex items-center gap-2 text-[11px] text-slate-500 font-mono">

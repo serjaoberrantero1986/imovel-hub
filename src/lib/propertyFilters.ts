@@ -33,8 +33,22 @@ export function filterProperties(properties: Property[], filters: FilterState): 
     }
 
     // Types filter
-    if (filters.types && filters.types.length > 0 && !filters.types.includes(prop.type)) {
-      return false;
+    if (filters.types && filters.types.length > 0) {
+      const matchesType = filters.types.some(t => {
+        if (t === 'launch') {
+          return prop.purpose === 'launch' || (prop.type as string) === 'launch';
+        }
+        if (t === 'chacara') {
+          return prop.type === 'chacara' || prop.type === 'rural';
+        }
+        if (t === 'farm') {
+          return prop.type === 'farm' || prop.type === 'rural';
+        }
+        return prop.type === t;
+      });
+      if (!matchesType) {
+        return false;
+      }
     }
 
     // City filter

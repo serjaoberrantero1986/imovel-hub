@@ -21,6 +21,9 @@ export type PropertyType =
   | 'commercial'
   | 'land'
   | 'rural'
+  | 'chacara'
+  | 'farm'
+  | 'launch'
   | 'studio'
   | 'loft'
   | 'warehouse';

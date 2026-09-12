@@ -15,7 +15,6 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
   (
     {
       className,
-      variant不易 = 'primary',
       variant = 'primary',
       size = 'md',
       isLoading = false,

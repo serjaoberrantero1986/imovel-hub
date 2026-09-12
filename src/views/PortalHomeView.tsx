@@ -33,7 +33,8 @@ export const PortalHomeView: React.FC = () => {
     setFilters, 
     resetFilters,
     setIsWizardOpen, 
-    setEditingProperty 
+    setEditingProperty,
+    openLegalPage
   } = useApp();
 
   const [hoveredMapPropId, setHoveredMapPropId] = useState<string | null>(null);
@@ -316,9 +317,18 @@ export const PortalHomeView: React.FC = () => {
 
         {/* Section: Por que anunciar no Web Imóvel */}
         <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-3 shadow-sm">
-            <div className="w-12 h-12 rounded-2xl bg-rose-50 dark:bg-rose-950/60 text-rose-600 flex items-center justify-center">
-              <ShieldCheck className="w-6 h-6" />
+          <div 
+            onClick={() => openLegalPage('security')}
+            className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-3 shadow-sm hover:border-rose-400 dark:hover:border-rose-600 transition-all cursor-pointer group"
+          >
+            <div className="flex items-center justify-between">
+              <div className="w-12 h-12 rounded-2xl bg-rose-50 dark:bg-rose-950/60 text-rose-600 flex items-center justify-center transition-transform group-hover:scale-110">
+                <ShieldCheck className="w-6 h-6" />
+              </div>
+              <span className="text-[11px] font-bold text-rose-600 dark:text-rose-400 group-hover:underline flex items-center gap-1">
+                <span>Ver Dicas</span>
+                <ChevronRight className="w-3.5 h-3.5" />
+              </span>
             </div>
             <h3 className="text-base font-bold text-slate-900 dark:text-white font-['Outfit']">
               Segurança & Verificação CRECI

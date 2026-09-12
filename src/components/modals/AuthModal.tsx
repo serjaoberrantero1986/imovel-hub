@@ -25,7 +25,8 @@ export const AuthModal: React.FC = () => {
     setAuthModalTab, 
     login, 
     signUp, 
-    loginWithGoogle
+    loginWithGoogle,
+    openLegalPage
   } = useApp();
 
   // Form State
@@ -469,7 +470,30 @@ export const AuthModal: React.FC = () => {
                       className="mt-0.5 rounded text-rose-600 focus:ring-rose-500"
                     />
                     <span>
-                      Concordo com os <strong>Termos de Uso</strong> e autorizo o tratamento de dados segundo a <strong>LGPD</strong>.
+                      Concordo com os{' '}
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          closeAuthModal();
+                          openLegalPage('terms');
+                        }}
+                        className="font-bold underline text-slate-900 dark:text-slate-200 hover:text-rose-600 dark:hover:text-rose-400"
+                      >
+                        Termos de Uso
+                      </button>{' '}
+                      e autorizo o tratamento de dados segundo a{' '}
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          closeAuthModal();
+                          openLegalPage('privacy');
+                        }}
+                        className="font-bold underline text-slate-900 dark:text-slate-200 hover:text-rose-600 dark:hover:text-rose-400"
+                      >
+                        LGPD
+                      </button>.
                     </span>
                   </label>
                 )}

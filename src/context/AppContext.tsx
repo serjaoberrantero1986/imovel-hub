@@ -31,7 +31,8 @@ import {
   toggleFavoriteInSupabase,
   fetchSavedSearchesFromSupabase,
   insertSavedSearchToSupabase,
-  deleteSavedSearchFromSupabase
+  deleteSavedSearchFromSupabase,
+  deleteConversationFromSupabase
 } from '../lib/supabaseCrud';
 import { isSupabaseConfigured, supabase, supabaseUrl, supabaseAnonKey } from '../lib/supabaseClient';
 import { createClient } from '@supabase/supabase-js';
@@ -49,7 +50,10 @@ export type AppView =
   | 'saved_searches'
   | 'comparator'
   | 'design_system'
-  | 'profile';
+  | 'profile'
+  | 'legal';
+
+export type LegalTab = 'terms' | 'privacy' | 'consumer' | 'security' | 'cookies';
 
 interface Toast {
   id: string;
@@ -69,6 +73,9 @@ interface AppContextType {
   setCurrentView: (view: AppView) => void;
   selectedPropertyId: string | null;
   openPropertyDetail: (id: string) => void;
+  activeLegalTab: LegalTab;
+  setActiveLegalTab: (tab: LegalTab) => void;
+  openLegalPage: (tab?: LegalTab) => void;
   
   // Theme
   theme: 'light' | 'dark';
@@ -127,6 +134,7 @@ interface AppContextType {
   setActiveConversationId: (id: string | null) => void;
   sendMessage: (conversationId: string, text: string) => Promise<void>;
   startOrOpenConversation: (propertyId: string) => void;
+  deleteConversation: (conversationId: string) => Promise<void>;
   
   // Favorites & Comparisons
   favoriteIds: string[];
@@ -695,10 +703,17 @@ const storeAccount = (email: string, password: string, profile: UserProfile) => 
   // Navigation
   const [currentView, setCurrentView] = useState<AppView>('portal');
   const [selectedPropertyId, setSelectedPropertyId] = useState<string | null>('prop-1');
+  const [activeLegalTab, setActiveLegalTab] = useState<LegalTab>('terms');
 
   const openPropertyDetail = (id: string) => {
     setSelectedPropertyId(id);
     setCurrentView('property_detail');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const openLegalPage = (tab: LegalTab = 'terms') => {
+    setActiveLegalTab(tab);
+    setCurrentView('legal');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -1315,6 +1330,22 @@ const storeAccount = (email: string, password: string, profile: UserProfile) => 
     setCurrentView('messages');
   };
 
+  const deleteConversation = async (conversationId: string) => {
+    setConversations(prev => {
+      const remaining = prev.filter(c => c.id !== conversationId);
+      if (activeConversationId === conversationId) {
+        setActiveConversationId(remaining.length > 0 ? remaining[0].id : null);
+      }
+      return remaining;
+    });
+
+    if (isSupabaseConfigured) {
+      await deleteConversationFromSupabase(conversationId);
+    }
+
+    addToast({ type: 'info', title: 'Conversa excluída com sucesso' });
+  };
+
   // --------------------------------------------------------------------------
   // FAVORITES
   // --------------------------------------------------------------------------
@@ -1404,6 +1435,9 @@ const storeAccount = (email: string, password: string, profile: UserProfile) => 
         setCurrentView,
         selectedPropertyId,
         openPropertyDetail,
+        activeLegalTab,
+        setActiveLegalTab,
+        openLegalPage,
         theme,
         toggleTheme,
         currentUser,
@@ -1445,6 +1479,7 @@ const storeAccount = (email: string, password: string, profile: UserProfile) => 
         setActiveConversationId,
         sendMessage,
         startOrOpenConversation,
+        deleteConversation,
         favoriteIds,
         toggleFavorite,
         isFavorite,

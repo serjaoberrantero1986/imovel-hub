@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { Component, useState, useEffect, useRef } from 'react';
 import L from 'leaflet';
 import { 
   APIProvider, 
@@ -29,6 +29,40 @@ interface PropertyMapProps {
   properties: Property[];
   hoveredPropertyId?: string | null;
   className?: string;
+}
+
+// Error boundary to prevent Google Maps JS script/quota errors from crashing the application
+interface ErrorBoundaryProps {
+  children: React.ReactNode;
+  fallback: React.ReactNode;
+  onError?: (error: Error) => void;
+}
+
+interface ErrorBoundaryState {
+  hasError: boolean;
+}
+
+class GoogleMapsErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  constructor(props: ErrorBoundaryProps) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error: Error) {
+    console.warn('Google Maps error caught by boundary:', error);
+    this.props.onError?.(error);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return this.props.fallback;
+    }
+    return this.props.children;
+  }
 }
 
 // Inner controls for Google Maps
@@ -143,20 +177,52 @@ export const PropertyMap: React.FC<PropertyMapProps> = ({
   const [mapTypeId, setMapTypeId] = useState<string>('roadmap');
   const [leafletLayer, setLeafletLayer] = useState<'streets' | 'satellite'>('streets');
   const [keyModalOpen, setKeyModalOpen] = useState<boolean>(false);
+  const [quotaNotice, setQuotaNotice] = useState<string | null>(null);
   
-  // Manage Provider selection and Google Maps API Key
-  const envKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '';
+  // Manage Provider selection and Google Maps API Key.
+  // Note: The public Maps Demo Key from Google Cloud hits daily quotas across developer instances.
+  // We default safely to OpenStreetMap (Leaflet + CartoDB + Esri Satellite), which has no quota or API key requirement.
   const [apiKey, setApiKey] = useState<string>(() => {
-    return localStorage.getItem('gmp_api_key') || envKey;
+    return localStorage.getItem('gmp_api_key') || '';
   });
   const [inputKey, setInputKey] = useState<string>(apiKey);
   const [mapProvider, setMapProvider] = useState<'osm' | 'google'>(() => {
     const saved = localStorage.getItem('preferred_map_provider');
-    if (saved === 'google' && (localStorage.getItem('gmp_api_key') || envKey)) {
+    const customKey = localStorage.getItem('gmp_api_key');
+    if (saved === 'google' && customKey && customKey.trim().length > 10) {
       return 'google';
     }
-    return (envKey && envKey.startsWith('AIza')) ? 'google' : 'osm';
+    return 'osm';
   });
+
+  // Intercept Google Maps quota exhaustion / auth failures and cross-origin script errors
+  useEffect(() => {
+    const handleGmAuthFailure = () => {
+      console.warn('Google Maps authentication or quota limit reached. Falling back safely to OpenStreetMap.');
+      setQuotaNotice('A cota da chave de demonstração do Google Maps foi atingida. O mapa foi alternado automaticamente para OpenStreetMap (100% funcional).');
+      setMapProvider('osm');
+      localStorage.setItem('preferred_map_provider', 'osm');
+    };
+
+    (window as any).gm_authFailure = handleGmAuthFailure;
+
+    const handleGlobalScriptError = (event: ErrorEvent) => {
+      if (
+        (event.message && event.message.includes('Maps Demo Key')) ||
+        (event.filename && event.filename.includes('maps.googleapis.com')) ||
+        (event.message === 'Script error.' && mapProvider === 'google')
+      ) {
+        event.preventDefault?.();
+        handleGmAuthFailure();
+      }
+    };
+
+    window.addEventListener('error', handleGlobalScriptError);
+
+    return () => {
+      window.removeEventListener('error', handleGlobalScriptError);
+    };
+  }, [mapProvider]);
 
   // Leaflet DOM ref and instance
   const leafletContainerRef = useRef<HTMLDivElement>(null);
@@ -190,7 +256,25 @@ export const PropertyMap: React.FC<PropertyMapProps> = ({
 
     leafletMapRef.current = map;
 
+    // Resize observer to ensure tiles always cover the container
+    const resizeObserver = new ResizeObserver(() => {
+      try {
+        map.invalidateSize();
+      } catch {}
+    });
+    if (leafletContainerRef.current) {
+      resizeObserver.observe(leafletContainerRef.current);
+    }
+
+    const timer = setTimeout(() => {
+      try {
+        map.invalidateSize();
+      } catch {}
+    }, 200);
+
     return () => {
+      clearTimeout(timer);
+      resizeObserver.disconnect();
       if (leafletMapRef.current) {
         leafletMapRef.current.remove();
         leafletMapRef.current = null;
@@ -331,11 +415,13 @@ export const PropertyMap: React.FC<PropertyMapProps> = ({
       localStorage.setItem('preferred_map_provider', 'google');
       setApiKey(cleanKey);
       setMapProvider('google');
+      setQuotaNotice(null);
     } else {
       localStorage.removeItem('gmp_api_key');
       localStorage.setItem('preferred_map_provider', 'osm');
       setApiKey('');
       setMapProvider('osm');
+      setQuotaNotice(null);
     }
     setKeyModalOpen(false);
   };
@@ -346,6 +432,7 @@ export const PropertyMap: React.FC<PropertyMapProps> = ({
     setApiKey('');
     setInputKey('');
     setMapProvider('osm');
+    setQuotaNotice(null);
   };
 
   const defaultCenter = { lat: -23.5015, lng: -47.4580 };
@@ -354,6 +441,31 @@ export const PropertyMap: React.FC<PropertyMapProps> = ({
   return (
     <div className={`relative overflow-hidden rounded-3xl border border-slate-200/80 dark:border-slate-800/80 bg-slate-100 dark:bg-slate-900 shadow-md ${className}`}>
       
+      {/* Informative Notice when Google Maps fallback occurs */}
+      {quotaNotice && (
+        <div className="absolute top-4 left-4 right-16 z-20 bg-amber-500/95 text-white text-xs font-semibold px-4 py-2.5 rounded-2xl shadow-xl flex items-center justify-between gap-3 backdrop-blur-md animate-in fade-in">
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 shrink-0 text-amber-100" />
+            <span>{quotaNotice}</span>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              onClick={() => setKeyModalOpen(true)}
+              className="text-[11px] font-bold underline text-amber-100 hover:text-white cursor-pointer"
+            >
+              Configurar Chave
+            </button>
+            <button 
+              onClick={() => setQuotaNotice(null)} 
+              className="p-1 text-white/80 hover:text-white rounded-lg hover:bg-amber-600/50 cursor-pointer"
+              title="Fechar aviso"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* 1. Leaflet Map View (Default / High Performance, zero API Key required) */}
       {mapProvider === 'osm' && (
         <div className="w-full h-full min-h-[350px] relative">
@@ -396,14 +508,14 @@ export const PropertyMap: React.FC<PropertyMapProps> = ({
               <span>{leafletLayer === 'streets' ? 'Satélite' : 'Mapa'}</span>
             </button>
 
-            {/* Google Maps setup trigger button */}
+            {/* Map Settings & Provider selector */}
             <button
               onClick={() => setKeyModalOpen(true)}
-              title="Ativar Google Maps Platform"
+              title="Configurar Provedor de Mapa"
               className="px-3 py-1.5 rounded-2xl bg-white/95 dark:bg-slate-900/95 text-slate-700 dark:text-slate-300 border border-slate-200/80 dark:border-slate-800/80 backdrop-blur-md shadow-xl text-[11px] font-bold flex items-center gap-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer"
             >
-              <Compass className="w-3 h-3 text-rose-500" />
-              <span>Google Maps</span>
+              <Compass className="w-3 h-3 text-emerald-500" />
+              <span>OpenStreetMap</span>
             </button>
           </div>
         </div>
@@ -411,127 +523,143 @@ export const PropertyMap: React.FC<PropertyMapProps> = ({
 
       {/* 2. Google Maps View (Activated when user enables Google Maps and provides a valid API Key) */}
       {mapProvider === 'google' && hasValidGoogleKey && (
-        <APIProvider apiKey={apiKey}>
-          <div className="w-full h-full min-h-[350px]">
-            <Map
-              defaultCenter={defaultCenter}
-              defaultZoom={13}
-              mapId="DEMO_MAP_ID"
-              internalUsageAttributionIds={["gmp_mcp_codeassist_v1_aistudio"]}
-              mapTypeId={mapTypeId}
-              disableDefaultUI={true}
-              gestureHandling="greedy"
-              colorScheme={theme === 'dark' ? 'DARK' : 'LIGHT'}
-              className="w-full h-full"
-              style={{ width: '100%', height: '100%' }}
-            >
-              {/* Map Custom Controls Component */}
-              <GoogleMapControls
+        <GoogleMapsErrorBoundary
+          fallback={<div className="w-full h-full min-h-[350px] flex items-center justify-center text-xs text-slate-500">Alternando para OpenStreetMap...</div>}
+          onError={() => {
+            setQuotaNotice('A cota do Google Maps foi atingida ou houve falha no script da API. Alternado para OpenStreetMap.');
+            setMapProvider('osm');
+            localStorage.setItem('preferred_map_provider', 'osm');
+          }}
+        >
+          <APIProvider 
+            apiKey={apiKey}
+            onError={() => {
+              setQuotaNotice('A cota do Google Maps foi atingida. Alternado para OpenStreetMap (100% operacional).');
+              setMapProvider('osm');
+              localStorage.setItem('preferred_map_provider', 'osm');
+            }}
+          >
+            <div className="w-full h-full min-h-[350px]">
+              <Map
+                defaultCenter={defaultCenter}
+                defaultZoom={13}
+                mapId="DEMO_MAP_ID"
+                internalUsageAttributionIds={["gmp_mcp_codeassist_v1_aistudio"]}
                 mapTypeId={mapTypeId}
-                setMapTypeId={setMapTypeId}
-                properties={properties}
-                onOpenKeyModal={() => setKeyModalOpen(true)}
-                onSwitchToOsm={() => {
-                  setMapProvider('osm');
-                  localStorage.setItem('preferred_map_provider', 'osm');
-                }}
-              />
+                disableDefaultUI={true}
+                gestureHandling="greedy"
+                colorScheme={theme === 'dark' ? 'DARK' : 'LIGHT'}
+                className="w-full h-full"
+                style={{ width: '100%', height: '100%' }}
+              >
+                {/* Map Custom Controls Component */}
+                <GoogleMapControls
+                  mapTypeId={mapTypeId}
+                  setMapTypeId={setMapTypeId}
+                  properties={properties}
+                  onOpenKeyModal={() => setKeyModalOpen(true)}
+                  onSwitchToOsm={() => {
+                    setMapProvider('osm');
+                    localStorage.setItem('preferred_map_provider', 'osm');
+                  }}
+                />
 
-              {/* Advanced Markers for Properties */}
-              {properties.map((prop) => {
-                if (!prop.latitude || !prop.longitude) return null;
-                const isHovered = prop.id === hoveredPropertyId;
-                const isSelected = selectedProperty?.id === prop.id;
-                const formattedPrice = formatCompactNumber(prop.price);
+                {/* Advanced Markers for Properties */}
+                {properties.map((prop) => {
+                  if (!prop.latitude || !prop.longitude) return null;
+                  const isHovered = prop.id === hoveredPropertyId;
+                  const isSelected = selectedProperty?.id === prop.id;
+                  const formattedPrice = formatCompactNumber(prop.price);
 
-                return (
-                  <AdvancedMarker
-                    key={prop.id}
-                    position={{ lat: prop.latitude, lng: prop.longitude }}
-                    title={`${prop.title} - ${formatCurrency(prop.price)}`}
-                    onClick={() => setSelectedProperty(prop)}
-                    zIndex={isSelected ? 100 : isHovered ? 90 : 10}
+                  return (
+                    <AdvancedMarker
+                      key={prop.id}
+                      position={{ lat: prop.latitude, lng: prop.longitude }}
+                      title={`${prop.title} - ${formatCurrency(prop.price)}`}
+                      onClick={() => setSelectedProperty(prop)}
+                      zIndex={isSelected ? 100 : isHovered ? 90 : 10}
+                    >
+                      <div 
+                        className={`cursor-pointer transition-all duration-200 ${
+                          isSelected || isHovered ? 'scale-125 -translate-y-1' : 'hover:scale-110 hover:-translate-y-0.5'
+                        }`}
+                      >
+                        <div className={`px-2.5 py-1 rounded-full text-xs font-extrabold shadow-xl flex items-center gap-1 border border-white/90 ${
+                          isSelected || isHovered
+                            ? 'bg-rose-600 text-white ring-4 ring-rose-500/40 shadow-rose-600/30'
+                            : prop.purpose === 'rent'
+                            ? 'bg-indigo-600 text-white'
+                            : prop.purpose === 'launch'
+                            ? 'bg-amber-600 text-white'
+                            : 'bg-slate-900 text-white dark:bg-white dark:text-slate-900'
+                        }`}>
+                          <span className="font-mono">${formattedPrice}</span>
+                        </div>
+                      </div>
+                    </AdvancedMarker>
+                  );
+                })}
+
+                {/* InfoWindow Popup for Selected Property */}
+                {selectedProperty && selectedProperty.latitude && selectedProperty.longitude && (
+                  <InfoWindow
+                    position={{ lat: selectedProperty.latitude, lng: selectedProperty.longitude }}
+                    onCloseClick={() => setSelectedProperty(null)}
+                    pixelOffset={[0, -28]}
                   >
                     <div 
-                      className={`cursor-pointer transition-all duration-200 ${
-                        isSelected || isHovered ? 'scale-125 -translate-y-1' : 'hover:scale-110 hover:-translate-y-0.5'
-                      }`}
+                      onClick={() => openPropertyDetail(selectedProperty.id)}
+                      className="w-64 p-0 font-sans cursor-pointer overflow-hidden rounded-2xl bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
                     >
-                      <div className={`px-2.5 py-1 rounded-full text-xs font-extrabold shadow-xl flex items-center gap-1 border border-white/90 ${
-                        isSelected || isHovered
-                          ? 'bg-rose-600 text-white ring-4 ring-rose-500/40 shadow-rose-600/30'
-                          : prop.purpose === 'rent'
-                          ? 'bg-indigo-600 text-white'
-                          : prop.purpose === 'launch'
-                          ? 'bg-amber-600 text-white'
-                          : 'bg-slate-900 text-white dark:bg-white dark:text-slate-900'
-                      }`}>
-                        <span className="font-mono">${formattedPrice}</span>
+                      <div className="relative h-32 w-full bg-slate-200 overflow-hidden">
+                        <img 
+                          src={selectedProperty.media[0]?.thumbnailUrl || selectedProperty.media[0]?.url || 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?auto=format&fit=crop&w=400&q=80'} 
+                          alt={selectedProperty.title}
+                          className="w-full h-full object-cover" 
+                        />
+                        <div className="absolute top-2 left-2 px-2 py-0.5 rounded bg-black/70 text-white text-[10px] font-bold">
+                          {selectedProperty.purpose === 'sale' ? 'Venda' : selectedProperty.purpose === 'rent' ? 'Locação' : 'Lançamento'}
+                        </div>
+                        <div className="absolute bottom-2 right-2 px-2 py-0.5 rounded bg-white/90 dark:bg-slate-900/90 text-slate-900 dark:text-white text-[10px] font-mono font-bold">
+                          Cód: {selectedProperty.code}
+                        </div>
+                      </div>
+
+                      <div className="p-3 space-y-1.5">
+                        <div className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">
+                          {selectedProperty.neighborhood}, {selectedProperty.city}
+                        </div>
+                        <div className="text-xs font-bold text-slate-900 dark:text-white line-clamp-1">
+                          {selectedProperty.title}
+                        </div>
+                        
+                        <div className="flex items-center justify-between pt-1">
+                          <span className="text-sm font-extrabold text-rose-600 dark:text-rose-400">
+                            {formatCurrency(selectedProperty.price)}
+                          </span>
+                          <span className="text-[11px] text-slate-600 dark:text-slate-300 font-semibold">
+                            {selectedProperty.usefulArea || selectedProperty.totalArea} m² • {selectedProperty.bedrooms} qts
+                          </span>
+                        </div>
+
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openPropertyDetail(selectedProperty.id);
+                          }}
+                          className="w-full mt-2 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-[11px] font-bold text-center transition-colors"
+                        >
+                          Ver Detalhes do Imóvel
+                        </button>
                       </div>
                     </div>
-                  </AdvancedMarker>
-                );
-              })}
+                  </InfoWindow>
+                )}
 
-              {/* InfoWindow Popup for Selected Property */}
-              {selectedProperty && selectedProperty.latitude && selectedProperty.longitude && (
-                <InfoWindow
-                  position={{ lat: selectedProperty.latitude, lng: selectedProperty.longitude }}
-                  onCloseClick={() => setSelectedProperty(null)}
-                  pixelOffset={[0, -28]}
-                >
-                  <div 
-                    onClick={() => openPropertyDetail(selectedProperty.id)}
-                    className="w-64 p-0 font-sans cursor-pointer overflow-hidden rounded-2xl bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
-                  >
-                    <div className="relative h-32 w-full bg-slate-200 overflow-hidden">
-                      <img 
-                        src={selectedProperty.media[0]?.thumbnailUrl || selectedProperty.media[0]?.url || 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?auto=format&fit=crop&w=400&q=80'} 
-                        alt={selectedProperty.title}
-                        className="w-full h-full object-cover" 
-                      />
-                      <div className="absolute top-2 left-2 px-2 py-0.5 rounded bg-black/70 text-white text-[10px] font-bold">
-                        {selectedProperty.purpose === 'sale' ? 'Venda' : selectedProperty.purpose === 'rent' ? 'Locação' : 'Lançamento'}
-                      </div>
-                      <div className="absolute bottom-2 right-2 px-2 py-0.5 rounded bg-white/90 dark:bg-slate-900/90 text-slate-900 dark:text-white text-[10px] font-mono font-bold">
-                        Cód: {selectedProperty.code}
-                      </div>
-                    </div>
-
-                    <div className="p-3 space-y-1.5">
-                      <div className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">
-                        {selectedProperty.neighborhood}, {selectedProperty.city}
-                      </div>
-                      <div className="text-xs font-bold text-slate-900 dark:text-white line-clamp-1">
-                        {selectedProperty.title}
-                      </div>
-                      
-                      <div className="flex items-center justify-between pt-1">
-                        <span className="text-sm font-extrabold text-rose-600 dark:text-rose-400">
-                          {formatCurrency(selectedProperty.price)}
-                        </span>
-                        <span className="text-[11px] text-slate-600 dark:text-slate-300 font-semibold">
-                          {selectedProperty.usefulArea || selectedProperty.totalArea} m² • {selectedProperty.bedrooms} qts
-                        </span>
-                      </div>
-
-                      <button 
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          openPropertyDetail(selectedProperty.id);
-                        }}
-                        className="w-full mt-2 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-[11px] font-bold text-center transition-colors"
-                      >
-                        Ver Detalhes do Imóvel
-                      </button>
-                    </div>
-                  </div>
-                </InfoWindow>
-              )}
-
-            </Map>
-          </div>
-        </APIProvider>
+              </Map>
+            </div>
+          </APIProvider>
+        </GoogleMapsErrorBoundary>
       )}
 
       {/* Floating Property Counter Badge */}

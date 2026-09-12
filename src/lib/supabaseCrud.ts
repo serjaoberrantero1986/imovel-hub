@@ -514,6 +514,16 @@ export async function insertMessageToSupabase(message: Message, conversationId: 
   }
 }
 
+export async function deleteConversationFromSupabase(id: string): Promise<boolean> {
+  if (!supabase) return false;
+  try {
+    const { error } = await supabase.from('conversations').delete().eq('id', id);
+    return !error;
+  } catch {
+    return false;
+  }
+}
+
 // ============================================================================
 // REAL FAVORITES & SAVED SEARCHES CRUD API
 // ============================================================================

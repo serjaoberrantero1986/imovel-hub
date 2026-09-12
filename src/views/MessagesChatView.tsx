@@ -9,7 +9,8 @@ import {
   CheckCheck, 
   ExternalLink,
   ChevronRight,
-  User
+  User,
+  Trash2
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { formatCurrency, formatDateTime } from '../lib/utils';
@@ -20,12 +21,14 @@ export const MessagesChatView: React.FC = () => {
     activeConversationId, 
     setActiveConversationId, 
     sendMessage, 
+    deleteConversation,
     currentUser,
     openPropertyDetail 
   } = useApp();
 
   const [messageInput, setMessageInput] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   const activeConversation = conversations.find(c => c.id === activeConversationId) || conversations[0];
 
@@ -141,23 +144,61 @@ export const MessagesChatView: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Property quick badge */}
-                <div 
-                  onClick={() => openPropertyDetail(activeConversation.propertyId)}
-                  className="flex items-center gap-2 p-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 cursor-pointer hover:border-rose-500 transition-colors"
-                >
-                  {activeConversation.propertyImage && (
-                    <img src={activeConversation.propertyImage} className="w-8 h-8 rounded-lg object-cover" />
-                  )}
-                  <div className="text-left hidden sm:block">
-                    <div className="text-[11px] font-bold text-slate-900 dark:text-white truncate max-w-[140px]">
-                      {activeConversation.propertyTitle}
+                <div className="flex items-center gap-2">
+                  {/* Property quick badge */}
+                  <div 
+                    onClick={() => openPropertyDetail(activeConversation.propertyId)}
+                    className="flex items-center gap-2 p-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 cursor-pointer hover:border-rose-500 transition-colors"
+                  >
+                    {activeConversation.propertyImage && (
+                      <img src={activeConversation.propertyImage} className="w-8 h-8 rounded-lg object-cover" />
+                    )}
+                    <div className="text-left hidden sm:block">
+                      <div className="text-[11px] font-bold text-slate-900 dark:text-white truncate max-w-[140px]">
+                        {activeConversation.propertyTitle}
+                      </div>
+                      <div className="text-[10px] text-rose-600 font-extrabold">
+                        {formatCurrency(activeConversation.propertyPrice)}
+                      </div>
                     </div>
-                    <div className="text-[10px] text-rose-600 font-extrabold">
-                      {formatCurrency(activeConversation.propertyPrice)}
-                    </div>
+                    <ExternalLink className="w-3.5 h-3.5 text-slate-400" />
                   </div>
-                  <ExternalLink className="w-3.5 h-3.5 text-slate-400" />
+
+                  {/* Botão discreto para exclusão da conversa */}
+                  {confirmDeleteId === activeConversation.id ? (
+                    <div className="flex items-center gap-1.5 p-1 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 text-xs">
+                      <span className="text-[11px] text-rose-700 dark:text-rose-300 font-medium pl-1">Excluir?</span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          deleteConversation(activeConversation.id);
+                          setConfirmDeleteId(null);
+                        }}
+                        className="px-2 py-0.5 text-[11px] font-bold bg-rose-600 hover:bg-rose-700 text-white rounded-lg transition-colors cursor-pointer"
+                        title="Confirmar exclusão"
+                      >
+                        Sim
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setConfirmDeleteId(null)}
+                        className="px-1.5 py-0.5 text-[11px] text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 transition-colors cursor-pointer"
+                        title="Cancelar"
+                      >
+                        Não
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setConfirmDeleteId(activeConversation.id)}
+                      className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-xl transition-colors cursor-pointer"
+                      title="Excluir conversa"
+                      aria-label="Excluir conversa"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  )}
                 </div>
               </div>
 

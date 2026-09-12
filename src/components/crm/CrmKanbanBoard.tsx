@@ -211,7 +211,9 @@ export const CrmKanbanBoard: React.FC<CrmKanbanBoardProps> = ({
                                 {lead.buyerName}
                               </h4>
                               {lead.accessRestricted && (
-                                <ShieldCheck className="w-3.5 h-3.5 text-indigo-500 shrink-0" title="Dados protegidos por política de privacidade" />
+                                <span title="Dados protegidos por política de privacidade" className="inline-flex">
+                                  <ShieldCheck className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
+                                </span>
                               )}
                             </div>
                             <p className="text-[11px] text-slate-500 font-mono">

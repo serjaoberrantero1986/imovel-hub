@@ -40,7 +40,8 @@ export const Navbar: React.FC = () => {
     properties,
     isDbConnected,
     isSyncing,
-    refreshData
+    refreshData,
+    openLegalPage
   } = useApp();
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -129,20 +130,12 @@ export const Navbar: React.FC = () => {
                 Alugar
               </button>
               <button
-                id="nav-lancamentos-btn"
-                onClick={() => handleNavigate('search', 'launch')}
-                className="px-3.5 py-2 text-sm font-semibold rounded-xl text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white hover:bg-slate-100/60 dark:hover:bg-slate-800/60 transition-colors flex items-center gap-1.5 cursor-pointer"
-              >
-                <span>Lançamentos</span>
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-              </button>
-              <button
                 id="nav-mapa-btn"
                 onClick={() => handleNavigate('search')}
                 className="px-3.5 py-2 text-sm font-semibold rounded-xl text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white hover:bg-slate-100/60 dark:hover:bg-slate-800/60 transition-colors flex items-center gap-1.5 cursor-pointer"
               >
                 <MapPin className="w-4 h-4 text-rose-500" />
-                <span>Explorar no Mapa</span>
+                <span>Mapa</span>
               </button>
             </nav>
           </div>
@@ -240,7 +233,7 @@ export const Navbar: React.FC = () => {
       {/* Mobile Drawer Navigation */}
       {mobileMenuOpen && (
         <div className="lg:hidden border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-4 pt-3 pb-6 space-y-2 animate-in slide-in-from-top duration-200">
-          <div className="grid grid-cols-2 gap-2 mb-3">
+          <div className="grid grid-cols-3 gap-2 mb-3">
             <button
               id="mobile-comprar"
               onClick={() => handleNavigate('search', 'sale')}
@@ -254,13 +247,6 @@ export const Navbar: React.FC = () => {
               className="py-2.5 px-3 rounded-xl bg-slate-100 dark:bg-slate-800 text-sm font-bold text-slate-800 dark:text-slate-100 text-center"
             >
               Alugar
-            </button>
-            <button
-              id="mobile-lancamentos"
-              onClick={() => handleNavigate('search', 'launch')}
-              className="py-2.5 px-3 rounded-xl bg-slate-100 dark:bg-slate-800 text-sm font-bold text-slate-800 dark:text-slate-100 text-center"
-            >
-              Lançamentos
             </button>
             <button
               id="mobile-mapa"
@@ -297,6 +283,18 @@ export const Navbar: React.FC = () => {
                 <span>Ativar Modo Claro</span>
               </>
             )}
+          </button>
+
+          <button
+            id="mobile-legal-btn"
+            onClick={() => {
+              openLegalPage('security');
+              setMobileMenuOpen(false);
+            }}
+            className="w-full min-h-[44px] py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 font-bold text-xs flex items-center justify-center gap-2 mb-2 transition-colors cursor-pointer"
+          >
+            <ShieldCheck className="w-4 h-4 text-emerald-500" />
+            <span>Central de Segurança e Termos Legais</span>
           </button>
 
           <Button
