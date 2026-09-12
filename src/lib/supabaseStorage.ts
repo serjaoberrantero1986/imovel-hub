@@ -3,6 +3,8 @@
  * Handles uploading property media to Supabase Storage buckets, with content deduplication and offline fallback.
  */
 
+import { sanitizeSupabaseUrl } from './supabaseClient';
+
 export interface StorageConfig {
   supabaseUrl: string;
   supabaseAnonKey: string;
@@ -30,9 +32,9 @@ export function getStorageConfig(): StorageConfig {
   const localBucket = localStorage.getItem('imovelhub_supabase_bucket') || envBucket;
 
   return {
-    supabaseUrl: localUrl.replace(/\/$/, ''),
-    supabaseAnonKey: localKey,
-    bucketName: localBucket
+    supabaseUrl: sanitizeSupabaseUrl(localUrl),
+    supabaseAnonKey: localKey.trim(),
+    bucketName: localBucket.trim()
   };
 }
 

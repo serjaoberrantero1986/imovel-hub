@@ -1,8 +1,7 @@
 // ImovelHub Service Worker - Offline & PWA Caching
-const CACHE_NAME = 'imovelhub-cache-v1';
+const CACHE_NAME = 'imovelhub-cache-v2';
 const PRECACHE_ASSETS = [
   '/',
-  '/index.html',
   '/icon.svg',
   '/manifest.webmanifest'
 ];
@@ -16,7 +15,7 @@ self.addEventListener('install', (event) => {
   );
 });
 
-// Activate Event - Clean up stale caches
+// Activate Event - Clean up all stale caches immediately
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((keys) => {
@@ -38,35 +37,21 @@ self.addEventListener('fetch', (event) => {
 
   const url = new URL(event.request.url);
 
-  // For static assets / fonts / images
-  if (
-    url.origin === self.location.origin ||
-    url.hostname.includes('fonts.googleapis.com') ||
-    url.hostname.includes('fonts.gstatic.com') ||
-    url.hostname.includes('unpkg.com')
-  ) {
-    event.respondWith(
-      caches.match(event.request).then((cachedResponse) => {
-        const fetchPromise = fetch(event.request)
-          .then((networkResponse) => {
-            if (networkResponse && networkResponse.status === 200) {
-              const responseToCache = networkResponse.clone();
-              caches.open(CACHE_NAME).then((cache) => {
-                cache.put(event.request, responseToCache);
-              });
-            }
-            return networkResponse;
-          })
-          .catch(() => cachedResponse);
-
-        return cachedResponse || fetchPromise;
-      })
-    );
-    return;
-  }
-
-  // Default network-first
+  // Network-first strategy for app shell and scripts to prevent stale bundles
   event.respondWith(
-    fetch(event.request).catch(() => caches.match(event.request))
+    fetch(event.request)
+      .then((networkResponse) => {
+        if (networkResponse && networkResponse.status === 200 && event.request.method === 'GET') {
+          // Do not cache Supabase API calls or third-party APIs
+          if (url.origin === self.location.origin) {
+            const responseToCache = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => {
+              cache.put(event.request, responseToCache);
+            });
+          }
+        }
+        return networkResponse;
+      })
+      .catch(() => caches.match(event.request))
   );
 });

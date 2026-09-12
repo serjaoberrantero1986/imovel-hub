@@ -20,6 +20,19 @@ export type PropertyStatus =
 
 export type UserRole = 'buyer' | 'owner' | 'broker' | 'agency' | 'admin';
 
+export interface ClientPreferences {
+  purpose?: PropertyPurpose | 'all';
+  propertyTypes?: PropertyType[];
+  neighborhoods?: string[];
+  minPrice?: number;
+  maxPrice?: number;
+  bedrooms?: string;
+  alertEmail?: boolean;
+  alertWhatsapp?: boolean;
+  alertFrequency?: 'instant' | 'daily' | 'weekly';
+  allowPartnerContact?: boolean;
+}
+
 export interface UserProfile {
   id: string;
   name: string;
@@ -29,12 +42,28 @@ export interface UserProfile {
   avatarUrl?: string;
   role: UserRole;
   creci?: string;
+  creciUf?: string;
+  creciType?: 'F' | 'J' | 'E';
+  creciStatus?: 'unverified' | 'pending' | 'verified' | 'invalid';
+  creciVerifiedAt?: string;
+  creciProtocol?: string;
   agencyName?: string;
   agencyLogo?: string;
   verified?: boolean;
   activeListingsCount?: number;
   rating?: number;
   totalDeals?: number;
+  bio?: string;
+  city?: string;
+  state?: string;
+  website?: string;
+  instagram?: string;
+  linkedin?: string;
+  availableWeekendVisits?: boolean;
+  specialties?: string[];
+  servedNeighborhoods?: string[];
+  preferences?: ClientPreferences;
+  authProvider?: 'email' | 'google';
 }
 
 export interface PropertyMedia {

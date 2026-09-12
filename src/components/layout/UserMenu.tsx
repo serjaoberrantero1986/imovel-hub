@@ -22,7 +22,11 @@ import { Badge } from '../ui/Badge';
 export const UserMenu: React.FC = () => {
   const { 
     currentUser, 
+    isAuthenticated,
+    openAuthModal,
+    logout,
     switchUserRole, 
+    currentView,
     setCurrentView, 
     leads, 
     favoriteIds, 
@@ -127,6 +131,26 @@ export const UserMenu: React.FC = () => {
 
           {/* Navigation items for Broker / Buyer */}
           <div className="py-1.5 text-xs sm:text-sm font-medium">
+            <button
+              id="menu-item-my-profile"
+              onClick={() => handleNav('profile')}
+              className={`w-full text-left px-4 py-2 hover:bg-slate-50 dark:hover:bg-slate-800 flex items-center justify-between transition-colors ${
+                currentView === 'profile'
+                  ? 'text-rose-600 dark:text-rose-400 font-bold bg-rose-50/60 dark:bg-rose-950/30'
+                  : 'text-slate-700 dark:text-slate-200'
+              }`}
+            >
+              <div className="flex items-center gap-2.5">
+                <User className="w-4 h-4 text-rose-500" />
+                <span>Gerenciar Meu Perfil</span>
+              </div>
+              {currentUser.verified && (
+                <span className="text-[10px] px-1.5 py-0.5 rounded-full font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+                  CRECI
+                </span>
+              )}
+            </button>
+
             {currentUser.role === 'broker' ? (
               <>
                 <button
@@ -249,6 +273,7 @@ export const UserMenu: React.FC = () => {
             </button>
 
             <button
+              id="btn-switch-role-usermenu"
               onClick={() => {
                 setIsOpen(false);
                 switchUserRole(currentUser.role === 'broker' ? 'buyer' : 'broker');
@@ -260,6 +285,32 @@ export const UserMenu: React.FC = () => {
                 Alternar para {currentUser.role === 'broker' ? 'Comprador' : 'Corretor Pro'}
               </span>
             </button>
+
+            {isAuthenticated ? (
+              <button
+                id="btn-logout-usermenu"
+                onClick={async () => {
+                  setIsOpen(false);
+                  await logout();
+                }}
+                className="w-full text-left px-3 py-2 text-xs font-semibold rounded-xl text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors flex items-center gap-2"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+                <span>Sair da Conta</span>
+              </button>
+            ) : (
+              <button
+                id="btn-login-usermenu"
+                onClick={() => {
+                  setIsOpen(false);
+                  openAuthModal('login');
+                }}
+                className="w-full text-left px-3 py-2 text-xs font-semibold rounded-xl text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 transition-colors flex items-center gap-2"
+              >
+                <User className="w-3.5 h-3.5" />
+                <span>Entrar ou Cadastrar</span>
+              </button>
+            )}
           </div>
         </div>
       )}

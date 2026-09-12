@@ -5,6 +5,7 @@ import { Footer } from './components/layout/Footer';
 import { MobileNav } from './components/layout/MobileNav';
 import { ToastContainer } from './components/ui/ToastContainer';
 import { PropertyWizardModal } from './components/properties/PropertyWizardModal';
+import { AuthModal } from './components/modals/AuthModal';
 import { PwaInstallPrompt } from './components/layout/PwaInstallPrompt';
 import { OfflineBanner } from './components/layout/OfflineBanner';
 
@@ -19,6 +20,7 @@ import { MessagesChatView } from './views/MessagesChatView';
 import { ComparatorView } from './views/ComparatorView';
 import { FavoritesView } from './views/FavoritesView';
 import { DesignSystemView } from './views/DesignSystemView';
+import { ProfileView } from './views/ProfileView';
 
 const MainContent: React.FC = () => {
   const { currentView } = useApp();
@@ -41,12 +43,14 @@ const MainContent: React.FC = () => {
         {currentView === 'comparator' && <ComparatorView />}
         {currentView === 'favorites' && <FavoritesView />}
         {currentView === 'design_system' && <DesignSystemView />}
+        {currentView === 'profile' && <ProfileView />}
       </main>
 
       <Footer />
       <MobileNav />
       <PwaInstallPrompt />
       <PropertyWizardModal />
+      <AuthModal />
       <ToastContainer />
     </div>
   );

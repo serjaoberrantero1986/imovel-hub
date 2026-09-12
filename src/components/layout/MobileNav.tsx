@@ -9,7 +9,8 @@ import {
   MessageSquare,
   Sparkles,
   SlidersHorizontal,
-  Menu
+  Menu,
+  User
 } from 'lucide-react';
 import { useApp, AppView } from '../../context/AppContext';
 
@@ -58,6 +59,11 @@ export const MobileNav: React.FC = () => {
         icon: MessageSquare, 
         badge: totalUnread,
         badgeColor: 'bg-emerald-600'
+      },
+      { 
+        id: 'profile' as AppView, 
+        label: 'Perfil', 
+        icon: User 
       }
     ] : [
       { 
@@ -73,6 +79,11 @@ export const MobileNav: React.FC = () => {
         icon: MessageSquare, 
         badge: totalUnread,
         badgeColor: 'bg-emerald-600'
+      },
+      { 
+        id: 'profile' as AppView, 
+        label: 'Perfil', 
+        icon: User 
       }
     ])
   ];

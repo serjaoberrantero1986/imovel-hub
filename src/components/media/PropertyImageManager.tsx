@@ -42,6 +42,7 @@ import {
   isSupabaseConfigured, 
   getStorageConfig 
 } from '../../lib/supabaseStorage';
+import { sanitizeSupabaseUrl } from '../../lib/supabaseClient';
 import { ImageEditorModal } from './ImageEditorModal';
 import { formatCompactNumber } from '../../lib/utils';
 
@@ -517,8 +518,9 @@ export const PropertyImageManager: React.FC<PropertyImageManagerProps> = ({
   // 13. Save Supabase config
   const handleSaveSupabaseConfig = (e: React.FormEvent) => {
     e.preventDefault();
-    localStorage.setItem('imovelhub_supabase_url', supabaseUrlInput.trim());
-    localStorage.setItem('imovelhub_supabase_anon_key', supabaseKeyInput.trim());
+    const cleanUrl = sanitizeSupabaseUrl(supabaseUrlInput);
+    localStorage.setItem('imovelhub_supabase_url', cleanUrl);
+    localStorage.setItem('imovelhub_supabase_anon_key', supabaseKeyInput.trim().replace(/^["']+|["']+$/g, ''));
     localStorage.setItem('imovelhub_supabase_bucket', supabaseBucketInput.trim() || 'property-images');
     setSupabaseModalOpen(false);
     addToast({

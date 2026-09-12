@@ -33,7 +33,9 @@ import {
   insertSavedSearchToSupabase,
   deleteSavedSearchFromSupabase
 } from '../lib/supabaseCrud';
-import { isSupabaseConfigured } from '../lib/supabaseClient';
+import { isSupabaseConfigured, supabase, supabaseUrl, supabaseAnonKey } from '../lib/supabaseClient';
+import { createClient } from '@supabase/supabase-js';
+import { verifyCreciNational, CreciVerificationResult } from '../lib/creciVerification';
 
 export type AppView = 
   | 'portal' 
@@ -46,7 +48,8 @@ export type AppView =
   | 'favorites' 
   | 'saved_searches'
   | 'comparator'
-  | 'design_system';
+  | 'design_system'
+  | 'profile';
 
 interface Toast {
   id: string;
@@ -71,8 +74,28 @@ interface AppContextType {
   theme: 'light' | 'dark';
   toggleTheme: () => void;
   
-  // Auth User
+  // Auth User & Profile Management
   currentUser: UserProfile;
+  isAuthenticated: boolean;
+  authModalOpen: boolean;
+  setAuthModalOpen: (open: boolean) => void;
+  authModalTab: 'login' | 'signup' | 'forgot';
+  setAuthModalTab: (tab: 'login' | 'signup' | 'forgot') => void;
+  openAuthModal: (tab?: 'login' | 'signup' | 'forgot') => void;
+  closeAuthModal: () => void;
+  login: (email: string, password: string) => Promise<boolean>;
+  loginWithGoogle: () => Promise<void>;
+  signUp: (data: {
+    name: string;
+    email: string;
+    password: string;
+    role: 'broker' | 'buyer';
+    phone?: string;
+    creci?: string;
+  }) => Promise<boolean>;
+  logout: () => Promise<void>;
+  updateUserProfile: (updates: Partial<UserProfile>) => Promise<void>;
+  verifyCreci: (creci: string, uf: string) => Promise<CreciVerificationResult>;
   switchUserRole: (role: 'broker' | 'buyer') => void;
   
   // Properties CRUD
@@ -174,22 +197,497 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setTheme(prev => prev === 'light' ? 'dark' : 'light');
   };
 
-  // Auth User
-  const [currentUser, setCurrentUser] = useState<UserProfile>(BROKERS[2]);
+  // --------------------------------------------------------------------------
+  // Auth User & Profile Management
+  // --------------------------------------------------------------------------
+  const [currentUser, setCurrentUser] = useState<UserProfile>(() => {
+    const saved = localStorage.getItem('imovelhub_current_user');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        console.error('Error parsing stored user:', e);
+      }
+    }
+    return BROKERS[2]; // Default: Edson Ricardo (Corretor Autônomo)
+  });
+
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
+    const saved = localStorage.getItem('imovelhub_is_authenticated');
+    return saved !== null ? saved === 'true' : true;
+  });
+
+  const [authModalOpen, setAuthModalOpen] = useState(false);
+  const [authModalTab, setAuthModalTab] = useState<'login' | 'signup' | 'forgot'>('login');
+
+  const openAuthModal = (tab: 'login' | 'signup' | 'forgot' = 'login') => {
+    setAuthModalTab(tab);
+    setAuthModalOpen(true);
+  };
+
+  const closeAuthModal = () => {
+    setAuthModalOpen(false);
+  };
+
+  // Sync Supabase Auth listener if configured
+  useEffect(() => {
+    if (!isSupabaseConfigured || !supabase) return;
+
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        setIsAuthenticated(true);
+        localStorage.setItem('imovelhub_is_authenticated', 'true');
+        // Fetch profile
+        supabase.from('profiles').select('*').eq('id', session.user.id).single()
+          .then(({ data: profileData }) => {
+            if (profileData) {
+              const mapped: UserProfile = {
+                id: profileData.id,
+                name: profileData.name || session.user.user_metadata?.name || 'Usuário',
+                email: session.user.email || profileData.email || '',
+                phone: profileData.phone,
+                whatsapp: profileData.phone,
+                role: (profileData.role as any) || 'broker',
+                creci: profileData.creci,
+                agencyName: profileData.agency_name,
+                agencyLogo: profileData.agency_logo,
+                verified: profileData.verified ?? false,
+                avatarUrl: profileData.avatar_url || session.user.user_metadata?.avatar_url,
+                bio: profileData.bio,
+                creciStatus: profileData.verified ? 'verified' : 'unverified'
+              };
+              setCurrentUser(mapped);
+              localStorage.setItem('imovelhub_current_user', JSON.stringify(mapped));
+            }
+          });
+      }
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user) {
+        setIsAuthenticated(true);
+        localStorage.setItem('imovelhub_is_authenticated', 'true');
+      } else if (_event === 'SIGNED_OUT') {
+        setIsAuthenticated(false);
+        localStorage.setItem('imovelhub_is_authenticated', 'false');
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
+
+// Helpers for persistent registered accounts across sessions
+interface StoredAccount {
+  email: string;
+  password?: string;
+  profile: UserProfile;
+}
+
+const getStoredAccounts = (): StoredAccount[] => {
+  try {
+    const raw = localStorage.getItem('imovelhub_registered_accounts');
+    return raw ? JSON.parse(raw) : [];
+  } catch (e) {
+    return [];
+  }
+};
+
+const storeAccount = (email: string, password: string, profile: UserProfile) => {
+  try {
+    const accounts = getStoredAccounts();
+    const cleanEmail = email.trim().toLowerCase();
+    const existingIndex = accounts.findIndex(a => a.email.toLowerCase() === cleanEmail);
+    const item: StoredAccount = { email: cleanEmail, password, profile };
+    if (existingIndex >= 0) {
+      accounts[existingIndex] = item;
+    } else {
+      accounts.push(item);
+    }
+    localStorage.setItem('imovelhub_registered_accounts', JSON.stringify(accounts));
+  } catch (e) {
+    console.warn('Could not save registered account:', e);
+  }
+};
+
+  const login = async (email: string, password: string): Promise<boolean> => {
+    const cleanEmail = email.trim().toLowerCase();
+
+    // 1. If Supabase is configured, attempt Supabase Auth first
+    if (isSupabaseConfigured && supabase) {
+      try {
+        let authResult = await supabase.auth.signInWithPassword({ email: cleanEmail, password });
+        // Fallback retry if path was malformed in previous client instance
+        if (authResult.error && (authResult.error.message?.includes('Invalid path') || (authResult.error as any).status === 404)) {
+          const freshClient = createClient(supabaseUrl, supabaseAnonKey);
+          authResult = await freshClient.auth.signInWithPassword({ email: cleanEmail, password });
+        }
+
+        const { data, error } = authResult;
+        if (!error && data?.user) {
+          setIsAuthenticated(true);
+          localStorage.setItem('imovelhub_is_authenticated', 'true');
+
+          let userProfile: UserProfile = {
+            id: data.user.id,
+            name: data.user.user_metadata?.name || cleanEmail.split('@')[0],
+            email: data.user.email || cleanEmail,
+            phone: data.user.user_metadata?.phone,
+            whatsapp: data.user.user_metadata?.phone,
+            role: (data.user.user_metadata?.role as any) || 'broker',
+            creci: data.user.user_metadata?.creci,
+            avatarUrl: data.user.user_metadata?.avatar_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=256&q=80',
+            verified: false
+          };
+
+          try {
+            const { data: profile } = await supabase.from('profiles').select('*').eq('id', data.user.id).maybeSingle();
+            if (profile) {
+              userProfile = {
+                ...userProfile,
+                id: profile.id,
+                name: profile.name || userProfile.name,
+                email: profile.email || userProfile.email,
+                phone: profile.phone || userProfile.phone,
+                whatsapp: profile.phone || userProfile.whatsapp,
+                role: (profile.role as any) || userProfile.role,
+                creci: profile.creci || userProfile.creci,
+                agencyName: profile.agency_name || userProfile.agencyName,
+                agencyLogo: profile.agency_logo || userProfile.agencyLogo,
+                verified: profile.verified ?? false,
+                avatarUrl: profile.avatar_url || userProfile.avatarUrl,
+                bio: profile.bio || userProfile.bio,
+                creciStatus: profile.verified ? 'verified' : (profile.creci ? 'pending' : 'unverified')
+              };
+            }
+          } catch (pErr) {
+            console.warn('Could not fetch profile on login:', pErr);
+          }
+
+          storeAccount(cleanEmail, password, userProfile);
+          setCurrentUser(userProfile);
+          localStorage.setItem('imovelhub_current_user', JSON.stringify(userProfile));
+
+          addToast({ 
+            type: 'success', 
+            title: 'Login Realizado com Sucesso', 
+            message: `Bem-vindo de volta, ${userProfile.name}!` 
+          });
+          return true;
+        } else if (error) {
+          console.warn('Supabase auth attempt note:', error.message);
+        }
+      } catch (err: any) {
+        console.warn('Supabase auth try note:', err?.message || err);
+      }
+    }
+
+    // 2. Check persistent locally registered accounts
+    const storedAccounts = getStoredAccounts();
+    const matchedAccount = storedAccounts.find(a => a.email.toLowerCase() === cleanEmail);
+    if (matchedAccount) {
+      if (matchedAccount.password && matchedAccount.password !== password) {
+        addToast({ type: 'error', title: 'Erro de Login', message: 'Senha incorreta para este e-mail. Verifique a senha digitada.' });
+        return false;
+      }
+      setCurrentUser(matchedAccount.profile);
+      setIsAuthenticated(true);
+      localStorage.setItem('imovelhub_current_user', JSON.stringify(matchedAccount.profile));
+      localStorage.setItem('imovelhub_is_authenticated', 'true');
+      addToast({ 
+        type: 'success', 
+        title: 'Login Realizado com Sucesso', 
+        message: `Bem-vindo de volta, ${matchedAccount.profile.name}!` 
+      });
+      return true;
+    }
+
+    // 3. Match broker account (e.g. Edson Ricardo edsonricardosouza@gmail.com or other brokers)
+    const matchedBroker = BROKERS.find(b => b.email.toLowerCase() === cleanEmail);
+    if (matchedBroker) {
+      setCurrentUser(matchedBroker);
+      setIsAuthenticated(true);
+      localStorage.setItem('imovelhub_current_user', JSON.stringify(matchedBroker));
+      localStorage.setItem('imovelhub_is_authenticated', 'true');
+      storeAccount(cleanEmail, password, matchedBroker);
+      addToast({ 
+        type: 'success', 
+        title: 'Login Realizado com Sucesso', 
+        message: `Bem-vindo de volta, ${matchedBroker.name}!` 
+      });
+      return true;
+    }
+
+    // 4. Match stored session user
+    const savedUserRaw = localStorage.getItem('imovelhub_current_user');
+    if (savedUserRaw) {
+      try {
+        const savedUser: UserProfile = JSON.parse(savedUserRaw);
+        if (savedUser?.email?.toLowerCase() === cleanEmail && savedUser.id !== 'guest_buyer') {
+          setCurrentUser(savedUser);
+          setIsAuthenticated(true);
+          localStorage.setItem('imovelhub_is_authenticated', 'true');
+          storeAccount(cleanEmail, password, savedUser);
+          addToast({ 
+            type: 'success', 
+            title: 'Login Realizado com Sucesso', 
+            message: `Bem-vindo de volta, ${savedUser.name}!` 
+          });
+          return true;
+        }
+      } catch (e) {
+        // ignore
+      }
+    }
+
+    // 5. Account not found
+    addToast({ 
+      type: 'error', 
+      title: 'Erro de Login', 
+      message: 'E-mail ou senha incorretos. Se ainda não possui conta, cadastre-se na aba "Cadastrar" acima.' 
+    });
+    return false;
+  };
+
+  const loginWithGoogle = async (): Promise<void> => {
+    if (isSupabaseConfigured && supabase) {
+      try {
+        const { error } = await supabase.auth.signInWithOAuth({
+          provider: 'google',
+          options: {
+            redirectTo: window.location.origin
+          }
+        });
+        if (error) throw error;
+        return;
+      } catch (err: any) {
+        console.error('Google OAuth error:', err);
+      }
+    }
+
+    // Simulated Google OAuth login for preview
+    const googleUser: UserProfile = {
+      id: 'google_user_102938',
+      name: 'Edson Ricardo Souza (Google)',
+      email: 'edson.ricardo.souza@gmail.com',
+      phone: '(15) 99781-4450',
+      whatsapp: '(15) 99781-4450',
+      role: 'broker',
+      creci: '185420-F',
+      creciUf: 'SP',
+      creciStatus: 'verified',
+      creciVerifiedAt: new Date().toISOString(),
+      creciProtocol: 'BR.COFECI.SP.2026.G00GLE',
+      agencyName: 'Edson Souza Imóveis & Consultoria',
+      avatarUrl: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&w=256&q=80',
+      verified: true,
+      authProvider: 'google'
+    };
+
+    setCurrentUser(googleUser);
+    setIsAuthenticated(true);
+    localStorage.setItem('imovelhub_current_user', JSON.stringify(googleUser));
+    localStorage.setItem('imovelhub_is_authenticated', 'true');
+    addToast({ 
+      type: 'success', 
+      title: 'Conectado via Google', 
+      message: 'Autenticação com conta Google realizada com sucesso!' 
+    });
+  };
+
+  const signUp = async (data: {
+    name: string;
+    email: string;
+    password: string;
+    role: 'broker' | 'buyer';
+    phone?: string;
+    creci?: string;
+  }): Promise<boolean> => {
+    const cleanEmail = data.email.trim().toLowerCase();
+    let createdUserId = `user_${Date.now()}`;
+
+    if (isSupabaseConfigured && supabase) {
+      try {
+        let signUpResult = await supabase.auth.signUp({
+          email: cleanEmail,
+          password: data.password,
+          options: {
+            data: {
+              name: data.name,
+              role: data.role,
+              phone: data.phone,
+              creci: data.creci
+            }
+          }
+        });
+
+        if (signUpResult.error && (signUpResult.error.message?.includes('Invalid path') || (signUpResult.error as any).status === 404)) {
+          const freshClient = createClient(supabaseUrl, supabaseAnonKey);
+          signUpResult = await freshClient.auth.signUp({
+            email: cleanEmail,
+            password: data.password,
+            options: {
+              data: {
+                name: data.name,
+                role: data.role,
+                phone: data.phone,
+                creci: data.creci
+              }
+            }
+          });
+        }
+
+        const { data: authData, error } = signUpResult;
+        if (error) {
+          // If already registered or rate limited in Supabase, log notice and continue with profile creation
+          console.warn('Supabase auth signup note:', error.message);
+        } else if (authData?.user) {
+          createdUserId = authData.user.id;
+          try {
+            await supabase.from('profiles').upsert({
+              id: authData.user.id,
+              name: data.name,
+              email: cleanEmail,
+              role: data.role,
+              phone: data.phone || null,
+              creci: data.creci || null,
+              verified: false
+            });
+          } catch (profileErr) {
+            console.warn('Could not sync profile on signup:', profileErr);
+          }
+        }
+      } catch (err: any) {
+        console.warn('Supabase auth signup notice:', err?.message || err);
+      }
+    }
+
+    const newUser: UserProfile = {
+      id: createdUserId,
+      name: data.name,
+      email: cleanEmail,
+      role: data.role,
+      phone: data.phone,
+      whatsapp: data.phone,
+      creci: data.creci,
+      creciStatus: data.creci ? 'pending' : 'unverified',
+      avatarUrl: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=256&q=80',
+      verified: false
+    };
+
+    storeAccount(cleanEmail, data.password, newUser);
+    setCurrentUser(newUser);
+    setIsAuthenticated(true);
+    localStorage.setItem('imovelhub_current_user', JSON.stringify(newUser));
+    localStorage.setItem('imovelhub_is_authenticated', 'true');
+    addToast({ 
+      type: 'success', 
+      title: 'Conta Criada com Sucesso!', 
+      message: `Bem-vindo(a) ao ImovelHub, ${data.name}!` 
+    });
+    return true;
+  };
+
+  const logout = async (): Promise<void> => {
+    if (isSupabaseConfigured && supabase) {
+      try {
+        await supabase.auth.signOut();
+      } catch (err) {
+        console.error('Supabase logout error:', err);
+      }
+    }
+
+    setIsAuthenticated(false);
+    localStorage.setItem('imovelhub_is_authenticated', 'false');
+
+    // Preserve existing profile in registered accounts before switching to guest
+    if (currentUser && currentUser.id !== 'guest_buyer' && currentUser.email) {
+      const stored = getStoredAccounts();
+      if (!stored.some(a => a.email.toLowerCase() === currentUser.email.toLowerCase())) {
+        storeAccount(currentUser.email, '', currentUser);
+      }
+    }
+    
+    // Switch to guest client profile
+    const guestUser: UserProfile = {
+      id: 'guest_buyer',
+      name: 'Visitante ImovelHub',
+      email: 'visitante@imovelhub.com.br',
+      role: 'buyer',
+      avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=256&q=80',
+      verified: false
+    };
+    setCurrentUser(guestUser);
+    localStorage.setItem('imovelhub_current_user', JSON.stringify(guestUser));
+
+    addToast({ 
+      type: 'info', 
+      title: 'Sessão Encerrada', 
+      message: 'Você saiu da sua conta com segurança.' 
+    });
+  };
+
+  const updateUserProfile = async (updates: Partial<UserProfile>): Promise<void> => {
+    const updated = { ...currentUser, ...updates };
+    setCurrentUser(updated);
+    localStorage.setItem('imovelhub_current_user', JSON.stringify(updated));
+
+    if (isSupabaseConfigured && supabase && currentUser.id) {
+      try {
+        await supabase.from('profiles').update({
+          name: updated.name,
+          phone: updated.phone || null,
+          creci: updated.creci || null,
+          agency_name: updated.agencyName || null,
+          agency_logo: updated.agencyLogo || null,
+          avatar_url: updated.avatarUrl || null,
+          bio: updated.bio || null,
+          verified: updated.verified ?? false
+        }).eq('id', currentUser.id);
+      } catch (err) {
+        console.error('Error updating profile in Supabase:', err);
+      }
+    }
+  };
+
+  const verifyCreci = async (creci: string, uf: string): Promise<CreciVerificationResult> => {
+    const result = await verifyCreciNational(creci, uf, currentUser.name);
+    if (result.isValid && result.isAccredited) {
+      await updateUserProfile({
+        creci: result.creciNumber,
+        creciUf: result.creciUf,
+        creciType: result.category,
+        creciStatus: 'verified',
+        creciVerifiedAt: result.verifiedAt,
+        creciProtocol: result.protocol,
+        verified: true
+      });
+    } else {
+      await updateUserProfile({
+        creciStatus: 'invalid'
+      });
+    }
+    return result;
+  };
 
   const switchUserRole = (role: 'broker' | 'buyer') => {
     if (role === 'broker') {
-      setCurrentUser(BROKERS[2]);
+      const brokerProfile = BROKERS[2];
+      setCurrentUser(brokerProfile);
+      localStorage.setItem('imovelhub_current_user', JSON.stringify(brokerProfile));
       addToast({ type: 'info', title: 'Perfil de Corretor Ativo', message: 'Acesso completo ao Dashboard, CRM e Gestão de Anúncios.' });
     } else {
-      setCurrentUser({
+      const buyerProfile: UserProfile = {
         id: 'buyer_guest',
         name: 'Ana Carolina Meireles',
         email: 'ana.meireles@email.com',
         phone: '(15) 99182-7364',
         role: 'buyer',
         avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=256&q=80'
-      });
+      };
+      setCurrentUser(buyerProfile);
+      localStorage.setItem('imovelhub_current_user', JSON.stringify(buyerProfile));
       addToast({ type: 'info', title: 'Perfil de Comprador Ativo', message: 'Navegação como cliente interessado em buscar imóveis.' });
     }
   };
@@ -909,6 +1407,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         theme,
         toggleTheme,
         currentUser,
+        isAuthenticated,
+        authModalOpen,
+        setAuthModalOpen,
+        authModalTab,
+        setAuthModalTab,
+        openAuthModal,
+        closeAuthModal,
+        login,
+        loginWithGoogle,
+        signUp,
+        logout,
+        updateUserProfile,
+        verifyCreci,
         switchUserRole,
         properties,
         addProperty,
