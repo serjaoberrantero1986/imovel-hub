@@ -71,7 +71,7 @@ export const CrmLeadsTable: React.FC<CrmLeadsTableProps> = ({
     const phone = lead.buyerWhatsapp || getCleanPhone(lead.buyerPhone);
     const cleanNumber = phone.startsWith('55') ? phone : `55${phone}`;
     const text = encodeURIComponent(
-      `Olá ${lead.buyerName}, tudo bem? Sou o Edson da ImovelHub. Estou entrando em contato a respeito do seu interesse no imóvel ${lead.propertyTitle} (Cód: ${lead.propertyCode}). Como posso te ajudar hoje?`
+      `Olá ${lead.buyerName}, tudo bem? Sou o Edson da Web Imóvel. Estou entrando em contato a respeito do seu interesse no imóvel ${lead.propertyTitle} (Cód: ${lead.propertyCode}). Como posso te ajudar hoje?`
     );
     window.open(`https://wa.me/${cleanNumber}?text=${text}`, '_blank');
   };

@@ -32,7 +32,7 @@ export const Footer: React.FC = () => {
                 <Building2 className="w-6 h-6" />
               </div>
               <span className="font-extrabold text-2xl text-white font-['Outfit']">
-                Imovel<span className="text-rose-500">Hub</span>
+                Web <span className="text-rose-500">Imóvel</span>
               </span>
             </div>
             <p className="text-sm text-slate-400 leading-relaxed">
@@ -54,7 +54,7 @@ export const Footer: React.FC = () => {
               </li>
               <li className="flex items-center gap-2.5 text-slate-400">
                 <Mail className="w-4 h-4 text-rose-500" />
-                <span>contato@imovelhub.com.br</span>
+                <span>contato@webimovel.com.br</span>
               </li>
               <li className="flex items-start gap-2.5 text-slate-400">
                 <MapPin className="w-4 h-4 text-rose-500 shrink-0 mt-1" />
@@ -184,7 +184,7 @@ export const Footer: React.FC = () => {
 
         {/* Bottom Copyright */}
         <div className="pt-6 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-500 gap-4">
-          <p>© 2026 ImovelHub Brasil S/A. Todos os direitos reservados. CNPJ: 20.433.428/0001-35.</p>
+          <p>© 2026 Web Imóvel Brasil S/A. Todos os direitos reservados. CNPJ: 20.433.428/0001-35.</p>
           <div className="flex gap-6">
             <a href="#" className="hover:text-slate-400">Termos de Uso</a>
             <a href="#" className="hover:text-slate-400">Política de Privacidade</a>

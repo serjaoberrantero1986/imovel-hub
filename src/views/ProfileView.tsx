@@ -157,7 +157,7 @@ export const ProfileView: React.FC = () => {
       return;
     }
     const cleanNumber = rawNumber.startsWith('55') ? rawNumber : `55${rawNumber}`;
-    const url = `https://wa.me/${cleanNumber}?text=Ol%C3%A1%20${encodeURIComponent(formData.name)}%2C%20teste%20de%20contato%20via%20ImovelHub!`;
+    const url = `https://wa.me/${cleanNumber}?text=Ol%C3%A1%20${encodeURIComponent(formData.name)}%2C%20teste%20de%20contato%20via%20Web%20Im%C3%B3vel!`;
     window.open(url, '_blank');
     addToast({ type: 'info', title: 'Testando WhatsApp', message: 'Abrindo link de atendimento...' });
   };
@@ -290,7 +290,7 @@ export const ProfileView: React.FC = () => {
             <div className="flex-1 text-center sm:text-left">
               <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2.5 mb-1.5">
                 <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900 dark:text-white">
-                  {formData.name || 'Usuário ImovelHub'}
+                  {formData.name || 'Usuário Web Imóvel'}
                 </h2>
                 
                 {/* Role badge */}

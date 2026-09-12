@@ -584,7 +584,7 @@ const storeAccount = (email: string, password: string, profile: UserProfile) => 
     addToast({ 
       type: 'success', 
       title: 'Conta Criada com Sucesso!', 
-      message: `Bem-vindo(a) ao ImovelHub, ${data.name}!` 
+      message: `Bem-vindo(a) ao Web Imóvel, ${data.name}!` 
     });
     return true;
   };
@@ -612,8 +612,8 @@ const storeAccount = (email: string, password: string, profile: UserProfile) => 
     // Switch to guest client profile
     const guestUser: UserProfile = {
       id: 'guest_buyer',
-      name: 'Visitante ImovelHub',
-      email: 'visitante@imovelhub.com.br',
+      name: 'Visitante Web Imóvel',
+      email: 'visitante@webimovel.com.br',
       role: 'buyer',
       avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=256&q=80',
       verified: false

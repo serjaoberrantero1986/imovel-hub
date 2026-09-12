@@ -1,4 +1,4 @@
-// ImovelHub Service Worker - Offline & PWA Caching
+// Web Imóvel Service Worker - Offline & PWA Caching
 const CACHE_NAME = 'imovelhub-cache-v2';
 const PRECACHE_ASSETS = [
   '/',

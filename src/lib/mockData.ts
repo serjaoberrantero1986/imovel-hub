@@ -27,7 +27,7 @@ export const BROKERS: UserProfile[] = [
   {
     id: 'user_1',
     name: 'Carlos Mendes Ortega',
-    email: 'carlos.mendes@imovelhub.com.br',
+    email: 'carlos.mendes@webimovel.com.br',
     phone: '(15) 3232-9092',
     whatsapp: '5515998765432',
     avatarUrl: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&w=256&q=80',
@@ -43,7 +43,7 @@ export const BROKERS: UserProfile[] = [
   {
     id: 'user_2',
     name: 'Helena Albuquerque',
-    email: 'helena.albuquerque@imovelhub.com.br',
+    email: 'helena.albuquerque@webimovel.com.br',
     phone: '(11) 3456-7890',
     whatsapp: '5511987651234',
     avatarUrl: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=256&q=80',
@@ -654,7 +654,7 @@ export const INITIAL_LEADS: Lead[] = [
         title: 'Lead Recebido via Portal',
         description: 'Cliente enviou solicitação de agendamento através do formulário do imóvel 24636068-MEOA.',
         createdAt: '2026-08-30T14:15:00Z',
-        createdBy: 'Sistema ImovelHub'
+        createdBy: 'Sistema Web Imóvel'
       },
       {
         id: 'int-102',
@@ -842,7 +842,7 @@ export const INITIAL_LEADS: Lead[] = [
         title: 'Novo Lead de Locação Criado',
         description: 'Cliente cadastrou interesse no Studio Mobiliado.',
         createdAt: '2026-08-31T04:20:00Z',
-        createdBy: 'Sistema ImovelHub'
+        createdBy: 'Sistema Web Imóvel'
       }
     ],
     createdAt: '2026-08-31T04:20:00Z',

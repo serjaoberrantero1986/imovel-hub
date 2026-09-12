@@ -106,7 +106,7 @@ export const CrmLeadDetailModal: React.FC<CrmLeadDetailModalProps> = ({
   const handleWhatsAppClick = (customText?: string) => {
     const phone = lead.buyerWhatsapp || getCleanPhone(lead.buyerPhone);
     const cleanNumber = phone.startsWith('55') ? phone : `55${phone}`;
-    const message = customText || `Olá ${lead.buyerName}, tudo bem? Aqui é da ImovelHub. Estou entrando em contato para dar continuidade ao seu interesse no imóvel ${lead.propertyTitle}. Quando seria um bom momento para conversarmos?`;
+    const message = customText || `Olá ${lead.buyerName}, tudo bem? Aqui é da Web Imóvel. Estou entrando em contato para dar continuidade ao seu interesse no imóvel ${lead.propertyTitle}. Quando seria um bom momento para conversarmos?`;
     window.open(`https://wa.me/${cleanNumber}?text=${encodeURIComponent(message)}`, '_blank');
   };
 

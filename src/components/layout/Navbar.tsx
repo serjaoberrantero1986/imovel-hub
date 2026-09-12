@@ -101,10 +101,7 @@ export const Navbar: React.FC = () => {
               <div className="hidden sm:block">
                 <div className="flex items-center gap-1.5">
                   <span className="font-extrabold text-xl tracking-tight text-slate-900 dark:text-white font-['Outfit']">
-                    Imovel<span className="text-rose-600 dark:text-rose-500">Hub</span>
-                  </span>
-                  <span className="text-[10px] uppercase font-bold tracking-widest px-1.5 py-0.5 rounded bg-rose-100 text-rose-700 dark:bg-rose-950/80 dark:text-rose-300">
-                    Pro
+                    Web <span className="text-rose-600 dark:text-rose-500">Imóvel</span>
                   </span>
                 </div>
                 <span className="text-[11px] text-slate-500 dark:text-slate-400 font-medium hidden md:block">
@@ -281,7 +278,7 @@ export const Navbar: React.FC = () => {
             className="w-full min-h-[44px] py-2.5 rounded-xl bg-gradient-to-r from-amber-500/15 via-rose-500/15 to-indigo-500/15 border border-rose-500/30 text-slate-900 dark:text-white font-bold text-xs flex items-center justify-center gap-2 mb-2 transition-colors cursor-pointer"
           >
             <Download className="w-4 h-4 text-rose-500" />
-            <span>Instalar Aplicativo ImovelHub (PWA)</span>
+            <span>Instalar Aplicativo Web Imóvel (PWA)</span>
           </button>
 
           <button

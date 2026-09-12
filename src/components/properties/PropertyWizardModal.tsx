@@ -195,7 +195,7 @@ export const PropertyWizardModal: React.FC = () => {
                 {editingProperty ? 'Editar Imóvel' : 'Novo Anúncio'}
               </span>
               <h2 className="text-lg font-bold text-slate-900 dark:text-white font-['Outfit']">
-                {editingProperty ? `Editando: ${editingProperty.code}` : 'Publicar Imóvel na ImovelHub'}
+                {editingProperty ? `Editando: ${editingProperty.code}` : 'Publicar Imóvel no Web Imóvel'}
               </h2>
             </div>
             <p className="text-xs text-slate-500">Passo {currentStep} de 7 • {steps[currentStep - 1]?.title}</p>

@@ -116,7 +116,7 @@ export const DesignSystemView: React.FC = () => {
               </span>
               <span className="text-xs text-amber-300 font-semibold flex items-center gap-1">
                 <Sparkles className="w-3.5 h-3.5" />
-                ImovelHub Pro Architecture
+                Web Imóvel Architecture
               </span>
             </div>
             <h1 className="text-2xl sm:text-4xl font-extrabold tracking-tight font-['Outfit']">
@@ -941,7 +941,7 @@ export const DesignSystemView: React.FC = () => {
               <CardContent className="space-y-4">
                 
                 <Alert variant="info" title="Nova funcionalidade de IA liberada!">
-                  Agora você pode gerar automaticamente descrições persuasivas para seus anúncios utilizando o assistente inteligente do ImovelHub.
+                  Agora você pode gerar automaticamente descrições persuasivas para seus anúncios utilizando o assistente inteligente do Web Imóvel.
                 </Alert>
 
                 <Alert variant="success" title="Credenciais Verificadas com Sucesso">

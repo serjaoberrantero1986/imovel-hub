@@ -314,7 +314,7 @@ export const PortalHomeView: React.FC = () => {
           </div>
         </section>
 
-        {/* Section: Por que anunciar na ImovelHub */}
+        {/* Section: Por que anunciar no Web Imóvel */}
         <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-3 shadow-sm">
             <div className="w-12 h-12 rounded-2xl bg-rose-50 dark:bg-rose-950/60 text-rose-600 flex items-center justify-center">

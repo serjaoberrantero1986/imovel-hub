@@ -1,6 +1,6 @@
 /**
  * Design Tokens & Theme Configuration
- * ImovelHub Pro - Design System Imobiliário
+ * Web Imóvel - Design System Imobiliário
  */
 
 export const DESIGN_TOKENS = {

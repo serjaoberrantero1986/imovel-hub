@@ -104,7 +104,7 @@ export const PwaInstallPrompt: React.FC = () => {
             <div className="flex-1 min-w-0 pr-4">
               <div className="flex items-center gap-1.5">
                 <h4 className="font-extrabold text-sm text-white font-['Outfit'] truncate">
-                  Instalar App ImovelHub
+                  Instalar App Web Imóvel
                 </h4>
                 <span className="px-1.5 py-0.5 rounded bg-rose-500/20 text-rose-300 text-[9px] font-bold uppercase">
                   PWA
@@ -166,7 +166,7 @@ export const PwaInstallPrompt: React.FC = () => {
             </div>
 
             <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
-              Para instalar o <strong>ImovelHub</strong> na sua tela de início sem precisar da App Store:
+              Para instalar o <strong>Web Imóvel</strong> na sua tela de início sem precisar da App Store:
             </p>
 
             <div className="space-y-3 pt-1">

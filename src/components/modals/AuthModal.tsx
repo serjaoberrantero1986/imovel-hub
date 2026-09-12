@@ -178,7 +178,7 @@ export const AuthModal: React.FC = () => {
               <Building2 className="w-4 h-4 stroke-[2.2]" />
             </div>
             <span className="font-extrabold text-base tracking-tight text-slate-900 dark:text-white font-['Outfit']">
-              Imovel<span className="text-rose-600 dark:text-rose-500">Hub</span>
+              Web <span className="text-rose-600 dark:text-rose-500">Imóvel</span>
             </span>
           </div>
 

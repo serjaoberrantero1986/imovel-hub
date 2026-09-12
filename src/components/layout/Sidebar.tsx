@@ -90,10 +90,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </div>
             <div>
               <span className="font-extrabold text-base tracking-tight text-slate-900 dark:text-white font-['Outfit']">
-                Imovel<span className="text-rose-600">Hub</span>
+                Web <span className="text-rose-600">Imóvel</span>
               </span>
               <span className="block text-[10px] text-slate-400 font-semibold uppercase tracking-wider">
-                Pro Suite
+                Gestão Imobiliária
               </span>
             </div>
           </div>
