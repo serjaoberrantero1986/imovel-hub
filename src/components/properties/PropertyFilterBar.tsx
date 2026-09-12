@@ -58,11 +58,19 @@ export const PropertyFilterBar: React.FC = () => {
     });
   };
 
+  const handleScrollToResults = () => {
+    const el = document.getElementById('portal-properties-section');
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
   const handleSearchByCode = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     const clean = codeQuery.trim();
     setFilters(prev => ({ ...prev, propertyCode: clean }));
     setCodeModalOpen(false);
+    handleScrollToResults();
   };
 
   const handleClearCode = () => {
@@ -188,11 +196,23 @@ export const PropertyFilterBar: React.FC = () => {
         
         {/* Search text box with Code Search Integrated */}
         <div className="md:col-span-6 relative">
-          <Search className="w-5 h-5 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2" />
+          <button
+            type="button"
+            onClick={handleScrollToResults}
+            title="Buscar imóvel"
+            className="w-5 h-5 text-slate-400 hover:text-rose-500 absolute left-4 top-1/2 -translate-y-1/2 transition-colors cursor-pointer"
+          >
+            <Search className="w-5 h-5" />
+          </button>
           <input
             type="text"
             value={filters.searchTerm || ''}
             onChange={(e) => setFilters(prev => ({ ...prev, searchTerm: e.target.value }))}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                handleScrollToResults();
+              }
+            }}
             placeholder="Digite cidade, bairro (ex: Campolim), condomínio ou código..."
             className="w-full pl-11 pr-28 py-3 rounded-2xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-sm font-medium text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 transition-all"
           />
@@ -415,8 +435,11 @@ export const PropertyFilterBar: React.FC = () => {
           {/* Bottom Action inside drawer */}
           <div className="flex justify-end gap-3 pt-2">
             <button
-              onClick={() => setAdvancedOpen(false)}
-              className="px-6 py-2.5 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-xs font-bold hover:opacity-90 transition-opacity"
+              onClick={() => {
+                setAdvancedOpen(false);
+                handleScrollToResults();
+              }}
+              className="px-6 py-2.5 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-xs font-bold hover:opacity-90 transition-opacity cursor-pointer"
             >
               Aplicar Filtros
             </button>

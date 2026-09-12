@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { 
   Building2, 
   Search, 
@@ -13,29 +13,51 @@ import {
   Home,
   Building,
   ChevronRight,
-  Eye
+  Eye,
+  RotateCcw,
+  SearchX
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { PropertyCard } from '../components/properties/PropertyCard';
 import { PropertyFilterBar } from '../components/properties/PropertyFilterBar';
 import { PropertyMap } from '../components/properties/PropertyMap';
+import { PropertyCardSkeleton } from '../components/ui/Skeleton';
 import { POPULAR_NEIGHBORHOODS } from '../lib/mockData';
+import { filterProperties, hasActiveFilters } from '../lib/propertyFilters';
 
 export const PortalHomeView: React.FC = () => {
   const { 
     properties, 
     setCurrentView, 
+    filters,
     setFilters, 
+    resetFilters,
     setIsWizardOpen, 
     setEditingProperty 
   } = useApp();
 
   const [hoveredMapPropId, setHoveredMapPropId] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
 
-  // Featured listings
+  // Check if user has applied any search or filter
+  const isFiltering = useMemo(() => hasActiveFilters(filters), [filters]);
+
+  // Filter properties dynamically
+  const filteredProperties = useMemo(() => {
+    return filterProperties(properties, filters);
+  }, [properties, filters]);
+
+  // Brief shimmer effect on filter change for polished UX
+  useEffect(() => {
+    if (isFiltering) {
+      setIsLoading(true);
+      const timer = setTimeout(() => setIsLoading(false), 180);
+      return () => clearTimeout(timer);
+    }
+  }, [filters, isFiltering]);
+
+  // Featured listings for default state
   const featuredProperties = properties.filter(p => p.featured).slice(0, 6);
-  const launchProperties = properties.filter(p => p.purpose === 'launch').slice(0, 3);
-  const rentalProperties = properties.filter(p => p.purpose === 'rent').slice(0, 3);
 
   const handleCategorySearch = (type: any, purpose: any = 'sale') => {
     setFilters(prev => ({ ...prev, types: [type], purpose }));
@@ -83,40 +105,123 @@ export const PortalHomeView: React.FC = () => {
       {/* Main Content Area */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 space-y-20">
         
-        {/* Section: Imóveis em Destaque */}
-        <section className="space-y-6">
-          <div className="flex flex-wrap items-end justify-between gap-4">
-            <div>
-              <span className="text-xs font-extrabold uppercase tracking-wider text-rose-600 dark:text-rose-400 flex items-center gap-1">
-                <Sparkles className="w-3.5 h-3.5" />
-                <span>Seleção Exclusiva</span>
-              </span>
-              <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white font-['Outfit']">
-                Imóveis em Destaque
-              </h2>
-              <p className="text-xs sm:text-sm text-slate-500">
-                Oportunidades selecionadas com alta valorização e acabamento nobre
-              </p>
+        {/* Section: Imóveis em Destaque ou Resultados da Busca */}
+        <section id="portal-properties-section" className="space-y-6 scroll-mt-20">
+          {isFiltering ? (
+            <div className="space-y-6">
+              <div className="flex flex-wrap items-end justify-between gap-4 pb-2 border-b border-slate-200 dark:border-slate-800">
+                <div>
+                  <span className="text-xs font-extrabold uppercase tracking-wider text-rose-600 dark:text-rose-400 flex items-center gap-1.5">
+                    <Search className="w-3.5 h-3.5" />
+                    <span>Resultado da Busca</span>
+                  </span>
+                  <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white font-['Outfit'] mt-1">
+                    {isLoading
+                      ? 'Buscando imóveis...'
+                      : filteredProperties.length === 0
+                      ? 'Nenhum imóvel encontrado'
+                      : `${filteredProperties.length} ${filteredProperties.length === 1 ? 'imóvel encontrado' : 'imóveis encontrados'}`}
+                  </h2>
+                  <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
+                    {filters.searchTerm
+                      ? `Filtrando por "${filters.searchTerm}"`
+                      : filters.propertyCode
+                      ? `Filtrando por código "${filters.propertyCode}"`
+                      : 'Exibindo imóveis conforme os filtros aplicados'}
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={resetFilters}
+                    className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-300 hover:text-rose-600 dark:hover:text-rose-400 bg-slate-100 dark:bg-slate-800 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" />
+                    <span>Limpar Busca</span>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setCurrentView('search');
+                      window.scrollTo({ top: 0, behavior: 'smooth' });
+                    }}
+                    className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 shadow-md shadow-rose-600/20 transition-all cursor-pointer"
+                  >
+                    <span>Ver no Mapa Completo</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Cards Grid / Skeleton / Empty State */}
+              {isLoading ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {Array.from({ length: 3 }).map((_, idx) => (
+                    <PropertyCardSkeleton key={idx} />
+                  ))}
+                </div>
+              ) : filteredProperties.length > 0 ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {filteredProperties.map(property => (
+                    <PropertyCard key={property.id} property={property} />
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-16 px-4 bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 space-y-4 shadow-sm">
+                  <div className="w-14 h-14 mx-auto rounded-2xl bg-rose-50 dark:bg-rose-950/40 text-rose-500 flex items-center justify-center">
+                    <SearchX className="w-7 h-7" />
+                  </div>
+                  <h3 className="text-lg font-bold text-slate-900 dark:text-white">
+                    Nenhum imóvel corresponde à busca
+                  </h3>
+                  <p className="text-xs sm:text-sm text-slate-500 max-w-md mx-auto">
+                    Não encontramos nenhum imóvel com esses critérios. Tente buscar por outros termos, bairros ou limpar os filtros.
+                  </p>
+                  <button
+                    onClick={resetFilters}
+                    className="px-5 py-2.5 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-xs font-bold hover:opacity-90 transition-opacity cursor-pointer"
+                  >
+                    Limpar Filtros
+                  </button>
+                </div>
+              )}
             </div>
+          ) : (
+            <div className="space-y-6">
+              <div className="flex flex-wrap items-end justify-between gap-4">
+                <div>
+                  <span className="text-xs font-extrabold uppercase tracking-wider text-rose-600 dark:text-rose-400 flex items-center gap-1">
+                    <Sparkles className="w-3.5 h-3.5" />
+                    <span>Seleção Exclusiva</span>
+                  </span>
+                  <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white font-['Outfit']">
+                    Imóveis em Destaque
+                  </h2>
+                  <p className="text-xs sm:text-sm text-slate-500">
+                    Oportunidades selecionadas com alta valorização e acabamento nobre
+                  </p>
+                </div>
 
-            <button
-              onClick={() => {
-                setFilters(prev => ({ ...prev, purpose: 'sale' }));
-                setCurrentView('search');
-              }}
-              className="flex items-center gap-1.5 text-xs sm:text-sm font-bold text-rose-600 hover:text-rose-700 dark:text-rose-400 group"
-            >
-              <span>Ver todos os {properties.length} imóveis</span>
-              <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-            </button>
-          </div>
+                <button
+                  onClick={() => {
+                    setFilters(prev => ({ ...prev, purpose: 'sale' }));
+                    setCurrentView('search');
+                  }}
+                  className="flex items-center gap-1.5 text-xs sm:text-sm font-bold text-rose-600 hover:text-rose-700 dark:text-rose-400 group cursor-pointer"
+                >
+                  <span>Ver todos os {properties.length} imóveis</span>
+                  <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                </button>
+              </div>
 
-          {/* Cards Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {featuredProperties.map(property => (
-              <PropertyCard key={property.id} property={property} />
-            ))}
-          </div>
+              {/* Cards Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                {featuredProperties.map(property => (
+                  <PropertyCard key={property.id} property={property} />
+                ))}
+              </div>
+            </div>
+          )}
         </section>
 
         {/* Section: Bairros Mais Nobres & Buscados */}
