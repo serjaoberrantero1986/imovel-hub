@@ -170,3 +170,8 @@
 .custom-leaflet-popup .leaflet-popup-tip {
   display: none !important;
 }
+
+/* Elegant dark mode styling for OpenStreetMap tiles (100% client-side, no external API keys) */
+.osm-dark-tiles {
+  filter: brightness(0.6) invert(1) contrast(2.8) hue-rotate(205deg) saturate(0.35) brightness(0.75) !important;
+}

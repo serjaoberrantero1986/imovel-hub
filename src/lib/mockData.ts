@@ -57,8 +57,9 @@ export const BROKERS: UserProfile[] = [
   },
   {
     id: 'user_current',
-    name: 'Edson Ricardo',
-    email: 'edsonricardosouza@gmail.com',
+    name: 'Edson Ricardo Souza',
+    email: 'souzanegocio@creci.org',
+    emailAliases: ['edsonricardosouza@gmail.com', 'souzanegocio@creci.org', 'souzanegocio@creci.org.br', 'edson.ricardo.souza@gmail.com'],
     phone: '(15) 99123-4567',
     whatsapp: '5515991234567',
     avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=256&q=80',

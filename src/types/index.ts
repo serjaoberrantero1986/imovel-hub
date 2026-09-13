@@ -40,6 +40,7 @@ export interface UserProfile {
   id: string;
   name: string;
   email: string;
+  emailAliases?: string[];
   phone?: string;
   whatsapp?: string;
   avatarUrl?: string;

@@ -14,7 +14,6 @@ import {
   Sparkles,
   Hash,
   ArrowRight,
-  Database,
   RefreshCw,
   ShieldCheck,
   Download
@@ -392,7 +391,7 @@ export const Navbar: React.FC = () => {
         </div>
       )}
 
-      {/* Supabase SQL Database Setup Modal */}
+      {/* Supabase SQL Database Setup & Diagnostic Modal */}
       <SupabaseSqlModal
         isOpen={supabaseModalOpen}
         onClose={() => setSupabaseModalOpen(false)}
