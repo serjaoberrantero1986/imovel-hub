@@ -32,6 +32,7 @@ import {
   fetchSavedSearchesFromSupabase,
   insertSavedSearchToSupabase,
   deleteSavedSearchFromSupabase,
+  updateSavedSearchAlertInSupabase,
   deleteConversationFromSupabase
 } from '../lib/supabaseCrud';
 import { isSupabaseConfigured, supabase, supabaseUrl, supabaseAnonKey } from '../lib/supabaseClient';
@@ -152,6 +153,7 @@ interface AppContextType {
   savedSearches: SavedSearch[];
   saveCurrentSearch: (title: string, alertFreq?: SavedSearch['alertFrequency']) => Promise<void>;
   deleteSavedSearch: (id: string) => Promise<void>;
+  updateSavedSearchAlert: (id: string, alertFrequency: SavedSearch['alertFrequency']) => Promise<void>;
   
   // Wizard Modal
   isWizardOpen: boolean;
@@ -165,7 +167,7 @@ interface AppContextType {
   removeToast: (id: string) => void;
 }
 
-const DEFAULT_FILTERS: FilterState = {
+export const DEFAULT_FILTERS: FilterState = {
   purpose: 'all',
   types: [],
   city: 'all',
@@ -1425,6 +1427,20 @@ const storeAccount = (email: string, password: string, profile: UserProfile) => 
     addToast({ type: 'info', title: 'Alerta de busca removido' });
   };
 
+  const updateSavedSearchAlert = async (id: string, alertFrequency: SavedSearch['alertFrequency']) => {
+    setSavedSearches(prev => prev.map(s => s.id === id ? { ...s, alertFrequency } : s));
+    if (isSupabaseConfigured) {
+      await updateSavedSearchAlertInSupabase(id, alertFrequency);
+    }
+    addToast({
+      type: 'success',
+      title: 'Frequência de Alerta Atualizada',
+      message: alertFrequency === 'none' 
+        ? 'Alertas desativados para esta busca.' 
+        : `Alertas configurados para frequência ${alertFrequency === 'instant' ? 'instantânea' : alertFrequency === 'daily' ? 'diária' : 'semanal'}.`
+    });
+  };
+
   return (
     <AppContext.Provider
       value={{
@@ -1492,6 +1508,7 @@ const storeAccount = (email: string, password: string, profile: UserProfile) => 
         savedSearches,
         saveCurrentSearch,
         deleteSavedSearch,
+        updateSavedSearchAlert,
         isWizardOpen,
         setIsWizardOpen,
         editingProperty,

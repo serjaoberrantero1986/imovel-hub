@@ -22,6 +22,7 @@ import { FavoritesView } from './views/FavoritesView';
 import { DesignSystemView } from './views/DesignSystemView';
 import { ProfileView } from './views/ProfileView';
 import { InstitutionalLegalView } from './views/InstitutionalLegalView';
+import { SavedSearchesView } from './views/SavedSearchesView';
 
 const MainContent: React.FC = () => {
   const { currentView, activeLegalTab } = useApp();
@@ -43,6 +44,7 @@ const MainContent: React.FC = () => {
         {currentView === 'messages' && <MessagesChatView />}
         {currentView === 'comparator' && <ComparatorView />}
         {currentView === 'favorites' && <FavoritesView />}
+        {currentView === 'saved_searches' && <SavedSearchesView />}
         {currentView === 'design_system' && <DesignSystemView />}
         {currentView === 'profile' && <ProfileView />}
         {currentView === 'legal' && <InstitutionalLegalView initialTab={activeLegalTab} />}

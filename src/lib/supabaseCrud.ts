@@ -613,3 +613,15 @@ export async function deleteSavedSearchFromSupabase(id: string): Promise<boolean
     return false;
   }
 }
+
+export async function updateSavedSearchAlertInSupabase(id: string, alertFrequency: string): Promise<boolean> {
+  if (!supabase) return false;
+  try {
+    const { error } = await supabase.from('saved_searches').update({
+      alert_frequency: alertFrequency
+    }).eq('id', id);
+    return !error;
+  } catch {
+    return false;
+  }
+}
