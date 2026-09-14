@@ -32,6 +32,9 @@ import { formatCurrency, formatDateTime } from '../../lib/utils';
 import { calculatePropertyMatchScore, getTopMatchingPropertiesForLead } from '../../lib/crmMatching';
 import { KANBAN_STAGES } from './CrmKanbanBoard';
 import { auditService } from '../../lib/security';
+import { CrmLeadMatchingTab } from './CrmLeadMatchingTab';
+import { CrmLeadHistoryTab } from './CrmLeadHistoryTab';
+import { CrmLeadTasksTab } from './CrmLeadTasksTab';
 
 interface CrmLeadDetailModalProps {
   lead: Lead | null;
@@ -75,18 +78,6 @@ export const CrmLeadDetailModal: React.FC<CrmLeadDetailModalProps> = ({
   const [activeTab, setActiveTab] = useState<TabType>('overview');
   const [showSensitiveData, setShowSensitiveData] = useState(false);
 
-  // New Interaction Form State
-  const [newInteractionType, setNewInteractionType] = useState<LeadInteraction['type']>('whatsapp');
-  const [newInteractionTitle, setNewInteractionTitle] = useState('');
-  const [newInteractionDesc, setNewInteractionDesc] = useState('');
-
-  // New Task Form State
-  const [newTaskTitle, setNewTaskTitle] = useState('');
-  const [newTaskDate, setNewTaskDate] = useState('');
-  const [newTaskTime, setNewTaskTime] = useState('');
-  const [newTaskType, setNewTaskType] = useState<LeadTask['type']>('follow_up');
-  const [newTaskPriority, setNewTaskPriority] = useState<LeadTask['priority']>('medium');
-
   // New Tag Form State
   const [newTagInput, setNewTagInput] = useState('');
 
@@ -119,37 +110,6 @@ export const CrmLeadDetailModal: React.FC<CrmLeadDetailModalProps> = ({
 
   const handleSaveNotes = async () => {
     await onUpdateNotes(lead.id, generalNotes, privateNotes);
-  };
-
-  const handleCreateInteraction = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newInteractionTitle.trim()) return;
-    await onAddInteraction(lead.id, {
-      leadId: lead.id,
-      type: newInteractionType,
-      title: newInteractionTitle,
-      description: newInteractionDesc,
-      createdBy: 'Corretor Responsável'
-    });
-    setNewInteractionTitle('');
-    setNewInteractionDesc('');
-  };
-
-  const handleCreateTask = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newTaskTitle.trim() || !newTaskDate) return;
-    await onAddTask(lead.id, {
-      leadId: lead.id,
-      title: newTaskTitle,
-      type: newTaskType,
-      priority: newTaskPriority,
-      dueDate: newTaskDate,
-      dueTime: newTaskTime || undefined,
-      completed: false,
-    });
-    setNewTaskTitle('');
-    setNewTaskDate('');
-    setNewTaskTime('');
   };
 
   const handleAddTagSubmit = async (e: React.FormEvent) => {
@@ -522,353 +482,30 @@ export const CrmLeadDetailModal: React.FC<CrmLeadDetailModalProps> = ({
 
           {/* TAB 2: MATCHMAKING INTELIGENTE */}
           {activeTab === 'matching' && (
-            <div className="space-y-4">
-              <div className="p-4 rounded-2xl bg-emerald-50/70 dark:bg-emerald-950/40 border border-emerald-100 dark:border-emerald-900/60 flex items-start gap-3">
-                <Sparkles className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
-                <div>
-                  <h4 className="text-xs font-bold text-emerald-950 dark:text-emerald-200">
-                    Sistema de Match de Imóveis Inteligente
-                  </h4>
-                  <p className="text-[11px] text-emerald-700 dark:text-emerald-300">
-                    Calcula a compatibilidade do perfil do cliente (orçamento, finalidade, tipologia, bairros desejados, número de quartos e comodidades) contra o catálogo ativo de imóveis.
-                  </p>
-                </div>
-              </div>
-
-              <div className="space-y-3">
-                {topMatches.length === 0 ? (
-                  <div className="p-8 text-center text-slate-400 text-xs">
-                    Nenhum imóvel compatível encontrado no momento.
-                  </div>
-                ) : (
-                  topMatches.map(({ property, match }) => {
-                    const isInterest = lead.interestedPropertyIds?.includes(property.id);
-
-                    return (
-                      <div
-                        key={property.id}
-                        className="p-4 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:border-emerald-300 dark:hover:border-emerald-700 transition-all flex flex-col md:flex-row md:items-center justify-between gap-4"
-                      >
-                        {/* Imóvel Info */}
-                        <div className="flex items-center gap-4 min-w-0">
-                          <img
-                            src={property.media?.[0]?.url || 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?auto=format&fit=crop&w=300&q=80'}
-                            alt={property.title}
-                            className="w-16 h-16 rounded-xl object-cover shrink-0"
-                          />
-                          <div className="min-w-0">
-                            <div className="flex items-center gap-2">
-                              <h5 className="text-xs font-bold text-slate-900 dark:text-white truncate">
-                                {property.title}
-                              </h5>
-                              <span className="text-[10px] font-mono text-slate-400">
-                                {property.code}
-                              </span>
-                            </div>
-                            <p className="text-xs text-slate-500 truncate">
-                              📍 {property.neighborhood}, {property.city} • {property.bedrooms} qtos • {property.totalArea} m²
-                            </p>
-                            <p className="text-xs font-extrabold text-slate-900 dark:text-white font-mono mt-0.5">
-                              {formatCurrency(property.price)}
-                            </p>
-                          </div>
-                        </div>
-
-                        {/* Match Score & Actions */}
-                        <div className="flex items-center gap-3 shrink-0">
-                          
-                          {/* Score Badge */}
-                          <div className="flex flex-col items-end">
-                            <span className={`text-sm font-black font-mono px-2.5 py-1 rounded-xl flex items-center gap-1 ${
-                              match.score >= 80 ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300' :
-                              match.score >= 60 ? 'bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300' :
-                              'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300'
-                            }`}>
-                              <Sparkles className="w-3 h-3" />
-                              {match.score}% Match
-                            </span>
-                            <span className="text-[10px] text-slate-400 mt-0.5">
-                              {match.criteria.filter(c => c.passed).length}/{match.criteria.length} critérios compatíveis
-                            </span>
-                          </div>
-
-                          {/* Toggle Interest */}
-                          <button
-                            type="button"
-                            onClick={() => onToggleInterestProperty(lead.id, property.id)}
-                            className={`px-3 py-2 rounded-xl text-xs font-bold transition-colors ${
-                              isInterest
-                                ? 'bg-rose-50 text-rose-600 dark:bg-rose-950/60 dark:text-rose-400 border border-rose-200 dark:border-rose-900'
-                                : 'bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-200'
-                            }`}
-                          >
-                            {isInterest ? '★ Na Carteira' : '+ Interessado'}
-                          </button>
-
-                          {/* WhatsApp Share */}
-                          <button
-                            type="button"
-                            onClick={() => handleSharePropertyOnWhatsApp(property)}
-                            className="p-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/50 text-emerald-600 transition-colors"
-                            title="Enviar ficha do imóvel no WhatsApp do cliente"
-                          >
-                            <MessageSquare className="w-4 h-4" />
-                          </button>
-                        </div>
-
-                      </div>
-                    );
-                  })
-                )}
-              </div>
-            </div>
+            <CrmLeadMatchingTab
+              lead={lead}
+              topMatches={topMatches}
+              onToggleInterestProperty={onToggleInterestProperty}
+              onShareWhatsApp={handleSharePropertyOnWhatsApp}
+            />
           )}
 
           {/* TAB 3: TIMELINE & HISTÓRICO */}
           {activeTab === 'history' && (
-            <div className="space-y-6">
-              
-              {/* Form Add Interaction */}
-              <form onSubmit={handleCreateInteraction} className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 space-y-3">
-                <h4 className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider font-['Outfit']">
-                  Registrar Nova Atividade / Interação
-                </h4>
-
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <div>
-                    <label className="text-[11px] font-semibold text-slate-500 block mb-1">Tipo de Contato</label>
-                    <select
-                      value={newInteractionType}
-                      onChange={(e) => setNewInteractionType(e.target.value as LeadInteraction['type'])}
-                      className="w-full px-3 py-2 rounded-xl text-xs font-medium bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200"
-                    >
-                      <option value="whatsapp">WhatsApp</option>
-                      <option value="call">Ligação Telefônica</option>
-                      <option value="visit">Visita Presencial</option>
-                      <option value="proposal">Envio de Proposta</option>
-                      <option value="email">E-mail</option>
-                      <option value="note">Anotação Interna</option>
-                    </select>
-                  </div>
-
-                  <div className="sm:col-span-2">
-                    <label className="text-[11px] font-semibold text-slate-500 block mb-1">Título do Evento</label>
-                    <input
-                      type="text"
-                      placeholder="Ex: Ligação para tirar dúvidas sobre financiamento"
-                      value={newInteractionTitle}
-                      onChange={(e) => setNewInteractionTitle(e.target.value)}
-                      className="w-full px-3 py-2 rounded-xl text-xs bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <textarea
-                    placeholder="Detalhes da conversa, combinados, objeções ou próximos passos..."
-                    rows={2}
-                    value={newInteractionDesc}
-                    onChange={(e) => setNewInteractionDesc(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl text-xs bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200"
-                  />
-                </div>
-
-                <div className="flex justify-end">
-                  <button
-                    type="submit"
-                    className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs flex items-center gap-1.5 transition-colors"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    <span>Salvar no Histórico</span>
-                  </button>
-                </div>
-              </form>
-
-              {/* Timeline List */}
-              <div className="space-y-4 relative before:absolute before:left-4 before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-200 dark:before:bg-slate-800">
-                {(!lead.interactions || lead.interactions.length === 0) ? (
-                  <div className="pl-10 text-xs text-slate-400">
-                    Nenhuma interação registrada ainda.
-                  </div>
-                ) : (
-                  lead.interactions.map((interaction) => (
-                    <div key={interaction.id} className="relative pl-10 space-y-1">
-                      {/* Timeline Dot */}
-                      <div className="absolute left-2.5 top-1 -translate-x-1/2 w-3.5 h-3.5 rounded-full bg-white dark:bg-slate-900 border-2 border-rose-500" />
-                      
-                      <div className="flex items-center justify-between text-xs">
-                        <span className="font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
-                          <span className="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-[10px] text-slate-600 dark:text-slate-300 uppercase font-mono">
-                            {interaction.type}
-                          </span>
-                          {interaction.title}
-                        </span>
-                        <span className="text-[10px] text-slate-400 font-mono">
-                          {formatDateTime(interaction.createdAt)}
-                        </span>
-                      </div>
-
-                      {interaction.description && (
-                        <p className="text-xs text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-800/40 p-2.5 rounded-xl border border-slate-100 dark:border-slate-800/80">
-                          {interaction.description}
-                        </p>
-                      )}
-
-                      <div className="text-[10px] text-slate-400">
-                        Por: {interaction.createdBy || 'Corretor'}
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-
-            </div>
+            <CrmLeadHistoryTab
+              lead={lead}
+              onAddInteraction={onAddInteraction}
+            />
           )}
 
           {/* TAB 4: TAREFAS & AGENDA */}
           {activeTab === 'tasks' && (
-            <div className="space-y-6">
-              
-              {/* Form Add Task */}
-              <form onSubmit={handleCreateTask} className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 space-y-3">
-                <h4 className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider font-['Outfit']">
-                  Agendar Nova Tarefa / Follow-up
-                </h4>
-
-                <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
-                  <div className="sm:col-span-2">
-                    <label className="text-[11px] font-semibold text-slate-500 block mb-1">Título da Tarefa</label>
-                    <input
-                      type="text"
-                      placeholder="Ex: Ligar para confirmar visita de sábado"
-                      value={newTaskTitle}
-                      onChange={(e) => setNewTaskTitle(e.target.value)}
-                      className="w-full px-3 py-2 rounded-xl text-xs bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="text-[11px] font-semibold text-slate-500 block mb-1">Data Limite</label>
-                    <input
-                      type="date"
-                      value={newTaskDate}
-                      onChange={(e) => setNewTaskDate(e.target.value)}
-                      className="w-full px-3 py-2 rounded-xl text-xs bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="text-[11px] font-semibold text-slate-500 block mb-1">Horário (Opcional)</label>
-                    <input
-                      type="time"
-                      value={newTaskTime}
-                      onChange={(e) => setNewTaskTime(e.target.value)}
-                      className="w-full px-3 py-2 rounded-xl text-xs bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200"
-                    />
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between pt-1">
-                  <div className="flex items-center gap-2">
-                    <select
-                      value={newTaskType}
-                      onChange={(e) => setNewTaskType(e.target.value as LeadTask['type'])}
-                      className="px-2.5 py-1.5 rounded-lg text-xs bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700"
-                    >
-                      <option value="follow_up">Follow-up</option>
-                      <option value="visit">Visita</option>
-                      <option value="call">Ligação</option>
-                      <option value="proposal">Proposta</option>
-                    </select>
-
-                    <select
-                      value={newTaskPriority}
-                      onChange={(e) => setNewTaskPriority(e.target.value as LeadTask['priority'])}
-                      className="px-2.5 py-1.5 rounded-lg text-xs bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700"
-                    >
-                      <option value="low">Prioridade Baixa</option>
-                      <option value="medium">Prioridade Média</option>
-                      <option value="high">Prioridade Alta</option>
-                      <option value="urgent">Urgente</option>
-                    </select>
-                  </div>
-
-                  <button
-                    type="submit"
-                    className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs flex items-center gap-1.5 transition-colors"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    <span>Adicionar Tarefa</span>
-                  </button>
-                </div>
-              </form>
-
-              {/* Tasks List */}
-              <div className="space-y-2">
-                {(!lead.tasks || lead.tasks.length === 0) ? (
-                  <div className="p-6 text-center text-xs text-slate-400">
-                    Nenhuma tarefa pendente para este lead.
-                  </div>
-                ) : (
-                  lead.tasks.map((task) => (
-                    <div
-                      key={task.id}
-                      className={`p-3.5 rounded-2xl border transition-all flex items-center justify-between gap-3 ${
-                        task.completed
-                          ? 'bg-slate-50 dark:bg-slate-900/40 border-slate-200 dark:border-slate-800 opacity-60'
-                          : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 shadow-xs'
-                      }`}
-                    >
-                      <div className="flex items-center gap-3 min-w-0">
-                        <button
-                          type="button"
-                          onClick={() => onToggleTask(lead.id, task.id)}
-                          className={`w-5 h-5 rounded-md flex items-center justify-center border transition-colors ${
-                            task.completed
-                              ? 'bg-emerald-500 border-emerald-500 text-white'
-                              : 'border-slate-300 dark:border-slate-600 hover:border-emerald-500'
-                          }`}
-                        >
-                          {task.completed && <CheckCircle2 className="w-3.5 h-3.5" />}
-                        </button>
-
-                        <div className="min-w-0">
-                          <p className={`text-xs font-bold truncate ${task.completed ? 'line-through text-slate-400' : 'text-slate-900 dark:text-white'}`}>
-                            {task.title}
-                          </p>
-                          <div className="flex items-center gap-2 text-[10px] text-slate-500 mt-0.5">
-                            <span>📅 {task.dueDate} {task.dueTime ? `às ${task.dueTime}` : ''}</span>
-                            <span>•</span>
-                            <span className="capitalize">{task.type.replace('_', ' ')}</span>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-2 shrink-0">
-                        {task.priority && (
-                          <span className={`text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded ${
-                            task.priority === 'urgent' ? 'bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300' :
-                            task.priority === 'high' ? 'bg-orange-100 text-orange-700 dark:bg-orange-950 dark:text-orange-300' :
-                            'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
-                          }`}>
-                            {task.priority}
-                          </span>
-                        )}
-
-                        <button
-                          type="button"
-                          onClick={() => onDeleteTask(lead.id, task.id)}
-                          className="p-1 text-slate-400 hover:text-rose-600 transition-colors"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-
-            </div>
+            <CrmLeadTasksTab
+              lead={lead}
+              onAddTask={onAddTask}
+              onToggleTask={onToggleTask}
+              onDeleteTask={onDeleteTask}
+            />
           )}
 
           {/* TAB 5: NOTAS & CONFIDENCIAL */}

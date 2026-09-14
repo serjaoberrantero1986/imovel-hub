@@ -33,6 +33,8 @@ import { parseYouTubeUrl } from '../../lib/imageProcessing';
 import { PropertyCard } from './PropertyCard';
 import { verifyHoneypot, sanitizeHtml, auditService } from '../../lib/security';
 import { SwipeableImageGallery } from './SwipeableImageGallery';
+import { PropertyMortgageCalculator } from './PropertyMortgageCalculator';
+import { PropertyLeadContactForm } from './PropertyLeadContactForm';
 
 export const PropertyDetailView: React.FC = () => {
   const { 
@@ -68,11 +70,6 @@ export const PropertyDetailView: React.FC = () => {
   const [visitDate, setVisitDate] = useState('2026-09-05');
   const [visitTime, setVisitTime] = useState('10:00');
 
-  // Mortgage Simulator State
-  const [downPayment, setDownPayment] = useState(property.price * 0.2); // 20% default
-  const [loanYears, setLoanYears] = useState(30);
-  const interestRateYearly = 0.099; // 9.9% a.a.
-
   if (!property) {
     return (
       <div className="max-w-7xl mx-auto px-4 py-20 text-center">
@@ -93,14 +90,6 @@ export const PropertyDetailView: React.FC = () => {
   const images = property.media.length > 0 ? property.media : [
     { id: '1', url: 'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=1200&q=80', isCover: true, order: 1, mediaType: 'image' as const }
   ];
-
-  // Mortgage calculation
-  const financedAmount = Math.max(0, property.price - downPayment);
-  const monthlyRate = interestRateYearly / 12;
-  const totalMonths = loanYears * 12;
-  const estimatedMonthlyInstallment = financedAmount > 0
-    ? (financedAmount * (monthlyRate * Math.pow(1 + monthlyRate, totalMonths))) / (Math.pow(1 + monthlyRate, totalMonths) - 1)
-    : 0;
 
   const handleShare = () => {
     if (navigator.clipboard) {
@@ -422,65 +411,7 @@ export const PropertyDetailView: React.FC = () => {
             })()}
 
             {/* Mortgage Simulator */}
-            <div className="p-6 rounded-3xl bg-gradient-to-br from-slate-900 to-indigo-950 text-white shadow-xl space-y-6">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-10 h-10 rounded-2xl bg-white/10 flex items-center justify-center text-amber-400">
-                    <Calculator className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <h3 className="text-base font-bold font-['Outfit']">Simulador de Financiamento Caixa / Bancos</h3>
-                    <p className="text-xs text-slate-300">Faça uma estimativa com taxa média de 9,9% a.a.</p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
-                <div className="space-y-4">
-                  <div>
-                    <div className="flex justify-between text-xs font-semibold mb-1">
-                      <span className="text-slate-300">Valor de Entrada:</span>
-                      <span className="font-bold text-amber-400">{formatCurrency(downPayment)} ({Math.round((downPayment / property.price) * 100)}%)</span>
-                    </div>
-                    <input
-                      type="range"
-                      min={property.price * 0.1}
-                      max={property.price * 0.8}
-                      step={5000}
-                      value={downPayment}
-                      onChange={(e) => setDownPayment(Number(e.target.value))}
-                      className="w-full accent-rose-500 cursor-pointer"
-                    />
-                  </div>
-
-                  <div>
-                    <div className="flex justify-between text-xs font-semibold mb-1">
-                      <span className="text-slate-300">Prazo do Financiamento:</span>
-                      <span className="font-bold text-amber-400">{loanYears} anos ({loanYears * 12} meses)</span>
-                    </div>
-                    <input
-                      type="range"
-                      min={5}
-                      max={35}
-                      step={5}
-                      value={loanYears}
-                      onChange={(e) => setLoanYears(Number(e.target.value))}
-                      className="w-full accent-rose-500 cursor-pointer"
-                    />
-                  </div>
-                </div>
-
-                <div className="p-5 rounded-2xl bg-white/10 backdrop-blur-md border border-white/10 text-center space-y-2">
-                  <span className="text-xs uppercase tracking-wider text-slate-300 font-bold">Parcela Mensal Estimada (Primeira)</span>
-                  <div className="text-3xl font-extrabold text-white font-['Outfit']">
-                    {formatCurrency(estimatedMonthlyInstallment)}
-                  </div>
-                  <div className="text-[11px] text-slate-300">
-                    Valor a financiar: {formatCurrency(financedAmount)}
-                  </div>
-                </div>
-              </div>
-            </div>
+            <PropertyMortgageCalculator propertyPrice={property.price} />
 
           </div>
 
@@ -534,92 +465,21 @@ export const PropertyDetailView: React.FC = () => {
               </button>
 
               {/* Contact Lead Form */}
-              <form onSubmit={handleSubmitLead} className="space-y-3 pt-2">
-                {/* Honeypot field (hidden from legitimate humans, traps bots) */}
-                <input
-                  type="text"
-                  name="website_secondary_check"
-                  tabIndex={-1}
-                  autoComplete="off"
-                  value={leadHoneypot}
-                  onChange={(e) => setLeadHoneypot(e.target.value)}
-                  className="opacity-0 absolute -z-50 pointer-events-none w-0 h-0 p-0 m-0 border-0"
-                  aria-hidden="true"
-                />
-
-                <div className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                  Ou envie uma mensagem direta:
-                </div>
-
-                <div>
-                  <input
-                    type="text"
-                    required
-                    placeholder="Seu nome completo"
-                    value={leadName}
-                    onChange={(e) => setLeadName(e.target.value)}
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-medium text-slate-900 dark:text-white focus:outline-none focus:border-rose-500"
-                  />
-                </div>
-
-                <div>
-                  <input
-                    type="tel"
-                    required
-                    placeholder="Seu telefone / WhatsApp (com DDD)"
-                    value={leadPhone}
-                    onChange={(e) => setLeadPhone(e.target.value)}
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-medium text-slate-900 dark:text-white focus:outline-none focus:border-rose-500"
-                  />
-                </div>
-
-                <div>
-                  <input
-                    type="email"
-                    placeholder="Seu e-mail"
-                    value={leadEmail}
-                    onChange={(e) => setLeadEmail(e.target.value)}
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-medium text-slate-900 dark:text-white focus:outline-none focus:border-rose-500"
-                  />
-                </div>
-
-                <div>
-                  <textarea
-                    rows={3}
-                    value={leadMessage}
-                    onChange={(e) => setLeadMessage(e.target.value)}
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-medium text-slate-900 dark:text-white focus:outline-none focus:border-rose-500 resize-none"
-                  />
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={isSubmittingLead}
-                  className="w-full py-3 rounded-2xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs shadow-md shadow-rose-600/20 flex items-center justify-center gap-2 transition-all disabled:opacity-50"
-                >
-                  <Send className="w-4 h-4" />
-                  <span>{isSubmittingLead ? 'Enviando...' : 'Enviar Mensagem'}</span>
-                </button>
-
-                <p className="text-[10px] text-slate-400 text-center leading-tight">
-                  Ao enviar, você concorda com nossos{' '}
-                  <button
-                    type="button"
-                    onClick={() => openLegalPage('terms')}
-                    className="underline text-slate-600 dark:text-slate-300 hover:text-rose-600 dark:hover:text-rose-400"
-                  >
-                    Termos de Uso
-                  </button>{' '}
-                  e{' '}
-                  <button
-                    type="button"
-                    onClick={() => openLegalPage('privacy')}
-                    className="underline text-slate-600 dark:text-slate-300 hover:text-rose-600 dark:hover:text-rose-400"
-                  >
-                    Política de Privacidade
-                  </button>.
-                </p>
-              </form>
+              <PropertyLeadContactForm
+                leadName={leadName}
+                setLeadName={setLeadName}
+                leadPhone={leadPhone}
+                setLeadPhone={setLeadPhone}
+                leadEmail={leadEmail}
+                setLeadEmail={setLeadEmail}
+                leadMessage={leadMessage}
+                setLeadMessage={setLeadMessage}
+                leadHoneypot={leadHoneypot}
+                setLeadHoneypot={setLeadHoneypot}
+                isSubmittingLead={isSubmittingLead}
+                onSubmit={handleSubmitLead}
+                openLegalPage={openLegalPage}
+              />
 
             </div>
 
