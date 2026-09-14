@@ -34,25 +34,41 @@ export interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+export const GUEST_USER: UserProfile = {
+  id: 'guest_buyer',
+  name: 'Visitante Web Imóvel',
+  email: 'visitante@webimovel.com.br',
+  role: 'buyer',
+  avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=256&q=80',
+  verified: false
+};
+
 export const AuthProvider: React.FC<{
   children: React.ReactNode;
   addToast: (toast: Omit<Toast, 'id'>) => void;
 }> = ({ children, addToast }) => {
-  const [currentUser, setCurrentUser] = useState<UserProfile>(() => {
-    const saved = localStorage.getItem('imovelhub_current_user');
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch (e) {
-        console.error('Error parsing stored user:', e);
-      }
-    }
-    return BROKERS[2]; // Default: Edson Ricardo (Corretor Autônomo)
-  });
-
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
     const saved = localStorage.getItem('imovelhub_is_authenticated');
-    return saved !== null ? saved === 'true' : true;
+    return saved === 'true';
+  });
+
+  const [currentUser, setCurrentUser] = useState<UserProfile>(() => {
+    const savedAuth = localStorage.getItem('imovelhub_is_authenticated');
+    const isAuth = savedAuth === 'true';
+    if (isAuth) {
+      const saved = localStorage.getItem('imovelhub_current_user');
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          if (parsed && parsed.id !== 'guest_buyer') {
+            return parsed;
+          }
+        } catch (e) {
+          console.error('Error parsing stored user:', e);
+        }
+      }
+    }
+    return GUEST_USER;
   });
 
   const [authModalOpen, setAuthModalOpen] = useState(false);
@@ -525,16 +541,8 @@ export const AuthProvider: React.FC<{
       }
     }
     
-    const guestUser: UserProfile = {
-      id: 'guest_buyer',
-      name: 'Visitante Web Imóvel',
-      email: 'visitante@webimovel.com.br',
-      role: 'buyer',
-      avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=256&q=80',
-      verified: false
-    };
-    setCurrentUser(guestUser);
-    localStorage.setItem('imovelhub_current_user', JSON.stringify(guestUser));
+    setCurrentUser(GUEST_USER);
+    localStorage.setItem('imovelhub_current_user', JSON.stringify(GUEST_USER));
 
     addToast({ 
       type: 'info', 

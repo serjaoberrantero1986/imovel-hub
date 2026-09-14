@@ -1,6 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Conversation, Property } from '../types';
-import { INITIAL_CONVERSATIONS } from '../lib/mockData';
 import { 
   fetchConversationsFromSupabase,
   insertMessageToSupabase,
@@ -26,30 +25,69 @@ const ChatContext = createContext<ChatContextType | undefined>(undefined);
 export const ChatProvider: React.FC<{
   children: React.ReactNode;
   currentUser: UserProfile;
+  isAuthenticated?: boolean;
+  openAuthModal?: (tab?: 'login' | 'signup' | 'forgot') => void;
   properties: Property[];
   setCurrentView: (view: AppView) => void;
   addToast: (toast: Omit<Toast, 'id'>) => void;
-}> = ({ children, currentUser, properties, setCurrentView, addToast }) => {
+}> = ({ children, currentUser, isAuthenticated = false, openAuthModal, properties, setCurrentView, addToast }) => {
   const [conversations, setConversations] = useState<Conversation[]>(() => {
-    const saved = localStorage.getItem('imovelhub_conversations');
-    if (saved) {
-      try { return JSON.parse(saved); } catch {}
+    if (!isAuthenticated || currentUser.id === 'guest_buyer') {
+      return [];
     }
-    return INITIAL_CONVERSATIONS;
+    const storageKey = `imovelhub_conversations_${currentUser.id}`;
+    const saved = localStorage.getItem(storageKey);
+    if (saved !== null) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) return parsed;
+      } catch {}
+    }
+    return [];
   });
 
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
 
+  // Keep active conversation aligned
   useEffect(() => {
-    localStorage.setItem('imovelhub_conversations', JSON.stringify(conversations));
-  }, [conversations]);
+    if (conversations.length > 0) {
+      if (!activeConversationId || !conversations.some(c => c.id === activeConversationId)) {
+        setActiveConversationId(conversations[0].id);
+      }
+    } else {
+      setActiveConversationId(null);
+    }
+  }, [conversations, activeConversationId]);
+
+  // Sync state when user switches or logs in/out
+  useEffect(() => {
+    if (isAuthenticated && currentUser.id !== 'guest_buyer') {
+      const storageKey = `imovelhub_conversations_${currentUser.id}`;
+      const saved = localStorage.getItem(storageKey);
+      if (saved !== null) {
+        try {
+          const parsed = JSON.parse(saved);
+          setConversations(Array.isArray(parsed) ? parsed : []);
+        } catch {
+          setConversations([]);
+        }
+      } else {
+        setConversations([]);
+      }
+      refreshConversations();
+    } else {
+      setConversations([]);
+      setActiveConversationId(null);
+    }
+  }, [currentUser.id, isAuthenticated]);
 
   const refreshConversations = async () => {
-    if (!isSupabaseConfigured) return;
+    if (!isSupabaseConfigured || !isAuthenticated || currentUser.id === 'guest_buyer') return;
     try {
       const remoteConvs = await fetchConversationsFromSupabase(currentUser.id);
       if (remoteConvs && remoteConvs.length > 0) {
         setConversations(remoteConvs);
+        localStorage.setItem(`imovelhub_conversations_${currentUser.id}`, JSON.stringify(remoteConvs));
       }
     } catch (e) {
       console.warn('Error fetching conversations from Supabase:', e);
@@ -58,6 +96,18 @@ export const ChatProvider: React.FC<{
 
   const sendMessage = async (conversationId: string, text: string) => {
     if (!text.trim()) return;
+    if (!isAuthenticated || currentUser.id === 'guest_buyer') {
+      addToast({
+        type: 'warning',
+        title: 'Login Necessário',
+        message: 'Faça login na sua conta para enviar mensagens.'
+      });
+      if (openAuthModal) {
+        openAuthModal('login');
+      }
+      return;
+    }
+
     const now = new Date().toISOString();
     const newMsg = {
       id: `msg-${Date.now()}`,
@@ -70,7 +120,7 @@ export const ChatProvider: React.FC<{
       read: true
     };
 
-    setConversations(prev => prev.map(conv => {
+    const nextConversations = conversations.map(conv => {
       if (conv.id === conversationId) {
         return {
           ...conv,
@@ -80,7 +130,10 @@ export const ChatProvider: React.FC<{
         };
       }
       return conv;
-    }));
+    });
+
+    setConversations(nextConversations);
+    localStorage.setItem(`imovelhub_conversations_${currentUser.id}`, JSON.stringify(nextConversations));
 
     if (isSupabaseConfigured) {
       await insertMessageToSupabase(newMsg, conversationId);
@@ -88,6 +141,18 @@ export const ChatProvider: React.FC<{
   };
 
   const startOrOpenConversation = (propertyId: string) => {
+    if (!isAuthenticated || currentUser.id === 'guest_buyer') {
+      addToast({
+        type: 'warning',
+        title: 'Login Necessário',
+        message: 'Faça login na sua conta para iniciar uma conversa com o anunciante.'
+      });
+      if (openAuthModal) {
+        openAuthModal('login');
+      }
+      return;
+    }
+
     const prop = properties.find(p => p.id === propertyId);
     if (!prop) return;
 
@@ -118,8 +183,10 @@ export const ChatProvider: React.FC<{
         messages: [firstMsg]
       };
 
-      setConversations(prev => [newConv, ...prev]);
+      const nextConversations = [newConv, ...conversations];
+      setConversations(nextConversations);
       setActiveConversationId(newConv.id);
+      localStorage.setItem(`imovelhub_conversations_${currentUser.id}`, JSON.stringify(nextConversations));
 
       if (isSupabaseConfigured) {
         insertMessageToSupabase(firstMsg, convId);
@@ -131,13 +198,17 @@ export const ChatProvider: React.FC<{
   };
 
   const deleteConversation = async (conversationId: string) => {
-    setConversations(prev => {
-      const remaining = prev.filter(c => c.id !== conversationId);
-      if (activeConversationId === conversationId) {
-        setActiveConversationId(remaining.length > 0 ? remaining[0].id : null);
-      }
-      return remaining;
-    });
+    if (!isAuthenticated || currentUser.id === 'guest_buyer') {
+      return;
+    }
+
+    const remaining = conversations.filter(c => c.id !== conversationId);
+    setConversations(remaining);
+    localStorage.setItem(`imovelhub_conversations_${currentUser.id}`, JSON.stringify(remaining));
+
+    if (activeConversationId === conversationId) {
+      setActiveConversationId(remaining.length > 0 ? remaining[0].id : null);
+    }
 
     if (isSupabaseConfigured) {
       await deleteConversationFromSupabase(conversationId);

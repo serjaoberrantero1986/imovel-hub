@@ -35,63 +35,105 @@ const SearchPreferencesContext = createContext<SearchPreferencesContextType | un
 export const SearchPreferencesProvider: React.FC<{
   children: React.ReactNode;
   currentUser: UserProfile;
+  isAuthenticated?: boolean;
+  openAuthModal?: (tab?: 'login' | 'signup' | 'forgot') => void;
   properties: Property[];
   addToast: (toast: Omit<Toast, 'id'>) => void;
-}> = ({ children, currentUser, properties, addToast }) => {
+}> = ({ children, currentUser, isAuthenticated = false, openAuthModal, properties, addToast }) => {
+  // Favorite IDs scoped per user, empty for guests
   const [favoriteIds, setFavoriteIds] = useState<string[]>(() => {
-    const saved = localStorage.getItem('imovelhub_favorites');
+    if (!isAuthenticated || currentUser.id === 'guest_buyer') {
+      return [];
+    }
+    const saved = localStorage.getItem(`imovelhub_favorites_${currentUser.id}`);
     if (saved) {
       try { return JSON.parse(saved); } catch {}
     }
-    return ['prop-1', 'prop-2'];
+    return [];
+  });
+
+  // Sync favorites when user switches or logs in/out
+  useEffect(() => {
+    if (isAuthenticated && currentUser.id !== 'guest_buyer') {
+      const key = `imovelhub_favorites_${currentUser.id}`;
+      const saved = localStorage.getItem(key);
+      if (saved) {
+        try {
+          setFavoriteIds(JSON.parse(saved));
+        } catch {
+          setFavoriteIds([]);
+        }
+      } else {
+        setFavoriteIds([]);
+      }
+      refreshPreferences();
+    } else {
+      setFavoriteIds([]);
+    }
+  }, [currentUser.id, isAuthenticated]);
+
+  // Comparison IDs persisted across page reloads (empty by default, cleans permanently)
+  const [comparisonIds, setComparisonIds] = useState<string[]>(() => {
+    const saved = localStorage.getItem('imovelhub_comparisons');
+    if (saved !== null) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) return parsed;
+      } catch {}
+    }
+    return [];
   });
 
   useEffect(() => {
-    localStorage.setItem('imovelhub_favorites', JSON.stringify(favoriteIds));
-  }, [favoriteIds]);
-
-  const [comparisonIds, setComparisonIds] = useState<string[]>(['prop-1', 'prop-3']);
+    localStorage.setItem('imovelhub_comparisons', JSON.stringify(comparisonIds));
+  }, [comparisonIds]);
 
   const [filters, setFilters] = useState<FilterState>(DEFAULT_FILTERS);
   const resetFilters = () => setFilters(DEFAULT_FILTERS);
 
+  // Saved searches scoped per user
   const [savedSearches, setSavedSearches] = useState<SavedSearch[]>(() => {
-    const saved = localStorage.getItem('imovelhub_saved_searches');
+    if (!isAuthenticated || currentUser.id === 'guest_buyer') {
+      return [];
+    }
+    const saved = localStorage.getItem(`imovelhub_saved_searches_${currentUser.id}`);
     if (saved) {
       try { return JSON.parse(saved); } catch {}
     }
-    return [
-      {
-        id: 'search-1',
-        userId: 'user_current',
-        title: 'Apartamentos no Centro ou Campolim com 2+ quartos',
-        filters: {
-          purpose: 'sale',
-          types: ['apartment'],
-          city: 'Sorocaba',
-          bedrooms: 2
-        },
-        alertFrequency: 'daily',
-        matchCount: 14,
-        createdAt: '2026-08-25T10:00:00Z'
-      }
-    ];
+    return [];
   });
 
+  // Sync saved searches when user switches
   useEffect(() => {
-    localStorage.setItem('imovelhub_saved_searches', JSON.stringify(savedSearches));
-  }, [savedSearches]);
+    if (isAuthenticated && currentUser.id !== 'guest_buyer') {
+      const key = `imovelhub_saved_searches_${currentUser.id}`;
+      const saved = localStorage.getItem(key);
+      if (saved) {
+        try {
+          setSavedSearches(JSON.parse(saved));
+        } catch {
+          setSavedSearches([]);
+        }
+      } else {
+        setSavedSearches([]);
+      }
+    } else {
+      setSavedSearches([]);
+    }
+  }, [currentUser.id, isAuthenticated]);
 
   const refreshPreferences = async () => {
-    if (!isSupabaseConfigured) return;
+    if (!isSupabaseConfigured || !isAuthenticated || currentUser.id === 'guest_buyer') return;
     try {
       const remoteFavs = await fetchFavoritesFromSupabase(currentUser.id);
       if (remoteFavs) {
         setFavoriteIds(remoteFavs);
+        localStorage.setItem(`imovelhub_favorites_${currentUser.id}`, JSON.stringify(remoteFavs));
       }
       const remoteSearches = await fetchSavedSearchesFromSupabase(currentUser.id);
       if (remoteSearches && remoteSearches.length > 0) {
         setSavedSearches(remoteSearches);
+        localStorage.setItem(`imovelhub_saved_searches_${currentUser.id}`, JSON.stringify(remoteSearches));
       }
     } catch (e) {
       console.warn('Error fetching favorites or saved searches:', e);
@@ -99,18 +141,31 @@ export const SearchPreferencesProvider: React.FC<{
   };
 
   const toggleFavorite = async (propertyId: string) => {
+    if (!isAuthenticated || currentUser.id === 'guest_buyer') {
+      addToast({
+        type: 'warning',
+        title: 'Login Necessário',
+        message: 'Faça login na sua conta para salvar imóveis em seus favoritos.'
+      });
+      if (openAuthModal) {
+        openAuthModal('login');
+      }
+      return;
+    }
+
+    const key = `imovelhub_favorites_${currentUser.id}`;
     const exists = favoriteIds.includes(propertyId);
     const newFavStatus = !exists;
+    const nextFavs = exists ? favoriteIds.filter(id => id !== propertyId) : [...favoriteIds, propertyId];
 
-    setFavoriteIds(prev => {
-      if (exists) {
-        addToast({ type: 'info', title: 'Removido dos Favoritos' });
-        return prev.filter(id => id !== propertyId);
-      } else {
-        addToast({ type: 'success', title: 'Adicionado aos Favoritos!' });
-        return [...prev, propertyId];
-      }
-    });
+    setFavoriteIds(nextFavs);
+    localStorage.setItem(key, JSON.stringify(nextFavs));
+
+    if (exists) {
+      addToast({ type: 'info', title: 'Removido dos Favoritos' });
+    } else {
+      addToast({ type: 'success', title: 'Adicionado aos Favoritos!' });
+    }
 
     if (isSupabaseConfigured) {
       await toggleFavoriteInSupabase(currentUser.id, propertyId, newFavStatus);
@@ -121,22 +176,42 @@ export const SearchPreferencesProvider: React.FC<{
 
   const toggleComparison = (propertyId: string) => {
     setComparisonIds(prev => {
+      let next: string[];
       if (prev.includes(propertyId)) {
         addToast({ type: 'info', title: 'Imóvel removido da comparação' });
-        return prev.filter(id => id !== propertyId);
+        next = prev.filter(id => id !== propertyId);
+      } else {
+        if (prev.length >= 4) {
+          addToast({ type: 'warning', title: 'Limite Atingido', message: 'Você pode comparar no máximo 4 imóveis simultaneamente.' });
+          return prev;
+        }
+        addToast({ type: 'success', title: 'Adicionado ao Comparador', message: `${prev.length + 1} de 4 selecionados.` });
+        next = [...prev, propertyId];
       }
-      if (prev.length >= 4) {
-        addToast({ type: 'warning', title: 'Limite Atingido', message: 'Você pode comparar no máximo 4 imóveis simultaneamente.' });
-        return prev;
-      }
-      addToast({ type: 'success', title: 'Adicionado ao Comparador', message: `${prev.length + 1} de 4 selecionados.` });
-      return [...prev, propertyId];
+      localStorage.setItem('imovelhub_comparisons', JSON.stringify(next));
+      return next;
     });
   };
 
-  const clearComparison = () => setComparisonIds([]);
+  const clearComparison = () => {
+    setComparisonIds([]);
+    localStorage.setItem('imovelhub_comparisons', JSON.stringify([]));
+    addToast({ type: 'info', title: 'Comparador limpo com sucesso' });
+  };
 
   const saveCurrentSearch = async (title: string, alertFrequency: SavedSearch['alertFrequency'] = 'daily') => {
+    if (!isAuthenticated || currentUser.id === 'guest_buyer') {
+      addToast({
+        type: 'warning',
+        title: 'Login Necessário',
+        message: 'Faça login na sua conta para salvar buscas e receber alertas.'
+      });
+      if (openAuthModal) {
+        openAuthModal('login');
+      }
+      return;
+    }
+
     const newSearch: SavedSearch = {
       id: `search-${Date.now()}`,
       userId: currentUser.id,
@@ -147,7 +222,9 @@ export const SearchPreferencesProvider: React.FC<{
       createdAt: new Date().toISOString()
     };
 
-    setSavedSearches(prev => [newSearch, ...prev]);
+    const nextSearches = [newSearch, ...savedSearches];
+    setSavedSearches(nextSearches);
+    localStorage.setItem(`imovelhub_saved_searches_${currentUser.id}`, JSON.stringify(nextSearches));
 
     if (isSupabaseConfigured) {
       await insertSavedSearchToSupabase(newSearch);
@@ -161,7 +238,10 @@ export const SearchPreferencesProvider: React.FC<{
   };
 
   const deleteSavedSearch = async (id: string) => {
-    setSavedSearches(prev => prev.filter(s => s.id !== id));
+    if (!isAuthenticated || currentUser.id === 'guest_buyer') return;
+    const nextSearches = savedSearches.filter(s => s.id !== id);
+    setSavedSearches(nextSearches);
+    localStorage.setItem(`imovelhub_saved_searches_${currentUser.id}`, JSON.stringify(nextSearches));
     if (isSupabaseConfigured) {
       await deleteSavedSearchFromSupabase(id);
     }
@@ -169,7 +249,10 @@ export const SearchPreferencesProvider: React.FC<{
   };
 
   const updateSavedSearchAlert = async (id: string, alertFrequency: SavedSearch['alertFrequency']) => {
-    setSavedSearches(prev => prev.map(s => s.id === id ? { ...s, alertFrequency } : s));
+    if (!isAuthenticated || currentUser.id === 'guest_buyer') return;
+    const nextSearches = savedSearches.map(s => s.id === id ? { ...s, alertFrequency } : s);
+    setSavedSearches(nextSearches);
+    localStorage.setItem(`imovelhub_saved_searches_${currentUser.id}`, JSON.stringify(nextSearches));
     if (isSupabaseConfigured) {
       await updateSavedSearchAlertInSupabase(id, alertFrequency);
     }

@@ -10,7 +10,10 @@ import {
   ExternalLink,
   ChevronRight,
   User,
-  Trash2
+  Trash2,
+  LogIn,
+  ArrowRight,
+  Sparkles
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { formatCurrency, formatDateTime } from '../lib/utils';
@@ -23,6 +26,9 @@ export const MessagesChatView: React.FC = () => {
     sendMessage, 
     deleteConversation,
     currentUser,
+    isAuthenticated,
+    openAuthModal,
+    setCurrentView,
     openPropertyDetail 
   } = useApp();
 
@@ -43,6 +49,55 @@ export const MessagesChatView: React.FC = () => {
     sendMessage(activeConversation.id, messageInput);
     setMessageInput('');
   };
+
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-[calc(100vh-100px)] bg-slate-50 dark:bg-slate-950 py-10 transition-colors flex items-center justify-center">
+        <div className="max-w-lg mx-auto px-4 text-center space-y-6">
+          <div className="w-20 h-20 rounded-3xl bg-rose-50 dark:bg-rose-950/60 text-rose-600 flex items-center justify-center mx-auto shadow-sm">
+            <MessageSquare className="w-10 h-10" />
+          </div>
+          <div className="space-y-2">
+            <span className="px-3 py-1 rounded-full bg-rose-100 dark:bg-rose-950 text-rose-700 dark:text-rose-300 text-xs font-bold uppercase tracking-wider">
+              Atendimento Online
+            </span>
+            <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white font-['Outfit']">
+              Chat & Mensagens Diretas
+            </h1>
+            <p className="text-xs sm:text-sm text-slate-500 leading-relaxed max-w-md mx-auto">
+              Faça login na sua conta para conversar em tempo real com corretores credenciados, proprietários e imobiliárias parceiras da região.
+            </p>
+          </div>
+
+          <div className="p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/60 text-left flex items-start gap-3">
+            <Sparkles className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+            <p className="text-xs text-amber-800 dark:text-amber-300">
+              Suas mensagens e conversas com anunciantes ficam sincronizadas com segurança em seu perfil após o login.
+            </p>
+          </div>
+
+          <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+            <button
+              type="button"
+              onClick={() => openAuthModal('login')}
+              className="px-6 py-3 rounded-2xl bg-rose-600 hover:bg-rose-700 text-white text-xs sm:text-sm font-bold shadow-md hover:shadow-lg transition-all inline-flex items-center gap-2 cursor-pointer"
+            >
+              <LogIn className="w-4 h-4" />
+              <span>Entrar na Minha Conta</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setCurrentView('search')}
+              className="px-6 py-3 rounded-2xl bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-800 text-xs sm:text-sm font-bold shadow-sm transition-all inline-flex items-center gap-2 cursor-pointer"
+            >
+              <span>Ver Imóveis Disponíveis</span>
+              <ArrowRight className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-[calc(100vh-100px)] bg-slate-50 dark:bg-slate-950 py-6 transition-colors">
@@ -79,43 +134,51 @@ export const MessagesChatView: React.FC = () => {
 
             {/* Conversation Items List */}
             <div className="flex-1 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800/60">
-              {filteredConversations.map(conv => {
-                const isActive = activeConversation?.id === conv.id;
-                return (
-                  <div
-                    key={conv.id}
-                    onClick={() => setActiveConversationId(conv.id)}
-                    className={`p-4 cursor-pointer transition-all flex items-start gap-3 ${
-                      isActive
-                        ? 'bg-rose-50/60 dark:bg-rose-950/30 border-l-4 border-rose-600'
-                        : 'hover:bg-slate-50 dark:hover:bg-slate-800/40'
-                    }`}
-                  >
-                    <img
-                      src={conv.otherUser.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&q=80'}
-                      alt={conv.otherUser.name}
-                      className="w-12 h-12 rounded-2xl object-cover ring-2 ring-rose-500/20 shrink-0"
-                    />
+              {filteredConversations.length === 0 ? (
+                <div className="p-8 text-center text-slate-400 text-xs space-y-2">
+                  <MessageSquare className="w-8 h-8 mx-auto text-slate-300 dark:text-slate-600" />
+                  <p className="font-semibold text-slate-600 dark:text-slate-300">Nenhuma conversa ativa</p>
+                  <p className="text-[11px]">Você pode iniciar uma conversa clicando em "Conversar com Anunciante" na página de qualquer imóvel.</p>
+                </div>
+              ) : (
+                filteredConversations.map(conv => {
+                  const isActive = activeConversation?.id === conv.id;
+                  return (
+                    <div
+                      key={conv.id}
+                      onClick={() => setActiveConversationId(conv.id)}
+                      className={`p-4 cursor-pointer transition-all flex items-start gap-3 ${
+                        isActive
+                          ? 'bg-rose-50/60 dark:bg-rose-950/30 border-l-4 border-rose-600'
+                          : 'hover:bg-slate-50 dark:hover:bg-slate-800/40'
+                      }`}
+                    >
+                      <img
+                        src={conv.otherUser.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&q=80'}
+                        alt={conv.otherUser.name}
+                        className="w-12 h-12 rounded-2xl object-cover ring-2 ring-rose-500/20 shrink-0"
+                      />
 
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center justify-between">
-                        <h4 className="text-xs font-bold text-slate-900 dark:text-white truncate">
-                          {conv.otherUser.name}
-                        </h4>
-                        <span className="text-[10px] text-slate-400">{conv.lastMessageTime}</span>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center justify-between">
+                          <h4 className="text-xs font-bold text-slate-900 dark:text-white truncate">
+                            {conv.otherUser.name}
+                          </h4>
+                          <span className="text-[10px] text-slate-400">{conv.lastMessageTime}</span>
+                        </div>
+
+                        <p className="text-[11px] font-semibold text-rose-600 dark:text-rose-400 truncate mt-0.5">
+                          {conv.propertyTitle}
+                        </p>
+
+                        <p className="text-[11px] text-slate-500 truncate mt-0.5">
+                          {conv.lastMessage}
+                        </p>
                       </div>
-
-                      <p className="text-[11px] font-semibold text-rose-600 dark:text-rose-400 truncate mt-0.5">
-                        {conv.propertyTitle}
-                      </p>
-
-                      <p className="text-[11px] text-slate-500 truncate mt-0.5">
-                        {conv.lastMessage}
-                      </p>
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })
+              )}
             </div>
 
           </div>
@@ -205,13 +268,13 @@ export const MessagesChatView: React.FC = () => {
               {/* Chat Messages History */}
               <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
                 {activeConversation.messages.map(msg => {
-                  const isMine判定 = msg.senderId === currentUser.id;
+                  const isMine = msg.senderId === currentUser.id;
                   return (
                     <div
                       key={msg.id}
-                      className={`flex items-end gap-2.5 ${isMine判定 ? 'justify-end' : 'justify-start'}`}
+                      className={`flex items-end gap-2.5 ${isMine ? 'justify-end' : 'justify-start'}`}
                     >
-                      {!isMine判定 && (
+                      {!isMine && (
                         <img
                           src={msg.senderAvatar || activeConversation.otherUser.avatarUrl}
                           className="w-7 h-7 rounded-full object-cover shrink-0"
@@ -220,17 +283,17 @@ export const MessagesChatView: React.FC = () => {
 
                       <div
                         className={`max-w-md p-3.5 rounded-2xl text-xs leading-relaxed ${
-                          isMine判定
+                          isMine
                             ? 'bg-rose-600 text-white rounded-br-xs shadow-md shadow-rose-600/20'
                             : 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-bl-xs border border-slate-100 dark:border-slate-700 shadow-sm'
                         }`}
                       >
                         <p>{msg.text}</p>
                         <div className={`flex items-center justify-end gap-1 mt-1 text-[9px] ${
-                          isMine判定 ? 'text-rose-200' : 'text-slate-400'
+                          isMine ? 'text-rose-200' : 'text-slate-400'
                         }`}>
                           <span>10:42</span>
-                          {isMine判定 && <CheckCheck className="w-3 h-3" />}
+                          {isMine && <CheckCheck className="w-3 h-3" />}
                         </div>
                       </div>
                     </div>
@@ -258,8 +321,24 @@ export const MessagesChatView: React.FC = () => {
 
             </div>
           ) : (
-            <div className="md:col-span-7 lg:col-span-8 flex items-center justify-center p-8 text-center text-slate-400">
-              Selecione uma conversa para iniciar o atendimento.
+            <div className="md:col-span-7 lg:col-span-8 flex flex-col items-center justify-center p-8 text-center text-slate-400 space-y-4">
+              <div className="w-16 h-16 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-400 flex items-center justify-center">
+                <MessageSquare className="w-8 h-8" />
+              </div>
+              <div>
+                <h4 className="text-sm font-bold text-slate-700 dark:text-slate-200">Nenhuma conversa selecionada</h4>
+                <p className="text-xs text-slate-400 mt-1 max-w-sm">
+                  Escolha uma conversa na lista ao lado ou explore os imóveis para falar com os corretores parceiros.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setCurrentView('search')}
+                className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold shadow-sm transition-all inline-flex items-center gap-2 cursor-pointer"
+              >
+                <span>Explorar Imóveis</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </button>
             </div>
           )}
 

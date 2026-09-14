@@ -143,19 +143,19 @@ export const Navbar: React.FC = () => {
           <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
 
             {/* Comparison button */}
-            {comparisonIds.length > 0 && (
-              <button
-                id="btn-comparator-nav"
-                onClick={() => handleNavigate('comparator')}
-                title="Comparar imóveis lado a lado"
-                className="relative w-8 h-8 sm:w-10 sm:h-10 p-0 flex items-center justify-center rounded-xl text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 transition-colors cursor-pointer shrink-0"
-              >
-                <Scale className="w-4 h-4 sm:w-5 sm:h-5 text-indigo-600 dark:text-indigo-400" />
+            <button
+              id="btn-comparator-nav"
+              onClick={() => handleNavigate('comparator')}
+              title="Comparar imóveis lado a lado"
+              className="relative w-8 h-8 sm:w-10 sm:h-10 p-0 flex items-center justify-center rounded-xl text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 transition-colors cursor-pointer shrink-0"
+            >
+              <Scale className={`w-4 h-4 sm:w-5 sm:h-5 ${comparisonIds.length > 0 ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-500 dark:text-slate-400'}`} />
+              {comparisonIds.length > 0 && (
                 <span className="absolute -top-1 -right-1 w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-indigo-600 text-white text-[9px] sm:text-[10px] font-extrabold flex items-center justify-center shadow-sm">
                   {comparisonIds.length}
                 </span>
-              </button>
-            )}
+              )}
+            </button>
 
             {/* Favorites button */}
             <button

@@ -19,7 +19,8 @@ import {
   Sparkles,
   ExternalLink,
   ShieldCheck,
-  Mail
+  Mail,
+  LogIn
 } from 'lucide-react';
 import { useApp, DEFAULT_FILTERS } from '../context/AppContext';
 import { SavedSearch, Property } from '../types';
@@ -79,7 +80,9 @@ export const SavedSearchesView: React.FC = () => {
     resetFilters,
     setCurrentView,
     properties,
-    currentUser
+    currentUser,
+    isAuthenticated,
+    openAuthModal
   } = useApp();
 
   const [expandedSearchId, setExpandedSearchId] = useState<string | null>(null);
@@ -172,6 +175,32 @@ export const SavedSearchesView: React.FC = () => {
           </div>
         </div>
 
+        {/* Guest Warning Banner */}
+        {!isAuthenticated && (
+          <div className="p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-sm">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-amber-100 dark:bg-amber-900/50 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
+                <Sparkles className="w-5 h-5" />
+              </div>
+              <div>
+                <p className="text-xs font-bold text-amber-900 dark:text-amber-200">
+                  Você está navegando como visitante
+                </p>
+                <p className="text-[11px] text-amber-700 dark:text-amber-400">
+                  Faça login na sua conta para salvar buscas personalizadas e receber alertas automáticos de novos imóveis.
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => openAuthModal('login')}
+              className="px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold shadow-sm shrink-0 transition-colors flex items-center gap-1.5"
+            >
+              <LogIn className="w-3.5 h-3.5" />
+              <span>Fazer Login</span>
+            </button>
+          </div>
+        )}
+
         {/* KPI / Metrics Ribbon */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex items-center gap-3.5">
@@ -224,11 +253,21 @@ export const SavedSearchesView: React.FC = () => {
             <p className="text-xs sm:text-sm text-slate-500 max-w-lg mx-auto">
               Ao pesquisar imóveis no portal, use o botão <strong className="text-slate-700 dark:text-slate-300">"Salvar Busca"</strong> na barra de filtros. Você poderá ativar alertas automáticos para ser avisado sempre que surgir um imóvel dentro do seu perfil desejado.
             </p>
-            <div className="pt-2">
+            <div className="pt-2 flex flex-wrap items-center justify-center gap-3">
+              {!isAuthenticated && (
+                <button
+                  type="button"
+                  onClick={() => openAuthModal('login')}
+                  className="px-6 py-3 rounded-2xl bg-sky-600 hover:bg-sky-700 text-white text-xs sm:text-sm font-bold shadow-md hover:shadow-lg transition-all inline-flex items-center gap-2 cursor-pointer"
+                >
+                  <LogIn className="w-4 h-4" />
+                  <span>Fazer Login para Salvar</span>
+                </button>
+              )}
               <button
                 type="button"
                 onClick={handleCreateNewSearch}
-                className="px-6 py-3 rounded-2xl bg-sky-600 hover:bg-sky-700 text-white text-xs sm:text-sm font-bold shadow-md hover:shadow-lg transition-all inline-flex items-center gap-2 cursor-pointer"
+                className={`px-6 py-3 rounded-2xl ${!isAuthenticated ? 'bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-white border border-slate-200 dark:border-slate-700' : 'bg-sky-600 hover:bg-sky-700 text-white'} text-xs sm:text-sm font-bold shadow-md hover:shadow-lg transition-all inline-flex items-center gap-2 cursor-pointer`}
               >
                 <span>Explorar Imóveis & Salvar Filtros</span>
                 <ArrowRight className="w-4 h-4" />

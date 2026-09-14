@@ -262,12 +262,16 @@ const PropertyBridge: React.FC<{
     >
       <ChatProvider
         currentUser={auth.currentUser}
+        isAuthenticated={auth.isAuthenticated}
+        openAuthModal={auth.openAuthModal}
         properties={propertyCtx.properties}
         setCurrentView={setCurrentView}
         addToast={addToast}
       >
         <SearchPreferencesProvider
           currentUser={auth.currentUser}
+          isAuthenticated={auth.isAuthenticated}
+          openAuthModal={auth.openAuthModal}
           properties={propertyCtx.properties}
           addToast={addToast}
         >

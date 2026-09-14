@@ -45,9 +45,7 @@ export const ProfileView: React.FC = () => {
     logout, 
     switchUserRole, 
     setCurrentView,
-    addToast,
-    isDbConnected,
-    openLegalPage
+    addToast
   } = useApp();
 
   const [activeTab, setActiveTab] = useState<'general' | 'role_specific' | 'security'>('general');
@@ -335,8 +333,6 @@ export const ProfileView: React.FC = () => {
               {isBroker && (
                 <div className="flex flex-wrap items-center justify-center sm:justify-start gap-4 text-xs font-semibold text-slate-600 dark:text-slate-300 pt-2 border-t border-slate-100 dark:border-slate-800">
                   <span>CRECI: <strong>{formData.creci || 'Não informado'}</strong></span>
-                  <span>Avaliação: <strong>⭐ {formData.rating || 5.0}</strong></span>
-                  <span>Negócios Concluídos: <strong>{formData.totalDeals || 0}</strong></span>
                   {formData.agencyName && (
                     <span>Imobiliária: <strong>{formData.agencyName}</strong></span>
                   )}
@@ -914,53 +910,6 @@ export const ProfileView: React.FC = () => {
                   )}
                 </button>
               </form>
-            </div>
-
-            {/* Box: Status da Conta e LGPD */}
-            <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200 dark:border-slate-800 shadow-sm space-y-3">
-              <h3 className="text-base font-extrabold text-slate-900 dark:text-white">
-                Status da Conta & Integração
-              </h3>
-              
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
-                <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700">
-                  <span className="text-[10px] uppercase font-bold text-slate-400 block mb-1">Autenticação Supabase</span>
-                  <div className="flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                    <strong className="text-slate-800 dark:text-slate-200">
-                      {isDbConnected ? 'Sincronizado com Nuvem Supabase' : 'Sessão Local Segura'}
-                    </strong>
-                  </div>
-                </div>
-
-                <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700">
-                  <span className="text-[10px] uppercase font-bold text-slate-400 block mb-1">Identificador de Usuário</span>
-                  <strong className="text-slate-800 dark:text-slate-200 font-mono text-[11px]">
-                    {formData.id}
-                  </strong>
-                </div>
-              </div>
-
-              {/* Legal & Privacy Navigation Links */}
-              <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex flex-wrap items-center justify-between gap-3 text-xs">
-                <span className="text-slate-500">Direitos do Titular de Dados (LGPD):</span>
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    onClick={() => openLegalPage('privacy')}
-                    className="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-rose-50 dark:hover:bg-rose-950/40 text-slate-700 dark:text-slate-300 hover:text-rose-600 font-medium transition-colors"
-                  >
-                    Política de Privacidade
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => openLegalPage('terms')}
-                    className="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-rose-50 dark:hover:bg-rose-950/40 text-slate-700 dark:text-slate-300 hover:text-rose-600 font-medium transition-colors"
-                  >
-                    Termos de Uso
-                  </button>
-                </div>
-              </div>
             </div>
           </div>
         )}

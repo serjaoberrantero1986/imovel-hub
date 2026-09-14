@@ -91,7 +91,7 @@ export const PortalHomeView: React.FC = () => {
             </h1>
 
             <p className="text-base sm:text-lg text-slate-300 font-normal max-w-2xl mx-auto">
-              Chácaras, casas em condomínio e outros lançamentos com atendimento personalizado para melhor atendê-lo.
+              Chácaras, sítios, fazendas, terrenos, casas, apartamentos e lançamentos ao seu alcance, com atendimento personalizado.
             </p>
           </div>
 

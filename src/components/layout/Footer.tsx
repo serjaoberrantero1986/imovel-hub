@@ -36,11 +36,11 @@ export const Footer: React.FC = () => {
               </span>
             </div>
             <p className="text-sm text-slate-400 leading-relaxed">
-              A plataforma imobiliária mais completa e tecnológica para você encontrar, avaliar, comprar e alugar imóveis com segurança e transparência.
+              A plataforma imobiliária completa para você encontrar, vender e alugar imóveis com segurança e transparência.
             </p>
             <div className="flex items-center gap-2 text-xs text-slate-400">
               <ShieldCheck className="w-4 h-4 text-emerald-400" />
-              <span>CRECI Jurídico: 9835-J • Sorocaba e Região</span>
+              <span>CRECI 275886-F</span>
             </div>
           </div>
 
@@ -50,7 +50,7 @@ export const Footer: React.FC = () => {
             <ul className="space-y-2.5 text-sm">
               <li className="flex items-center gap-2.5 text-slate-400">
                 <Phone className="w-4 h-4 text-rose-500" />
-                <span>(15) 3232-9092 / 3224-4140</span>
+                <span>(15) 99779-6315</span>
               </li>
               <li className="flex items-center gap-2.5 text-slate-400">
                 <Mail className="w-4 h-4 text-rose-500" />
@@ -58,7 +58,7 @@ export const Footer: React.FC = () => {
               </li>
               <li className="flex items-start gap-2.5 text-slate-400">
                 <MapPin className="w-4 h-4 text-rose-500 shrink-0 mt-1" />
-                <span>Av. Caribe, 700 - Jardim América, Sorocaba/SP</span>
+                <span>Rua Francisco das Chagas, 10 - Jardim dos Ipês - Salto de Pirapora/SP</span>
               </li>
             </ul>
             <p className="text-xs text-slate-500 pt-2">
@@ -193,7 +193,7 @@ export const Footer: React.FC = () => {
 
         {/* Bottom Copyright & Legal Links */}
         <div className="pt-6 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-500 gap-4">
-          <p>© 2026 Web Imóvel Brasil S/A. Todos os direitos reservados. CNPJ: 20.433.428/0001-35.</p>
+          <p>© 2026 Web Imóvel Brasil S/A. Todos os direitos reservados.</p>
           <div className="flex flex-wrap items-center justify-center sm:justify-end gap-x-5 gap-y-2">
             <button 
               onClick={() => openLegalPage('terms')} 
