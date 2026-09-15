@@ -26,6 +26,10 @@ import { SupabaseSqlModal } from '../modals/SupabaseSqlModal';
 
 export const Navbar: React.FC = () => {
   const { 
+    currentUser,
+    isAuthenticated,
+    openAuthModal,
+    addToast,
     currentView, 
     setCurrentView, 
     theme, 
@@ -51,6 +55,18 @@ export const Navbar: React.FC = () => {
   const totalUnread = conversations.reduce((sum, c) => sum + c.unreadCount, 0);
 
   const handleStartNewListing = () => {
+    if (!isAuthenticated) {
+      openAuthModal('login');
+      return;
+    }
+    if (currentUser?.role === 'buyer') {
+      addToast({
+        type: 'warning',
+        title: 'Recurso Exclusivo',
+        message: 'A publicação de imóveis é exclusiva para corretores e imobiliárias credenciados.'
+      });
+      return;
+    }
     setEditingProperty(null);
     setIsWizardOpen(true);
   };

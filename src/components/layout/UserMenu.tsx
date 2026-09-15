@@ -25,7 +25,6 @@ export const UserMenu: React.FC = () => {
     isAuthenticated,
     openAuthModal,
     logout,
-    switchUserRole, 
     currentView,
     setCurrentView, 
     leads, 
@@ -85,10 +84,12 @@ export const UserMenu: React.FC = () => {
 
         <div className="hidden xl:block text-left pr-1">
           <div className="text-xs font-bold text-slate-800 dark:text-slate-100 truncate max-w-[120px]">
-            {currentUser.name.split(' ')[0]}
+            {isAuthenticated ? currentUser.name.split(' ')[0] : 'Visitante'}
           </div>
           <div className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">
-            {currentUser.role === 'broker' ? 'CRECI ' + (currentUser.creci || 'Ativo') : 'Cliente'}
+            {isAuthenticated 
+              ? (currentUser.role === 'broker' ? 'CRECI ' + (currentUser.creci || 'Ativo') : 'Cliente') 
+              : 'Entre ou Cadastre-se'}
           </div>
         </div>
 
@@ -109,18 +110,18 @@ export const UserMenu: React.FC = () => {
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-1.5">
                   <p className="text-sm font-bold text-slate-900 dark:text-white truncate">
-                    {currentUser.name}
+                    {isAuthenticated ? currentUser.name : 'Visitante'}
                   </p>
-                  {currentUser.verified && (
+                  {isAuthenticated && currentUser.verified && (
                     <Badge variant="verified" size="sm" className="py-0 px-1 text-[9px]">
                       Verificado
                     </Badge>
                   )}
                 </div>
                 <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
-                  {currentUser.email}
+                  {isAuthenticated ? currentUser.email : 'Nenhuma conta conectada'}
                 </p>
-                {currentUser.role === 'broker' && currentUser.agencyName && (
+                {isAuthenticated && currentUser.role === 'broker' && currentUser.agencyName && (
                   <p className="text-[10px] font-semibold text-rose-600 dark:text-rose-400 mt-0.5">
                     {currentUser.agencyName}
                   </p>
@@ -133,7 +134,14 @@ export const UserMenu: React.FC = () => {
           <div className="py-1.5 text-xs sm:text-sm font-medium">
             <button
               id="menu-item-my-profile"
-              onClick={() => handleNav('profile')}
+              onClick={() => {
+                if (!isAuthenticated) {
+                  setIsOpen(false);
+                  openAuthModal('signup');
+                  return;
+                }
+                handleNav('profile');
+              }}
               className={`w-full text-left px-4 py-2 hover:bg-slate-50 dark:hover:bg-slate-800 flex items-center justify-between transition-colors ${
                 currentView === 'profile'
                   ? 'text-rose-600 dark:text-rose-400 font-bold bg-rose-50/60 dark:bg-rose-950/30'
@@ -144,7 +152,7 @@ export const UserMenu: React.FC = () => {
                 <User className="w-4 h-4 text-rose-500" />
                 <span>Gerenciar Meu Perfil</span>
               </div>
-              {currentUser.verified && (
+              {isAuthenticated && currentUser.verified && (
                 <span className="text-[10px] px-1.5 py-0.5 rounded-full font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
                   CRECI
                 </span>
@@ -269,20 +277,6 @@ export const UserMenu: React.FC = () => {
               </div>
               <span className="text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-wider font-bold">
                 {theme === 'light' ? 'OFF' : 'ON'}
-              </span>
-            </button>
-
-            <button
-              id="btn-switch-role-usermenu"
-              onClick={() => {
-                setIsOpen(false);
-                switchUserRole(currentUser.role === 'broker' ? 'buyer' : 'broker');
-              }}
-              className="w-full text-left px-3 py-2 text-xs font-semibold rounded-xl text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 transition-colors flex items-center gap-2"
-            >
-              <Sparkles className="w-3.5 h-3.5" />
-              <span>
-                Alternar para {currentUser.role === 'broker' ? 'Comprador' : 'Corretor Pro'}
               </span>
             </button>
 

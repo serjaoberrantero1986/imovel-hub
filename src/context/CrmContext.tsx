@@ -49,7 +49,9 @@ export const CrmProvider: React.FC<{
   });
 
   useEffect(() => {
-    localStorage.setItem('imovelhub_leads', JSON.stringify(leads));
+    if (!isSupabaseConfigured) {
+      localStorage.setItem('imovelhub_leads', JSON.stringify(leads));
+    }
   }, [leads]);
 
   const refreshLeads = useCallback(async () => {
@@ -64,10 +66,18 @@ export const CrmProvider: React.FC<{
     }
   }, []);
 
+  // Initial load from Supabase if configured
+  useEffect(() => {
+    if (isSupabaseConfigured) {
+      refreshLeads();
+    }
+  }, [refreshLeads]);
+
   const addLead = async (leadData: Omit<Lead, 'id' | 'createdAt' | 'updatedAt'>) => {
+    const leadId = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `lead-${Date.now()}`;
     const newLead: Lead = {
       ...leadData,
-      id: `lead-${Date.now()}`,
+      id: leadId,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };

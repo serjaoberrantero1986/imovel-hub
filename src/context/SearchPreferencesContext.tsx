@@ -212,8 +212,9 @@ export const SearchPreferencesProvider: React.FC<{
       return;
     }
 
+    const searchId = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `search-${Date.now()}`;
     const newSearch: SavedSearch = {
-      id: `search-${Date.now()}`,
+      id: searchId,
       userId: currentUser.id,
       title: title || 'Busca Personalizada',
       filters: { ...filters },

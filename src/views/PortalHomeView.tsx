@@ -34,7 +34,11 @@ export const PortalHomeView: React.FC = () => {
     resetFilters,
     setIsWizardOpen, 
     setEditingProperty,
-    openLegalPage
+    openLegalPage,
+    currentUser,
+    isAuthenticated,
+    openAuthModal,
+    addToast
   } = useApp();
 
   const [hoveredMapPropId, setHoveredMapPropId] = useState<string | null>(null);
@@ -376,10 +380,22 @@ export const PortalHomeView: React.FC = () => {
 
           <button
             onClick={() => {
+              if (!isAuthenticated) {
+                openAuthModal('login');
+                return;
+              }
+              if (currentUser?.role === 'buyer') {
+                addToast({
+                  type: 'warning',
+                  title: 'Recurso Exclusivo',
+                  message: 'A publicação de anúncios é exclusiva para corretores e imobiliárias credenciadas.'
+                });
+                return;
+              }
               setEditingProperty(null);
               setIsWizardOpen(true);
             }}
-            className="px-8 py-4 rounded-2xl bg-white text-rose-700 hover:bg-slate-100 font-extrabold text-sm shadow-xl hover:scale-105 active:scale-95 transition-all shrink-0"
+            className="px-8 py-4 rounded-2xl bg-white text-rose-700 hover:bg-slate-100 font-extrabold text-sm shadow-xl hover:scale-105 active:scale-95 transition-all shrink-0 cursor-pointer"
           >
             Anunciar Imóvel Agora
           </button>

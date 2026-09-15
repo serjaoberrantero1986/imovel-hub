@@ -1,6 +1,18 @@
 import { supabase } from './supabaseClient';
 import { Property, Lead, Conversation, Message, SavedSearch, PropertyMedia, UserProfile } from '../types';
 
+function ensureValidUuid(id?: string): string {
+  if (id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
+    return id;
+  }
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  return '10000000-1000-4000-8000-100000000000'.replace(/[018]/g, c =>
+    (+c ^ (Math.random() * 16 >> (+c / 4))).toString(16)
+  );
+}
+
 /**
  * Maps database property + relations to application Property model
  */
@@ -201,7 +213,7 @@ export async function insertPropertyToSupabase(property: Property): Promise<bool
     // 3. Insert Images
     if (property.media && property.media.length > 0) {
       const imageRows = property.media.map(m => ({
-        id: m.id,
+        id: ensureValidUuid(m.id),
         property_id: property.id,
         url: m.url,
         thumbnail_url: m.thumbnailUrl || m.url,
@@ -267,7 +279,7 @@ export async function updatePropertyInSupabase(id: string, updates: Partial<Prop
       await supabase.from('property_images').delete().eq('property_id', id);
       if (updates.media.length > 0) {
         const imageRows = updates.media.map(m => ({
-          id: m.id,
+          id: ensureValidUuid(m.id),
           property_id: id,
           url: m.url,
           thumbnail_url: m.thumbnailUrl || m.url,
@@ -487,12 +499,36 @@ export async function fetchConversationsFromSupabase(userId: string): Promise<Co
   }
 }
 
+export async function insertConversationToSupabase(conversation: {
+  id: string;
+  propertyId?: string;
+  buyerId: string;
+  advertiserId: string;
+  lastMessageText?: string;
+}): Promise<boolean> {
+  if (!supabase) return false;
+  try {
+    const { error } = await supabase.from('conversations').insert({
+      id: ensureValidUuid(conversation.id),
+      property_id: conversation.propertyId || null,
+      buyer_id: conversation.buyerId,
+      advertiser_id: conversation.advertiserId,
+      last_message_text: conversation.lastMessageText || 'Conversa iniciada',
+      last_message_at: new Date().toISOString()
+    });
+    return !error;
+  } catch (e) {
+    console.error('Error inserting conversation to Supabase:', e);
+    return false;
+  }
+}
+
 export async function insertMessageToSupabase(message: Message, conversationId: string): Promise<boolean> {
   if (!supabase) return false;
   try {
     const { error: msgErr } = await supabase.from('messages').insert({
-      id: message.id,
-      conversation_id: conversationId,
+      id: ensureValidUuid(message.id),
+      conversation_id: ensureValidUuid(conversationId),
       sender_id: message.senderId,
       text: message.text,
       read_at: message.read ? new Date().toISOString() : null
@@ -505,7 +541,7 @@ export async function insertMessageToSupabase(message: Message, conversationId: 
       last_message_text: message.text,
       last_message_at: message.createdAt,
       updated_at: new Date().toISOString()
-    }).eq('id', conversationId);
+    }).eq('id', ensureValidUuid(conversationId));
 
     return true;
   } catch (e) {

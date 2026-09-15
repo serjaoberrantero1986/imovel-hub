@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Conversation, Property } from '../types';
 import { 
   fetchConversationsFromSupabase,
+  insertConversationToSupabase,
   insertMessageToSupabase,
   deleteConversationFromSupabase
 } from '../lib/supabaseCrud';
@@ -109,8 +110,9 @@ export const ChatProvider: React.FC<{
     }
 
     const now = new Date().toISOString();
+    const msgId = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `msg-${Date.now()}`;
     const newMsg = {
-      id: `msg-${Date.now()}`,
+      id: msgId,
       conversationId,
       senderId: currentUser.id,
       senderName: currentUser.name,
@@ -158,9 +160,10 @@ export const ChatProvider: React.FC<{
 
     const conv = conversations.find(c => c.propertyId === propertyId);
     if (!conv) {
-      const convId = `conv-${Date.now()}`;
+      const convId = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `conv-${Date.now()}`;
+      const msgId = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `msg-${Date.now()}`;
       const firstMsg = {
-        id: `msg-${Date.now()}`,
+        id: msgId,
         conversationId: convId,
         senderId: currentUser.id,
         senderName: currentUser.name,
@@ -189,7 +192,15 @@ export const ChatProvider: React.FC<{
       localStorage.setItem(`imovelhub_conversations_${currentUser.id}`, JSON.stringify(nextConversations));
 
       if (isSupabaseConfigured) {
-        insertMessageToSupabase(firstMsg, convId);
+        insertConversationToSupabase({
+          id: convId,
+          propertyId: prop.id,
+          buyerId: currentUser.id,
+          advertiserId: prop.advertiser?.id || prop.userId,
+          lastMessageText: firstMsg.text
+        }).then(() => {
+          insertMessageToSupabase(firstMsg, convId);
+        });
       }
     } else {
       setActiveConversationId(conv.id);

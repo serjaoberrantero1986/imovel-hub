@@ -37,16 +37,18 @@ export const Sidebar: React.FC<SidebarProps> = ({
     currentView, 
     setCurrentView, 
     currentUser, 
-    switchUserRole,
-    theme,
-    toggleTheme,
+    isAuthenticated,
+    openAuthModal,
+    theme, 
+    toggleTheme, 
     leads, 
     favoriteIds, 
     comparisonIds, 
     conversations,
     savedSearches,
     setIsWizardOpen,
-    setEditingProperty
+    setEditingProperty,
+    addToast
   } = useApp();
 
   const [isCollapsed, setIsCollapsed] = useState(initialCollapsed);
@@ -122,6 +124,18 @@ export const Sidebar: React.FC<SidebarProps> = ({
           fullWidth
           leftIcon={<PlusCircle className="w-4 h-4 shrink-0" />}
           onClick={() => {
+            if (!isAuthenticated) {
+              openAuthModal('login');
+              return;
+            }
+            if (currentUser.role === 'buyer') {
+              addToast({
+                type: 'warning',
+                title: 'Recurso Exclusivo',
+                message: 'A publicação de imóveis é exclusiva para corretores e imobiliárias credenciados.'
+              });
+              return;
+            }
             setEditingProperty(null);
             setIsWizardOpen(true);
           }}

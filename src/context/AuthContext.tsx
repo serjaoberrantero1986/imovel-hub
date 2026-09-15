@@ -561,11 +561,11 @@ export const AuthProvider: React.FC<{
         await supabase.from('profiles').update({
           name: updated.name,
           phone: updated.phone || null,
+          whatsapp: updated.whatsapp || updated.phone || null,
           creci: updated.creci || null,
           agency_name: updated.agencyName || null,
           agency_logo: updated.agencyLogo || null,
           avatar_url: updated.avatarUrl || null,
-          bio: updated.bio || null,
           verified: updated.verified ?? false
         }).eq('id', currentUser.id);
       } catch (err) {

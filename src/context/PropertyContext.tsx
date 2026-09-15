@@ -41,7 +41,9 @@ export const PropertyProvider: React.FC<{
   });
 
   useEffect(() => {
-    localStorage.setItem('imovelhub_properties', JSON.stringify(properties));
+    if (!isSupabaseConfigured) {
+      localStorage.setItem('imovelhub_properties', JSON.stringify(properties));
+    }
   }, [properties]);
 
   const refreshProperties = useCallback(async () => {
@@ -56,10 +58,17 @@ export const PropertyProvider: React.FC<{
     }
   }, []);
 
+  // Initial load from Supabase if configured
+  useEffect(() => {
+    if (isSupabaseConfigured) {
+      refreshProperties();
+    }
+  }, [refreshProperties]);
+
   const addProperty = async (data: Omit<Property, 'id' | 'code' | 'createdAt' | 'updatedAt' | 'viewsCount' | 'leadsCount' | 'favoritesCount' | 'sharesCount' | 'advertiser' | 'userId'>): Promise<Property> => {
     const codeNum = Math.floor(10000000 + Math.random() * 90000000);
     const code = `${codeNum}-MEOA`;
-    const id = `prop-${Date.now()}`;
+    const id = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `prop-${Date.now()}`;
     const now = new Date().toISOString();
 
     const newProp: Property = {

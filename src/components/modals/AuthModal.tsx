@@ -519,42 +519,6 @@ export const AuthModal: React.FC = () => {
                   )}
                 </button>
 
-                {/* Quick test accounts helper for login */}
-                {authModalTab === 'login' && (
-                  <div className="pt-1">
-                    <div className="p-2.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/80 text-[11px] text-slate-500 dark:text-slate-400">
-                      <div className="flex items-center gap-1.5 font-bold text-slate-700 dark:text-slate-300 mb-1.5">
-                        <Sparkles className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-                        <span>Acesso Rápido para Demonstração:</span>
-                      </div>
-                      <div className="flex flex-wrap gap-1.5">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setEmail('souzanegocio@creci.org');
-                            setPassword('12345678');
-                            setErrorMessage(null);
-                          }}
-                          className="px-2.5 py-1 rounded-xl bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 font-medium text-slate-700 dark:text-slate-200 hover:border-rose-400 hover:text-rose-600 transition-colors cursor-pointer"
-                        >
-                          Corretor Edson (CRECI 185420-F)
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setEmail('carlos.mendes@webimovel.com.br');
-                            setPassword('12345678');
-                            setErrorMessage(null);
-                          }}
-                          className="px-2.5 py-1 rounded-xl bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 font-medium text-slate-700 dark:text-slate-200 hover:border-rose-400 hover:text-rose-600 transition-colors cursor-pointer"
-                        >
-                          Imobiliária Mendes Ortega
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
                 {/* Bottom navigation link */}
                 <div className="text-center pt-2">
                   {authModalTab === 'forgot' ? (
