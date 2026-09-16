@@ -101,36 +101,55 @@ export const AuthProvider: React.FC<{
           return;
         }
 
-        supabase.from('profiles').select('*').eq('id', session.user.id).single()
-          .then(({ data: profileData }) => {
-            if (profileData) {
-              setIsAuthenticated(true);
-              localStorage.setItem('imovelhub_is_authenticated', 'true');
-              const mapped: UserProfile = {
-                id: profileData.id,
-                name: profileData.name || session.user.user_metadata?.name || 'Usuário',
-                email: session.user.email || profileData.email || '',
-                phone: profileData.phone,
-                whatsapp: profileData.phone,
-                role: (profileData.role as any) || 'broker',
-                creci: profileData.creci,
-                agencyName: profileData.agency_name,
-                agencyLogo: profileData.agency_logo,
-                verified: profileData.verified ?? false,
-                avatarUrl: profileData.avatar_url || session.user.user_metadata?.avatar_url,
-                bio: profileData.bio,
-                creciStatus: profileData.verified ? 'verified' : 'unverified'
-              };
-              setCurrentUser(mapped);
-              localStorage.setItem('imovelhub_current_user', JSON.stringify(mapped));
-            } else {
-              // Profile was deleted from database
-              supabase.auth.signOut();
-              setIsAuthenticated(false);
-              localStorage.setItem('imovelhub_is_authenticated', 'false');
-              localStorage.removeItem('imovelhub_current_user');
-              setCurrentUser(GUEST_USER);
+        supabase.from('profiles').select('*').eq('id', session.user.id).maybeSingle()
+          .then(async ({ data: profileData }) => {
+            let activeProfile = profileData;
+            if (!activeProfile && userEmail) {
+              try {
+                const { data: byEmail } = await supabase.from('profiles').select('*').eq('email', userEmail).maybeSingle();
+                activeProfile = byEmail;
+              } catch (e) {
+                console.warn('Could not query profile by email:', e);
+              }
             }
+
+            // Auto-heal profile if missing
+            if (!activeProfile) {
+              const fallbackName = session.user.user_metadata?.name || userEmail.split('@')[0] || 'Usuário';
+              const fallbackRole = session.user.user_metadata?.role || 'buyer';
+              try {
+                const { data: created } = await supabase.from('profiles').upsert({
+                  id: session.user.id,
+                  name: fallbackName,
+                  email: userEmail,
+                  role: fallbackRole,
+                  verified: false
+                }).select().maybeSingle();
+                if (created) activeProfile = created;
+              } catch (e) {
+                console.warn('Could not auto-heal profile in getSession:', e);
+              }
+            }
+
+            const mapped: UserProfile = {
+              id: session.user.id,
+              name: activeProfile?.name || session.user.user_metadata?.name || userEmail.split('@')[0] || 'Usuário',
+              email: session.user.email || activeProfile?.email || userEmail,
+              phone: activeProfile?.phone || session.user.user_metadata?.phone,
+              whatsapp: activeProfile?.whatsapp || activeProfile?.phone || session.user.user_metadata?.phone,
+              role: (activeProfile?.role as any) || (session.user.user_metadata?.role as any) || 'buyer',
+              creci: activeProfile?.creci || session.user.user_metadata?.creci,
+              agencyName: activeProfile?.agency_name,
+              agencyLogo: activeProfile?.agency_logo,
+              verified: activeProfile?.verified ?? false,
+              avatarUrl: activeProfile?.avatar_url || session.user.user_metadata?.avatar_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=256&q=80',
+              bio: activeProfile?.bio,
+              creciStatus: activeProfile?.verified ? 'verified' : (activeProfile?.creci ? 'pending' : 'unverified')
+            };
+            setIsAuthenticated(true);
+            localStorage.setItem('imovelhub_is_authenticated', 'true');
+            setCurrentUser(mapped);
+            localStorage.setItem('imovelhub_current_user', JSON.stringify(mapped));
           });
       }
     });
@@ -162,7 +181,7 @@ export const AuthProvider: React.FC<{
   const login = async (email: string, password: string): Promise<boolean> => {
     const cleanEmail = email.trim().toLowerCase();
 
-    // Check if this account was deleted by the user
+    // Check if this account was explicitly deleted by the user
     if (isAccountDeleted(cleanEmail)) {
       addToast({
         type: 'error',
@@ -183,13 +202,13 @@ export const AuthProvider: React.FC<{
 
         const { data, error } = authResult;
         if (!error && data?.user) {
-          // Verify profile exists in database
+          // Fetch user profile from Supabase profiles table
           let profile: any = null;
           try {
             const { data: dbProfile } = await supabase.from('profiles').select('*').eq('id', data.user.id).maybeSingle();
             profile = dbProfile;
           } catch (pErr) {
-            console.warn('Could not query profile on login:', pErr);
+            console.warn('Could not query profile by id on login:', pErr);
           }
 
           // If no profile found by id, try by email
@@ -202,18 +221,30 @@ export const AuthProvider: React.FC<{
             }
           }
 
-          // If user exists in auth.users but has no profile row at all and is not newly registered, it was deleted
+          // If user authenticated in Supabase but profile row does not exist yet (e.g. created in another browser or session),
+          // auto-heal/upsert the profile rather than falsely claiming the account is deleted
           if (!profile) {
-            // Check if local registered account was stored
-            const stored = getStoredAccounts().find(a => a.email.toLowerCase() === cleanEmail);
-            if (!stored) {
-              await supabase.auth.signOut();
-              addToast({
-                type: 'error',
-                title: 'Conta Excluída',
-                message: 'Os registros desta conta foram excluídos do sistema. Crie um novo cadastro para continuar.'
-              });
-              return false;
+            const fallbackName = data.user.user_metadata?.name || cleanEmail.split('@')[0];
+            const fallbackRole = data.user.user_metadata?.role || 'buyer';
+            const fallbackPhone = data.user.user_metadata?.phone || null;
+            const fallbackCreci = data.user.user_metadata?.creci || null;
+
+            try {
+              const { data: createdProfile } = await supabase.from('profiles').upsert({
+                id: data.user.id,
+                name: fallbackName,
+                email: cleanEmail,
+                role: fallbackRole,
+                phone: fallbackPhone,
+                creci: fallbackCreci,
+                verified: false
+              }).select().maybeSingle();
+
+              if (createdProfile) {
+                profile = createdProfile;
+              }
+            } catch (createErr) {
+              console.warn('Could not auto-create profile row on login:', createErr);
             }
           }
 
@@ -222,7 +253,7 @@ export const AuthProvider: React.FC<{
             name: profile?.name || data.user.user_metadata?.name || cleanEmail.split('@')[0],
             email: profile?.email || data.user.email || cleanEmail,
             phone: profile?.phone || data.user.user_metadata?.phone,
-            whatsapp: profile?.phone || data.user.user_metadata?.phone,
+            whatsapp: profile?.whatsapp || profile?.phone || data.user.user_metadata?.phone,
             role: (profile?.role as any) || (data.user.user_metadata?.role as any) || 'buyer',
             creci: profile?.creci || data.user.user_metadata?.creci,
             agencyName: profile?.agency_name,
