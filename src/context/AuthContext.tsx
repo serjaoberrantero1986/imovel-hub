@@ -1,6 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { UserProfile } from '../types';
-import { BROKERS } from '../lib/mockData';
 import { isSupabaseConfigured, supabase, supabaseUrl, supabaseAnonKey } from '../lib/supabaseClient';
 import { createClient } from '@supabase/supabase-js';
 import { verifyCreciNational, CreciVerificationResult } from '../lib/creciVerification';
@@ -553,25 +552,21 @@ export const AuthProvider: React.FC<{
     return result;
   };
 
-  const switchUserRole = (role: 'broker' | 'buyer') => {
-    if (role === 'broker') {
-      const brokerProfile = BROKERS[2];
-      setCurrentUser(brokerProfile);
-      localStorage.setItem('imovelhub_current_user', JSON.stringify(brokerProfile));
-      addToast({ type: 'info', title: 'Perfil de Corretor Ativo', message: 'Acesso completo ao Dashboard, CRM e Gestão de Anúncios.' });
-    } else {
-      const buyerProfile: UserProfile = {
-        id: 'buyer_guest',
-        name: 'Ana Carolina Meireles',
-        email: 'ana.meireles@email.com',
-        phone: '(15) 99182-7364',
-        role: 'buyer',
-        avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=256&q=80'
-      };
-      setCurrentUser(buyerProfile);
-      localStorage.setItem('imovelhub_current_user', JSON.stringify(buyerProfile));
-      addToast({ type: 'info', title: 'Perfil de Comprador Ativo', message: 'Navegação como cliente interessado em buscar imóveis.' });
+  const switchUserRole = async (role: 'broker' | 'buyer') => {
+    if (!isAuthenticated || currentUser.id === 'guest_buyer') {
+      addToast({
+        type: 'warning',
+        title: 'Autenticação necessária',
+        message: 'Faça login para gerenciar o tipo do seu perfil.'
+      });
+      return;
     }
+    await updateUserProfile({ role });
+    addToast({
+      type: 'info',
+      title: 'Perfil Atualizado',
+      message: role === 'broker' ? 'Perfil alterado para Corretor.' : 'Perfil alterado para Comprador.'
+    });
   };
 
   return (

@@ -22,7 +22,6 @@ import { PropertyCard } from '../components/properties/PropertyCard';
 import { PropertyFilterBar } from '../components/properties/PropertyFilterBar';
 import { PropertyMap } from '../components/properties/PropertyMap';
 import { PropertyCardSkeleton } from '../components/ui/Skeleton';
-import { POPULAR_NEIGHBORHOODS } from '../lib/mockData';
 import { filterProperties, hasActiveFilters } from '../lib/propertyFilters';
 
 export const PortalHomeView: React.FC = () => {
@@ -61,8 +60,35 @@ export const PortalHomeView: React.FC = () => {
     }
   }, [filters, isFiltering]);
 
-  // Featured listings for default state
-  const featuredProperties = properties.filter(p => p.featured).slice(0, 6);
+  // Real featured listings from active properties
+  const featuredProperties = useMemo(() => {
+    const featured = properties.filter(p => p.featured);
+    return featured.length > 0 ? featured.slice(0, 6) : properties.slice(0, 6);
+  }, [properties]);
+
+  // Dynamic real neighborhoods extracted directly from active properties
+  const dynamicNeighborhoods = useMemo(() => {
+    const map = new Map<string, { name: string; city: string; count: number; image?: string }>();
+    properties.forEach(p => {
+      const n = (p.neighborhood || '').trim();
+      if (!n) return;
+      const key = n.toLowerCase();
+      const existing = map.get(key);
+      const img = p.images?.[0];
+      if (existing) {
+        existing.count += 1;
+        if (!existing.image && img) existing.image = img;
+      } else {
+        map.set(key, {
+          name: n,
+          city: p.city || 'Região',
+          count: 1,
+          image: img
+        });
+      }
+    });
+    return Array.from(map.values());
+  }, [properties]);
 
   const handleCategorySearch = (type: any, purpose: any = 'sale') => {
     setFilters(prev => ({ ...prev, types: [type], purpose }));
@@ -207,82 +233,121 @@ export const PortalHomeView: React.FC = () => {
                   </p>
                 </div>
 
-                <button
-                  onClick={() => {
-                    setFilters(prev => ({ ...prev, purpose: 'sale' }));
-                    setCurrentView('search');
-                  }}
-                  className="flex items-center gap-1.5 text-xs sm:text-sm font-bold text-rose-600 hover:text-rose-700 dark:text-rose-400 group cursor-pointer"
-                >
-                  <span>Ver todos os {properties.length} imóveis</span>
-                  <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                </button>
+                {properties.length > 0 && (
+                  <button
+                    onClick={() => {
+                      setFilters(prev => ({ ...prev, purpose: 'sale' }));
+                      setCurrentView('search');
+                    }}
+                    className="flex items-center gap-1.5 text-xs sm:text-sm font-bold text-rose-600 hover:text-rose-700 dark:text-rose-400 group cursor-pointer"
+                  >
+                    <span>Ver todos os {properties.length} imóveis</span>
+                    <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                  </button>
+                )}
               </div>
 
-              {/* Cards Grid */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                {featuredProperties.map(property => (
-                  <PropertyCard key={property.id} property={property} />
-                ))}
-              </div>
+              {/* Cards Grid or Clean Empty State */}
+              {properties.length === 0 ? (
+                <div className="text-center py-16 px-4 bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 space-y-4 shadow-sm">
+                  <div className="w-16 h-16 rounded-full bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 flex items-center justify-center mx-auto">
+                    <Home className="w-8 h-8" />
+                  </div>
+                  <div className="space-y-1 max-w-md mx-auto">
+                    <h3 className="text-lg font-bold text-slate-800 dark:text-slate-200 font-['Outfit']">
+                      Nenhum imóvel anunciado no momento
+                    </h3>
+                    <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400">
+                      Não há imóveis disponíveis no banco de dados. Novos anúncios cadastrados aparecerão aqui imediatamente.
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => {
+                      if (!isAuthenticated) {
+                        openAuthModal('login');
+                      } else if (currentUser.role === 'broker' || currentUser.role === 'agency') {
+                        setEditingProperty(null);
+                        setIsWizardOpen(true);
+                      } else {
+                        addToast({
+                          type: 'info',
+                          title: 'Anuncie no Portal',
+                          message: 'A publicação de imóveis é exclusiva para corretores e imobiliárias credenciadas.'
+                        });
+                      }
+                    }}
+                    className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-gradient-to-r from-rose-600 to-rose-700 hover:from-rose-700 hover:to-rose-800 text-white font-bold text-xs sm:text-sm shadow-md transition-all cursor-pointer"
+                  >
+                    <Building2 className="w-4 h-4" />
+                    <span>Publicar Primeiro Imóvel</span>
+                  </button>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {featuredProperties.map(property => (
+                    <PropertyCard key={property.id} property={property} />
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </section>
 
-        {/* Section: Bairros Mais Nobres & Buscados */}
-        <section className="p-8 sm:p-12 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-8 shadow-sm">
-          <div className="max-w-2xl">
-            <span className="text-xs font-extrabold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">
-              Localização Privilegiada
-            </span>
-            <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white font-['Outfit'] mt-1">
-              Explore por Bairro em Sorocaba
-            </h2>
-            <p className="text-xs sm:text-sm text-slate-500 mt-1">
-              Conheça as regiões com melhor infraestrutura, escolas, shoppings e qualidade de vida
-            </p>
-          </div>
+        {/* Section: Bairros Reais dos Imóveis Cadastrados */}
+        {dynamicNeighborhoods.length > 0 && (
+          <section className="p-8 sm:p-12 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-8 shadow-sm">
+            <div className="max-w-2xl">
+              <span className="text-xs font-extrabold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">
+                Localização Privilegiada
+              </span>
+              <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white font-['Outfit'] mt-1">
+                Explore por Bairro
+              </h2>
+              <p className="text-xs sm:text-sm text-slate-500 mt-1">
+                Conheça as regiões com imóveis ativos disponíveis no portal
+              </p>
+            </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-            {[
-              { name: 'Campolim', count: '48 imóveis', desc: 'Zona Sul • Alto Padrão', img: 'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&w=400&q=80' },
-              { name: 'Jardim América', count: '24 imóveis', desc: 'Residencial Tradicional', img: 'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=400&q=80' },
-              { name: 'Condomínio Alphaville', count: '18 imóveis', desc: 'Casas de Luxo e Segurança', img: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=400&q=80' },
-              { name: 'Jardim Paulistano', count: '15 imóveis', desc: 'Próximo a Parques e Hospitais', img: 'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=400&q=80' }
-            ].map(bairro => (
-              <div
-                key={bairro.name}
-                onClick={() => handleNeighborhoodSearch(bairro.name)}
-                className="group relative rounded-2xl overflow-hidden aspect-[4/3] cursor-pointer shadow-md"
-              >
-                <img
-                  src={bairro.img}
-                  alt={bairro.name}
-                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
-                <div className="absolute bottom-3 left-3 right-3 text-white">
-                  <div className="font-extrabold text-sm font-['Outfit'] group-hover:text-rose-400 transition-colors">{bairro.name}</div>
-                  <div className="text-[11px] text-slate-300 font-medium">{bairro.desc}</div>
-                  <div className="text-[10px] text-amber-300 font-bold mt-0.5">{bairro.count}</div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+              {dynamicNeighborhoods.slice(0, 8).map(bairro => (
+                <div
+                  key={bairro.name}
+                  onClick={() => handleNeighborhoodSearch(bairro.name)}
+                  className="group relative rounded-2xl overflow-hidden aspect-[4/3] cursor-pointer shadow-md"
+                >
+                  <img
+                    src={bairro.image || 'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&w=400&q=80'}
+                    alt={bairro.name}
+                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
+                  <div className="absolute bottom-3 left-3 right-3 text-white">
+                    <div className="font-extrabold text-sm font-['Outfit'] group-hover:text-rose-400 transition-colors">{bairro.name}</div>
+                    <div className="text-[11px] text-slate-300 font-medium">{bairro.city}</div>
+                    <div className="text-[10px] text-amber-300 font-bold mt-0.5">
+                      {bairro.count} {bairro.count === 1 ? 'imóvel' : 'imóveis'}
+                    </div>
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
 
-          <div className="flex flex-wrap gap-2 pt-2">
-            <span className="text-xs font-bold text-slate-400 self-center mr-1">Outros bairros:</span>
-            {POPULAR_NEIGHBORHOODS.slice(4).map(n => (
-              <button
-                key={n}
-                onClick={() => handleNeighborhoodSearch(n)}
-                className="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/40 text-xs font-semibold text-slate-700 dark:text-slate-300 transition-colors"
-              >
-                {n}
-              </button>
-            ))}
-          </div>
-        </section>
+            {dynamicNeighborhoods.length > 8 && (
+              <div className="flex flex-wrap gap-2 pt-2">
+                <span className="text-xs font-bold text-slate-400 self-center mr-1">Outros bairros:</span>
+                {dynamicNeighborhoods.slice(8).map(n => (
+                  <button
+                    key={n.name}
+                    onClick={() => handleNeighborhoodSearch(n.name)}
+                    className="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/40 text-xs font-semibold text-slate-700 dark:text-slate-300 transition-colors"
+                  >
+                    {n.name} ({n.count})
+                  </button>
+                ))}
+              </div>
+            )}
+          </section>
+        )}
 
         {/* Section: Interactive Map Exploration Banner */}
         <section className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center bg-slate-900 text-white rounded-3xl p-6 sm:p-10 overflow-hidden shadow-2xl relative">

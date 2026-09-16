@@ -1,6 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { Lead, LeadTask, LeadInteraction, Property } from '../types';
-import { INITIAL_LEADS } from '../lib/mockData';
 import { 
   fetchLeadsFromSupabase,
   insertLeadToSupabase,
@@ -40,25 +39,22 @@ export const CrmProvider: React.FC<{
   setProperties: React.Dispatch<React.SetStateAction<Property[]>>;
   addToast: (toast: Omit<Toast, 'id'>) => void;
 }> = ({ children, currentUser, properties, setProperties, addToast }) => {
-  const [leads, setLeads] = useState<Lead[]>(() => {
-    const saved = localStorage.getItem('imovelhub_leads');
-    if (saved) {
-      try { return JSON.parse(saved); } catch {}
-    }
-    return INITIAL_LEADS;
-  });
+  const [leads, setLeads] = useState<Lead[]>([]);
 
+  // Purge any stale mock leads from localStorage
   useEffect(() => {
-    if (!isSupabaseConfigured) {
-      localStorage.setItem('imovelhub_leads', JSON.stringify(leads));
+    try {
+      localStorage.removeItem('imovelhub_leads');
+    } catch {
+      // Ignore
     }
-  }, [leads]);
+  }, []);
 
   const refreshLeads = useCallback(async () => {
     if (!isSupabaseConfigured) return;
     try {
       const remoteLeads = await fetchLeadsFromSupabase();
-      if (remoteLeads && remoteLeads.length > 0) {
+      if (remoteLeads !== null) {
         setLeads(remoteLeads);
       }
     } catch (e) {
@@ -66,12 +62,12 @@ export const CrmProvider: React.FC<{
     }
   }, []);
 
-  // Initial load from Supabase if configured
+  // Initial load from Supabase and on user change
   useEffect(() => {
     if (isSupabaseConfigured) {
       refreshLeads();
     }
-  }, [refreshLeads]);
+  }, [refreshLeads, currentUser?.id]);
 
   const addLead = async (leadData: Omit<Lead, 'id' | 'createdAt' | 'updatedAt'>) => {
     const leadId = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `lead-${Date.now()}`;

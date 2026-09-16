@@ -86,7 +86,7 @@ export const ChatProvider: React.FC<{
     if (!isSupabaseConfigured || !isAuthenticated || currentUser.id === 'guest_buyer') return;
     try {
       const remoteConvs = await fetchConversationsFromSupabase(currentUser.id);
-      if (remoteConvs && remoteConvs.length > 0) {
+      if (remoteConvs !== null) {
         setConversations(remoteConvs);
         localStorage.setItem(`imovelhub_conversations_${currentUser.id}`, JSON.stringify(remoteConvs));
       }

@@ -20,7 +20,7 @@ import {
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { Property, PropertyType, PropertyPurpose, PropertyMedia } from '../../types';
-import { AMENITIES_LIST, POPULAR_CITIES, POPULAR_NEIGHBORHOODS } from '../../lib/mockData';
+import { AMENITIES_LIST } from '../../lib/mockData';
 import { formatCurrency } from '../../lib/utils';
 import { PropertyImageManager } from '../media/PropertyImageManager';
 

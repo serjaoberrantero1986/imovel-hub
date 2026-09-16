@@ -1,10 +1,17 @@
 import React from 'react';
 import { Building2, Phone, Mail, MapPin, Instagram, Facebook, Youtube, Linkedin, ShieldCheck } from 'lucide-react';
-import { POPULAR_CITIES, POPULAR_NEIGHBORHOODS } from '../../lib/mockData';
 import { useApp } from '../../context/AppContext';
 
 export const Footer: React.FC = () => {
-  const { setCurrentView, setFilters, openLegalPage } = useApp();
+  const { properties, setCurrentView, setFilters, openLegalPage } = useApp();
+
+  const availableCities = React.useMemo(() => {
+    return Array.from(new Set(properties.map(p => p.city?.trim()).filter(Boolean) as string[])).sort();
+  }, [properties]);
+
+  const availableNeighborhoods = React.useMemo(() => {
+    return Array.from(new Set(properties.map(p => p.neighborhood?.trim()).filter(Boolean) as string[])).sort();
+  }, [properties]);
 
   const handleCityClick = (city: string) => {
     setFilters(prev => ({ ...prev, city, searchTerm: city }));
@@ -159,34 +166,42 @@ export const Footer: React.FC = () => {
 
         </div>
 
-        {/* SEO Keywords: Cities & Neighborhoods Grid */}
+        {/* Dynamic SEO Keywords: Real Cities & Neighborhoods Grid from Database */}
         <div className="py-8 border-b border-slate-800 grid grid-cols-1 md:grid-cols-2 gap-8 text-xs text-slate-400">
           <div>
-            <h5 className="font-semibold text-slate-200 mb-2.5">Bairros mais buscados:</h5>
+            <h5 className="font-semibold text-slate-200 mb-2.5">Bairros com imóveis disponíveis:</h5>
             <div className="flex flex-wrap gap-2">
-              {POPULAR_NEIGHBORHOODS.map(n => (
-                <button
-                  key={n}
-                  onClick={() => handleNeighborhoodClick(n)}
-                  className="px-2.5 py-1 rounded bg-slate-800/80 hover:bg-slate-700 hover:text-white transition-colors"
-                >
-                  {n}
-                </button>
-              ))}
+              {availableNeighborhoods.length > 0 ? (
+                availableNeighborhoods.map(n => (
+                  <button
+                    key={n}
+                    onClick={() => handleNeighborhoodClick(n)}
+                    className="px-2.5 py-1 rounded bg-slate-800/80 hover:bg-slate-700 hover:text-white transition-colors"
+                  >
+                    {n}
+                  </button>
+                ))
+              ) : (
+                <span className="text-slate-500 italic">Nenhum bairro cadastrado no momento</span>
+              )}
             </div>
           </div>
           <div>
             <h5 className="font-semibold text-slate-200 mb-2.5">Cidades com imóveis disponíveis:</h5>
             <div className="flex flex-wrap gap-2">
-              {POPULAR_CITIES.map(c => (
-                <button
-                  key={c}
-                  onClick={() => handleCityClick(c)}
-                  className="px-2.5 py-1 rounded bg-slate-800/80 hover:bg-slate-700 hover:text-white transition-colors"
-                >
-                  {c}
-                </button>
-              ))}
+              {availableCities.length > 0 ? (
+                availableCities.map(c => (
+                  <button
+                    key={c}
+                    onClick={() => handleCityClick(c)}
+                    className="px-2.5 py-1 rounded bg-slate-800/80 hover:bg-slate-700 hover:text-white transition-colors"
+                  >
+                    {c}
+                  </button>
+                ))
+              ) : (
+                <span className="text-slate-500 italic">Nenhuma cidade cadastrada no momento</span>
+              )}
             </div>
           </div>
         </div>

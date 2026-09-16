@@ -205,18 +205,22 @@ export const PropertySearchView: React.FC = () => {
               <SearchX className="w-8 h-8" />
             </div>
             <h3 className="text-lg font-bold text-slate-900 dark:text-white font-['Outfit']">
-              Nenhum imóvel encontrado com esses filtros
+              {properties.length === 0 ? 'Nenhum imóvel anunciado no momento' : 'Nenhum imóvel encontrado com esses filtros'}
             </h3>
             <p className="text-xs text-slate-500 max-w-md mx-auto leading-relaxed">
-              Tente ampliar a faixa de preço, selecionar outros bairros ou remover filtros de comodidades para ver mais opções.
+              {properties.length === 0
+                ? 'Não há imóveis disponíveis no banco de dados. Novos anúncios cadastrados aparecerão aqui imediatamente.'
+                : 'Tente ampliar a faixa de preço, selecionar outros bairros ou remover filtros de comodidades para ver mais opções.'}
             </p>
-            <button
-              onClick={resetFilters}
-              className="min-h-[44px] px-6 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold shadow-md inline-flex items-center gap-2 active:scale-95 transition-all"
-            >
-              <RotateCcw className="w-3.5 h-3.5" />
-              <span>Limpar todos os filtros</span>
-            </button>
+            {properties.length > 0 && (
+              <button
+                onClick={resetFilters}
+                className="min-h-[44px] px-6 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold shadow-md inline-flex items-center gap-2 active:scale-95 transition-all"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                <span>Limpar todos os filtros</span>
+              </button>
+            )}
           </div>
         ) : (
           <>

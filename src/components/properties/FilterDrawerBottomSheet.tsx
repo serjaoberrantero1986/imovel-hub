@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { PropertyType, PropertyPurpose } from '../../types';
-import { AMENITIES_LIST, POPULAR_NEIGHBORHOODS } from '../../lib/mockData';
+import { AMENITIES_LIST } from '../../lib/mockData';
 import { formatCurrency } from '../../lib/utils';
 import { Button } from '../ui/Button';
 

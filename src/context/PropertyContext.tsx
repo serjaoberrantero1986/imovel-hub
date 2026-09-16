@@ -1,6 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { Property, PropertyStatus } from '../types';
-import { INITIAL_PROPERTIES } from '../lib/mockData';
 import { 
   fetchPropertiesFromSupabase,
   insertPropertyToSupabase,
@@ -28,23 +27,16 @@ export const PropertyProvider: React.FC<{
   currentUser: UserProfile;
   addToast: (toast: Omit<Toast, 'id'>) => void;
 }> = ({ children, currentUser, addToast }) => {
-  const [properties, setProperties] = useState<Property[]>(() => {
-    const saved = localStorage.getItem('imovelhub_properties');
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch (e) {
-        console.error('Error parsing stored properties:', e);
-      }
-    }
-    return INITIAL_PROPERTIES;
-  });
+  const [properties, setProperties] = useState<Property[]>([]);
 
+  // Purge any stale mock properties from localStorage
   useEffect(() => {
-    if (!isSupabaseConfigured) {
-      localStorage.setItem('imovelhub_properties', JSON.stringify(properties));
+    try {
+      localStorage.removeItem('imovelhub_properties');
+    } catch {
+      // Ignore
     }
-  }, [properties]);
+  }, []);
 
   const refreshProperties = useCallback(async () => {
     if (!isSupabaseConfigured) return;

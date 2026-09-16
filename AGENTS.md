@@ -17,3 +17,9 @@
   - Se for Comprador/Cliente logado, exibe aviso explicando que a publicação de imóveis é exclusiva para corretores e imobiliárias credenciadas.
   - Se for Corretor ou Imobiliária credenciada, abre o assistente de publicação.
 - Páginas de gerenciamento de perfil e áreas restritas nunca devem exibir formulários de edição para visitantes anônimos; devem exibir tela explicativa com chamada para cadastro ou login.
+
+## 4. Princípio Zero-Mock e Fonte Única da Verdade (Supabase)
+- **PROIBIDO** o uso de mocks, dados de demonstração, leads fictícios ou arrays estáticos de cidades e bairros.
+- Toda e qualquer informação visualizada no portal (vitrine da home, exploração por bairros, mapa, busca por código ou cidade, sugestões do rodapé e CRM de leads) deve ser computada e agregada estritamente a partir dos registros reais do Supabase.
+- Se o banco de dados estiver com zero imóveis ou zero contatos/leads, o portal inteiro deve refletir fielmente esse estado vazio, sem inventar bairros ou números fictícios (ex: "48 imóveis no Campolim").
+
