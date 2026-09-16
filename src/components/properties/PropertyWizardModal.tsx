@@ -16,7 +16,8 @@ import {
   Plus, 
   Star,
   Layers,
-  Home
+  Home,
+  Loader2
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { Property, PropertyType, PropertyPurpose, PropertyMedia } from '../../types';
@@ -36,6 +37,7 @@ export const PropertyWizardModal: React.FC = () => {
   } = useApp();
 
   const [currentStep, setCurrentStep] = useState(1);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Form State
   const [purpose, setPurpose] = useState<PropertyPurpose>('sale');
@@ -171,18 +173,24 @@ export const PropertyWizardModal: React.FC = () => {
       videoUrl: videoUrl.trim() || undefined
     };
 
-    if (editingProperty) {
-      await updateProperty(editingProperty.id, propertyData);
-      openPropertyDetail(editingProperty.id);
-    } else {
-      const created = await addProperty(propertyData);
-      if (created?.id) {
-        openPropertyDetail(created.id);
+    setIsSubmitting(true);
+    try {
+      if (editingProperty) {
+        await updateProperty(editingProperty.id, propertyData);
+        openPropertyDetail(editingProperty.id);
+        setIsWizardOpen(false);
+        setEditingProperty(null);
+      } else {
+        const created = await addProperty(propertyData);
+        if (created?.id) {
+          openPropertyDetail(created.id);
+          setIsWizardOpen(false);
+          setEditingProperty(null);
+        }
       }
+    } finally {
+      setIsSubmitting(false);
     }
-
-    setIsWizardOpen(false);
-    setEditingProperty(null);
   };
 
   return (
@@ -672,10 +680,20 @@ export const PropertyWizardModal: React.FC = () => {
               <button
                 type="button"
                 onClick={handleSaveListing}
-                className="px-8 py-3 rounded-2xl bg-gradient-to-r from-rose-600 to-rose-700 hover:from-rose-700 hover:to-rose-800 text-white text-sm font-extrabold shadow-lg shadow-rose-600/30 flex items-center gap-2 active:scale-98"
+                disabled={isSubmitting}
+                className="px-8 py-3 rounded-2xl bg-gradient-to-r from-rose-600 to-rose-700 hover:from-rose-700 hover:to-rose-800 disabled:opacity-50 text-white text-sm font-extrabold shadow-lg shadow-rose-600/30 flex items-center gap-2 active:scale-98"
               >
-                <CheckCircle2 className="w-4 h-4" />
-                <span>{editingProperty ? 'Salvar Alterações' : 'Publicar Anúncio Agora'}</span>
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Salvando no banco de dados...</span>
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle2 className="w-4 h-4" />
+                    <span>{editingProperty ? 'Salvar Alterações' : 'Publicar Anúncio Agora'}</span>
+                  </>
+                )}
               </button>
             )}
           </div>

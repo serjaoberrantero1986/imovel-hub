@@ -12,7 +12,7 @@ import { UserProfile } from '../types';
 
 export interface PropertyContextType {
   properties: Property[];
-  addProperty: (propertyData: Omit<Property, 'id' | 'code' | 'createdAt' | 'updatedAt' | 'viewsCount' | 'leadsCount' | 'favoritesCount' | 'sharesCount' | 'advertiser' | 'userId'>) => Promise<Property>;
+  addProperty: (propertyData: Omit<Property, 'id' | 'code' | 'createdAt' | 'updatedAt' | 'viewsCount' | 'leadsCount' | 'favoritesCount' | 'sharesCount' | 'advertiser' | 'userId'>) => Promise<Property | null>;
   updateProperty: (id: string, propertyData: Partial<Property>) => Promise<void>;
   deleteProperty: (id: string) => Promise<void>;
   togglePropertyStatus: (id: string, status: PropertyStatus) => Promise<void>;
@@ -57,10 +57,10 @@ export const PropertyProvider: React.FC<{
     }
   }, [refreshProperties, currentUser?.id]);
 
-  const addProperty = async (data: Omit<Property, 'id' | 'code' | 'createdAt' | 'updatedAt' | 'viewsCount' | 'leadsCount' | 'favoritesCount' | 'sharesCount' | 'advertiser' | 'userId'>): Promise<Property> => {
+  const addProperty = async (data: Omit<Property, 'id' | 'code' | 'createdAt' | 'updatedAt' | 'viewsCount' | 'leadsCount' | 'favoritesCount' | 'sharesCount' | 'advertiser' | 'userId'>): Promise<Property | null> => {
     const codeNum = Math.floor(10000000 + Math.random() * 90000000);
     const code = `${codeNum}-MEOA`;
-    const id = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `prop-${Date.now()}`;
+    const id = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : '00000000-0000-4000-8000-000000000000'.replace(/[08]/g, () => ((Math.random()*16)|0).toString(16));
     const now = new Date().toISOString();
 
     const newProp: Property = {
@@ -77,26 +77,40 @@ export const PropertyProvider: React.FC<{
       updatedAt: now,
     };
 
-    setProperties(prev => [newProp, ...prev]);
-
     if (isSupabaseConfigured) {
-      const synced = await insertPropertyToSupabase(newProp);
-      if (synced) {
+      const syncResult = await insertPropertyToSupabase(newProp);
+      if (!syncResult.success) {
         addToast({
-          type: 'success',
-          title: 'Gravado no Supabase!',
-          message: `Imóvel "${newProp.title}" sincronizado com o banco de dados.`
+          type: 'error',
+          title: 'Erro ao Publicar Imóvel',
+          message: syncResult.error || 'O Supabase não pôde salvar o anúncio.'
         });
+        return null;
       }
+
+      const finalProp: Property = {
+        ...newProp,
+        id: syncResult.propertyId || newProp.id
+      };
+
+      setProperties(prev => [finalProp, ...prev]);
+
+      addToast({
+        type: 'success',
+        title: 'Imóvel Publicado no Supabase!',
+        message: `Anúncio "${newProp.title}" gravado e confirmado com sucesso no banco de dados.`
+      });
+
+      return finalProp;
     } else {
+      setProperties(prev => [newProp, ...prev]);
       addToast({
         type: 'success',
         title: 'Imóvel Publicado!',
         message: `Anúncio "${newProp.title}" cadastrado com sucesso sob o código ${code}.`
       });
+      return newProp;
     }
-
-    return newProp;
   };
 
   const updateProperty = async (id: string, propertyData: Partial<Property>) => {

@@ -149,6 +149,12 @@ export const AuthProvider: React.FC<{
             setCurrentUser(mapped);
             localStorage.setItem('imovelhub_current_user', JSON.stringify(mapped));
           });
+      } else {
+        // No active Supabase session in this browser/tab
+        setIsAuthenticated(false);
+        localStorage.setItem('imovelhub_is_authenticated', 'false');
+        localStorage.removeItem('imovelhub_current_user');
+        setCurrentUser(GUEST_USER);
       }
     });
 
@@ -258,17 +264,29 @@ export const AuthProvider: React.FC<{
           return true;
         } else if (error) {
           console.warn('Supabase auth attempt note:', error.message);
+          let errorMsg = 'E-mail ou senha incorretos.';
           if (error.message?.toLowerCase().includes('email not confirmed')) {
-            addToast({
-              type: 'warning',
-              title: 'E-mail Não Confirmado',
-              message: 'Por favor, confirme seu e-mail ou aguarde alguns instantes após o cadastro.'
-            });
-            return false;
+            errorMsg = 'Por favor, confirme seu e-mail antes de fazer login.';
+          } else if (error.message?.toLowerCase().includes('invalid login credentials')) {
+            errorMsg = 'Credenciais inválidas. Verifique seu e-mail e senha cadastrados no Supabase.';
+          } else {
+            errorMsg = error.message;
           }
+          addToast({
+            type: 'error',
+            title: 'Erro de Autenticação',
+            message: errorMsg
+          });
+          return false;
         }
       } catch (err: any) {
         console.warn('Supabase auth try note:', err?.message || err);
+        addToast({
+          type: 'error',
+          title: 'Erro de Conexão',
+          message: 'Não foi possível conectar ao serviço de autenticação do Supabase.'
+        });
+        return false;
       }
     }
 
@@ -389,7 +407,19 @@ export const AuthProvider: React.FC<{
 
         const { data: authData, error } = signUpResult;
         if (error) {
-          console.warn('Supabase auth signup note:', error.message);
+          console.warn('Supabase auth signup error:', error.message);
+          let errorMsg = error.message;
+          if (error.message?.toLowerCase().includes('already registered')) {
+            errorMsg = 'Este e-mail já está cadastrado no sistema. Faça login para acessar.';
+          } else if (error.message?.toLowerCase().includes('password')) {
+            errorMsg = 'A senha informada deve ter pelo menos 6 caracteres.';
+          }
+          addToast({
+            type: 'error',
+            title: 'Não foi possível cadastrar',
+            message: errorMsg
+          });
+          return false;
         } else if (authData?.user) {
           createdUserId = authData.user.id;
           try {
@@ -400,7 +430,7 @@ export const AuthProvider: React.FC<{
               role: data.role,
               phone: data.phone || null,
               creci: data.creci || null,
-              verified: false
+              verified: data.role === 'broker' ? true : false
             });
           } catch (profileErr) {
             console.warn('Could not sync profile on signup:', profileErr);
@@ -408,6 +438,12 @@ export const AuthProvider: React.FC<{
         }
       } catch (err: any) {
         console.warn('Supabase auth signup notice:', err?.message || err);
+        addToast({
+          type: 'error',
+          title: 'Erro de Conexão',
+          message: 'Falha ao conectar com o Supabase para criar sua conta.'
+        });
+        return false;
       }
     }
 

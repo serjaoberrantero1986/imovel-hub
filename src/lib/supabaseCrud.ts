@@ -156,14 +156,68 @@ export async function fetchPropertiesFromSupabase(): Promise<Property[] | null> 
   }
 }
 
-export async function insertPropertyToSupabase(property: Property): Promise<boolean> {
-  if (!supabase) return false;
+export interface InsertPropertyResult {
+  success: boolean;
+  error?: string;
+  propertyId?: string;
+}
+
+export async function insertPropertyToSupabase(property: Property): Promise<InsertPropertyResult> {
+  if (!supabase) return { success: false, error: 'Supabase não inicializado ou credenciais ausentes.' };
   try {
-    // 1. Insert Property Row
+    // 1. Verify active Supabase session and user_id
+    const { data: sessionData } = await supabase.auth.getSession();
+    const sessionUser = sessionData?.session?.user;
+    let targetUserId = sessionUser?.id;
+
+    if (!targetUserId) {
+      if (property.userId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(property.userId)) {
+        targetUserId = property.userId;
+      } else {
+        return {
+          success: false,
+          error: 'É necessário estar autenticado como corretor ou imobiliária credenciada para publicar um anúncio.'
+        };
+      }
+    }
+
+    // 2. Ensure user has a corresponding row in public.profiles table (Foreign Key constraint)
+    const { data: existingProfile } = await supabase
+      .from('profiles')
+      .select('id, role')
+      .eq('id', targetUserId)
+      .maybeSingle();
+
+    if (!existingProfile) {
+      const meta = sessionUser?.user_metadata || {};
+      const fallbackName = property.advertiser?.name || meta.name || sessionUser?.email?.split('@')[0] || 'Corretor';
+      const fallbackEmail = property.advertiser?.email || sessionUser?.email || 'corretor@webimovel.com.br';
+      const fallbackRole = property.advertiser?.role || meta.role || 'broker';
+      const fallbackPhone = property.advertiser?.phone || meta.phone || null;
+      const fallbackCreci = property.advertiser?.creci || meta.creci || null;
+
+      const { error: profileUpsertErr } = await supabase.from('profiles').upsert({
+        id: targetUserId,
+        name: fallbackName,
+        email: fallbackEmail,
+        role: fallbackRole,
+        phone: fallbackPhone,
+        creci: fallbackCreci,
+        verified: true
+      });
+
+      if (profileUpsertErr) {
+        console.warn('Profile sync notice before inserting property:', profileUpsertErr.message);
+      }
+    }
+
+    const propertyId = ensureValidUuid(property.id);
+
+    // 3. Insert Property Row
     const { error: propError } = await supabase.from('properties').insert({
-      id: property.id,
+      id: propertyId,
       code: property.code,
-      user_id: property.userId,
+      user_id: targetUserId,
       title: property.title,
       slug: property.slug,
       description: property.description,
@@ -185,20 +239,27 @@ export async function insertPropertyToSupabase(property: Property): Promise<bool
       total_floors: property.totalFloors ?? null,
       video_url: property.videoUrl ?? null,
       tour_360_url: property.tour360Url ?? null,
-      views_count: property.viewsCount,
-      leads_count: property.leadsCount,
-      favorites_count: property.favoritesCount,
-      shares_count: property.sharesCount
+      views_count: property.viewsCount || 1,
+      leads_count: property.leadsCount || 0,
+      favorites_count: property.favoritesCount || 0,
+      shares_count: property.sharesCount || 0
     });
 
     if (propError) {
       console.error('Supabase property insert error:', propError);
-      return false;
+      const isRls = propError.message?.includes('violates row-level security');
+      return {
+        success: false,
+        error: isRls 
+          ? 'Permissão negada pelo banco de dados: apenas corretores credenciados e logados podem publicar imóveis.' 
+          : (propError.message || 'Erro ao salvar o imóvel no Supabase.')
+      };
     }
 
-    // 2. Insert Location
-    await supabase.from('property_locations').insert({
-      property_id: property.id,
+    // 4. Insert Location
+    const { error: locError } = await supabase.from('property_locations').insert({
+      id: crypto.randomUUID(),
+      property_id: propertyId,
       street: property.addressStreet,
       street_number: property.addressNumber || null,
       complement: property.addressComplement || null,
@@ -210,37 +271,55 @@ export async function insertPropertyToSupabase(property: Property): Promise<bool
       longitude: property.longitude
     });
 
-    // 3. Insert Images
+    if (locError) {
+      console.warn('Supabase location insert notice:', locError.message);
+    }
+
+    // 5. Insert Images
     if (property.media && property.media.length > 0) {
       const imageRows = property.media.map(m => ({
         id: ensureValidUuid(m.id),
-        property_id: property.id,
+        property_id: propertyId,
         url: m.url,
         thumbnail_url: m.thumbnailUrl || m.url,
-        media_type: m.mediaType,
+        media_type: m.mediaType || 'image',
         category: m.category || null,
         caption: m.caption || null,
-        is_cover: m.isCover,
-        display_order: m.order,
+        is_cover: m.isCover ?? false,
+        display_order: m.order ?? 1,
         file_size_bytes: m.size || null,
         mime_type: m.mimeType || null
       }));
-      await supabase.from('property_images').insert(imageRows);
+      const { error: imgError } = await supabase.from('property_images').insert(imageRows);
+      if (imgError) {
+        console.warn('Supabase property_images insert notice:', imgError.message);
+      }
     }
 
-    // 4. Insert Features
+    // 6. Insert Features (if catalog is populated)
     if (property.amenities && property.amenities.length > 0) {
-      const featureRows = property.amenities.map(featId => ({
-        property_id: property.id,
-        feature_id: featId
-      }));
-      await supabase.from('property_features').insert(featureRows);
+      try {
+        const featureRows = property.amenities
+          .filter(featId => featId && typeof featId === 'string')
+          .map(featId => ({
+            property_id: propertyId,
+            feature_id: featId
+          }));
+        if (featureRows.length > 0) {
+          await supabase.from('property_features').insert(featureRows);
+        }
+      } catch (featErr) {
+        console.warn('Notice on property_features insert:', featErr);
+      }
     }
 
-    return true;
-  } catch (e) {
+    return { success: true, propertyId };
+  } catch (e: any) {
     console.error('Failed to sync new property to Supabase:', e);
-    return false;
+    return { 
+      success: false, 
+      error: e?.message || 'Erro inesperado na conexão com o Supabase ao publicar o imóvel.' 
+    };
   }
 }
 
