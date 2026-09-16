@@ -4,7 +4,7 @@ import { BROKERS } from '../lib/mockData';
 import { isSupabaseConfigured, supabase, supabaseUrl, supabaseAnonKey } from '../lib/supabaseClient';
 import { createClient } from '@supabase/supabase-js';
 import { verifyCreciNational, CreciVerificationResult } from '../lib/creciVerification';
-import { getStoredAccounts, storeAccount, removeStoredAccount } from './accountStore';
+import { getStoredAccounts, storeAccount, removeStoredAccount, isAccountDeleted, unmarkAccountDeleted } from './accountStore';
 import { Toast } from './appTypes';
 import { deleteUserAccountFromSupabase } from '../lib/supabaseCrud';
 
@@ -62,7 +62,7 @@ export const AuthProvider: React.FC<{
       if (saved) {
         try {
           const parsed = JSON.parse(saved);
-          if (parsed && parsed.id !== 'guest_buyer') {
+          if (parsed && parsed.id !== 'guest_buyer' && parsed.email && !isAccountDeleted(parsed.email)) {
             return parsed;
           }
         } catch (e) {
@@ -91,11 +91,21 @@ export const AuthProvider: React.FC<{
 
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
-        setIsAuthenticated(true);
-        localStorage.setItem('imovelhub_is_authenticated', 'true');
+        const userEmail = (session.user.email || '').toLowerCase();
+        if (isAccountDeleted(userEmail)) {
+          supabase.auth.signOut();
+          setIsAuthenticated(false);
+          localStorage.setItem('imovelhub_is_authenticated', 'false');
+          localStorage.removeItem('imovelhub_current_user');
+          setCurrentUser(GUEST_USER);
+          return;
+        }
+
         supabase.from('profiles').select('*').eq('id', session.user.id).single()
           .then(({ data: profileData }) => {
             if (profileData) {
+              setIsAuthenticated(true);
+              localStorage.setItem('imovelhub_is_authenticated', 'true');
               const mapped: UserProfile = {
                 id: profileData.id,
                 name: profileData.name || session.user.user_metadata?.name || 'Usuário',
@@ -113,6 +123,13 @@ export const AuthProvider: React.FC<{
               };
               setCurrentUser(mapped);
               localStorage.setItem('imovelhub_current_user', JSON.stringify(mapped));
+            } else {
+              // Profile was deleted from database
+              supabase.auth.signOut();
+              setIsAuthenticated(false);
+              localStorage.setItem('imovelhub_is_authenticated', 'false');
+              localStorage.removeItem('imovelhub_current_user');
+              setCurrentUser(GUEST_USER);
             }
           });
       }
@@ -120,11 +137,20 @@ export const AuthProvider: React.FC<{
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session?.user) {
-        setIsAuthenticated(true);
-        localStorage.setItem('imovelhub_is_authenticated', 'true');
+        const userEmail = (session.user.email || '').toLowerCase();
+        if (isAccountDeleted(userEmail)) {
+          supabase.auth.signOut();
+          setIsAuthenticated(false);
+          localStorage.setItem('imovelhub_is_authenticated', 'false');
+          localStorage.removeItem('imovelhub_current_user');
+          setCurrentUser(GUEST_USER);
+          return;
+        }
       } else if (_event === 'SIGNED_OUT') {
         setIsAuthenticated(false);
         localStorage.setItem('imovelhub_is_authenticated', 'false');
+        localStorage.removeItem('imovelhub_current_user');
+        setCurrentUser(GUEST_USER);
       }
     });
 
@@ -135,6 +161,16 @@ export const AuthProvider: React.FC<{
 
   const login = async (email: string, password: string): Promise<boolean> => {
     const cleanEmail = email.trim().toLowerCase();
+
+    // Check if this account was deleted by the user
+    if (isAccountDeleted(cleanEmail)) {
+      addToast({
+        type: 'error',
+        title: 'Conta Não Encontrada',
+        message: 'Esta conta foi excluída definitivamente. Para acessar novamente, por favor realize um novo cadastro na aba "Cadastrar".'
+      });
+      return false;
+    }
 
     // 1. If Supabase is configured, attempt Supabase Auth first
     if (isSupabaseConfigured && supabase) {
@@ -147,55 +183,50 @@ export const AuthProvider: React.FC<{
 
         const { data, error } = authResult;
         if (!error && data?.user) {
-          setIsAuthenticated(true);
-          localStorage.setItem('imovelhub_is_authenticated', 'true');
-
-          let userProfile: UserProfile = {
-            id: data.user.id,
-            name: data.user.user_metadata?.name || cleanEmail.split('@')[0],
-            email: data.user.email || cleanEmail,
-            phone: data.user.user_metadata?.phone,
-            whatsapp: data.user.user_metadata?.phone,
-            role: (data.user.user_metadata?.role as any) || 'broker',
-            creci: data.user.user_metadata?.creci,
-            avatarUrl: data.user.user_metadata?.avatar_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=256&q=80',
-            verified: false
-          };
-
+          // Check if profile exists in database; if deleted, reject login
           try {
             const { data: profile } = await supabase.from('profiles').select('*').eq('id', data.user.id).maybeSingle();
-            if (profile) {
-              userProfile = {
-                ...userProfile,
-                id: profile.id,
-                name: profile.name || userProfile.name,
-                email: profile.email || userProfile.email,
-                phone: profile.phone || userProfile.phone,
-                whatsapp: profile.phone || userProfile.whatsapp,
-                role: (profile.role as any) || userProfile.role,
-                creci: profile.creci || userProfile.creci,
-                agencyName: profile.agency_name || userProfile.agencyName,
-                agencyLogo: profile.agency_logo || userProfile.agencyLogo,
-                verified: profile.verified ?? false,
-                avatarUrl: profile.avatar_url || userProfile.avatarUrl,
-                bio: profile.bio || userProfile.bio,
-                creciStatus: profile.verified ? 'verified' : (profile.creci ? 'pending' : 'unverified')
-              };
+            if (!profile) {
+              await supabase.auth.signOut();
+              addToast({
+                type: 'error',
+                title: 'Conta Excluída',
+                message: 'Os registros desta conta foram excluídos do sistema. Crie um novo cadastro para continuar.'
+              });
+              return false;
             }
+
+            let userProfile: UserProfile = {
+              id: data.user.id,
+              name: profile.name || data.user.user_metadata?.name || cleanEmail.split('@')[0],
+              email: profile.email || data.user.email || cleanEmail,
+              phone: profile.phone || data.user.user_metadata?.phone,
+              whatsapp: profile.phone || data.user.user_metadata?.phone,
+              role: (profile.role as any) || (data.user.user_metadata?.role as any) || 'broker',
+              creci: profile.creci || data.user.user_metadata?.creci,
+              agencyName: profile.agency_name,
+              agencyLogo: profile.agency_logo,
+              verified: profile.verified ?? false,
+              avatarUrl: profile.avatar_url || data.user.user_metadata?.avatar_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=256&q=80',
+              bio: profile.bio,
+              creciStatus: profile.verified ? 'verified' : (profile.creci ? 'pending' : 'unverified')
+            };
+
+            setIsAuthenticated(true);
+            localStorage.setItem('imovelhub_is_authenticated', 'true');
+            storeAccount(cleanEmail, password, userProfile);
+            setCurrentUser(userProfile);
+            localStorage.setItem('imovelhub_current_user', JSON.stringify(userProfile));
+
+            addToast({ 
+              type: 'success', 
+              title: 'Login Realizado com Sucesso', 
+              message: `Bem-vindo de volta, ${userProfile.name}!` 
+            });
+            return true;
           } catch (pErr) {
-            console.warn('Could not fetch profile on login:', pErr);
+            console.warn('Could not verify profile on login:', pErr);
           }
-
-          storeAccount(cleanEmail, password, userProfile);
-          setCurrentUser(userProfile);
-          localStorage.setItem('imovelhub_current_user', JSON.stringify(userProfile));
-
-          addToast({ 
-            type: 'success', 
-            title: 'Login Realizado com Sucesso', 
-            message: `Bem-vindo de volta, ${userProfile.name}!` 
-          });
-          return true;
         } else if (error) {
           console.warn('Supabase auth attempt note:', error.message);
         }
@@ -204,184 +235,29 @@ export const AuthProvider: React.FC<{
       }
     }
 
-    // 2. Identify if this is Edson Ricardo Souza
-    const isEdsonEmail = 
-      cleanEmail === 'souzanegocio@creci.org' ||
-      cleanEmail === 'souzanegocio@creci.org.br' ||
-      cleanEmail === 'edsonricardosouza@gmail.com' ||
-      cleanEmail === 'edson.ricardo.souza@gmail.com' ||
-      cleanEmail.includes('souzanegocio') ||
-      cleanEmail.includes('edsonricardo');
-
-    if (isEdsonEmail) {
-      const edsonBase = BROKERS.find(b => b.id === 'user_current') || BROKERS[2];
-      const edsonProfile: UserProfile = {
-        ...edsonBase,
-        email: cleanEmail,
-        name: 'Edson Ricardo Souza',
-        role: 'broker',
-        creci: '185420-F',
-        creciStatus: 'verified',
-        agencyName: 'Ricardo & Souza Consultoria Imobiliária',
-        verified: true
-      };
-
-      setCurrentUser(edsonProfile);
-      setIsAuthenticated(true);
-      localStorage.setItem('imovelhub_current_user', JSON.stringify(edsonProfile));
-      localStorage.setItem('imovelhub_is_authenticated', 'true');
-      storeAccount(cleanEmail, password, edsonProfile);
-
-      addToast({ 
-            type: 'success', 
-            title: 'Login Realizado com Sucesso', 
-            message: `Bem-vindo de volta, ${edsonProfile.name}!` 
-      });
-      return true;
-    }
-
-    // 3. Match predefined broker accounts
-    const matchedBroker = BROKERS.find(b => 
-      b.email.toLowerCase() === cleanEmail ||
-      b.emailAliases?.some(a => a.toLowerCase() === cleanEmail)
-    );
-    if (matchedBroker) {
-      const profileToUse: UserProfile = {
-        ...matchedBroker,
-        email: cleanEmail
-      };
-      setCurrentUser(profileToUse);
-      setIsAuthenticated(true);
-      localStorage.setItem('imovelhub_current_user', JSON.stringify(profileToUse));
-      localStorage.setItem('imovelhub_is_authenticated', 'true');
-      storeAccount(cleanEmail, password, profileToUse);
-      addToast({ 
-        type: 'success', 
-        title: 'Login Realizado com Sucesso', 
-        message: `Bem-vindo de volta, ${profileToUse.name}!` 
-      });
-      return true;
-    }
-
-    // 4. Check persistent locally registered accounts
+    // 2. Check registered accounts
     const storedAccounts = getStoredAccounts();
     const matchedAccount = storedAccounts.find(a => a.email.toLowerCase() === cleanEmail);
     if (matchedAccount) {
-      if (password && matchedAccount.password !== password) {
-        matchedAccount.password = password;
-        storeAccount(cleanEmail, password, matchedAccount.profile);
-      }
-      setCurrentUser(matchedAccount.profile);
-      setIsAuthenticated(true);
-      localStorage.setItem('imovelhub_current_user', JSON.stringify(matchedAccount.profile));
-      localStorage.setItem('imovelhub_is_authenticated', 'true');
-      addToast({ 
-        type: 'success', 
-        title: 'Login Realizado com Sucesso', 
-        message: `Bem-vindo de volta, ${matchedAccount.profile.name}!` 
-      });
-      return true;
-    }
-
-    // 5. Match stored session user
-    const savedUserRaw = localStorage.getItem('imovelhub_current_user');
-    if (savedUserRaw) {
-      try {
-        const savedUser: UserProfile = JSON.parse(savedUserRaw);
-        if (savedUser?.email?.toLowerCase() === cleanEmail && savedUser.id !== 'guest_buyer') {
-          setCurrentUser(savedUser);
-          setIsAuthenticated(true);
-          localStorage.setItem('imovelhub_is_authenticated', 'true');
-          storeAccount(cleanEmail, password, savedUser);
-          addToast({ 
-            type: 'success', 
-            title: 'Login Realizado com Sucesso', 
-            message: `Bem-vindo de volta, ${savedUser.name}!` 
-          });
-          return true;
-        }
-      } catch (e) {
-        // ignore
+      if (password && matchedAccount.password === password) {
+        setCurrentUser(matchedAccount.profile);
+        setIsAuthenticated(true);
+        localStorage.setItem('imovelhub_current_user', JSON.stringify(matchedAccount.profile));
+        localStorage.setItem('imovelhub_is_authenticated', 'true');
+        addToast({ 
+          type: 'success', 
+          title: 'Login Realizado com Sucesso', 
+          message: `Bem-vindo de volta, ${matchedAccount.profile.name}!` 
+        });
+        return true;
       }
     }
 
-    // 6. Institutional CRECI domain account detection
-    if (cleanEmail.endsWith('@creci.org') || cleanEmail.endsWith('@creci.org.br') || cleanEmail.includes('creci')) {
-      const usernamePart = cleanEmail.split('@')[0];
-      const formattedName = usernamePart
-        .replace(/[._-]/g, ' ')
-        .split(' ')
-        .map(s => s.charAt(0).toUpperCase() + s.slice(1))
-        .join(' ');
-
-      const creciBroker: UserProfile = {
-        id: 'user_current',
-        name: formattedName.toLowerCase().includes('souza') ? 'Edson Ricardo Souza' : `Corretor ${formattedName}`,
-        email: cleanEmail,
-        role: 'broker',
-        creci: '185420-F',
-        creciStatus: 'verified',
-        agencyName: 'Ricardo & Souza Consultoria Imobiliária',
-        verified: true,
-        avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=256&q=80',
-        activeListingsCount: 8,
-        rating: 4.8,
-        totalDeals: 36
-      };
-
-      setCurrentUser(creciBroker);
-      setIsAuthenticated(true);
-      localStorage.setItem('imovelhub_current_user', JSON.stringify(creciBroker));
-      localStorage.setItem('imovelhub_is_authenticated', 'true');
-      storeAccount(cleanEmail, password, creciBroker);
-
-      addToast({ 
-        type: 'success', 
-        title: 'Login Realizado com Sucesso', 
-        message: `Bem-vindo de volta, ${creciBroker.name}!` 
-      });
-      return true;
-    }
-
-    // 7. Auto-provision credentials if valid email and password >= 6
-    if (cleanEmail.includes('@') && password.length >= 6) {
-      const usernamePart = cleanEmail.split('@')[0];
-      const formattedName = usernamePart
-        .replace(/[._-]/g, ' ')
-        .split(' ')
-        .map(s => s.charAt(0).toUpperCase() + s.slice(1))
-        .join(' ');
-
-      const isBroker = cleanEmail.includes('corretor') || cleanEmail.includes('imob');
-
-      const newUser: UserProfile = {
-        id: isBroker ? 'user_current' : `user_${Date.now()}`,
-        name: formattedName || 'Usuário Web Imóvel',
-        email: cleanEmail,
-        role: isBroker ? 'broker' : 'buyer',
-        avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=256&q=80',
-        verified: isBroker
-      };
-
-      setCurrentUser(newUser);
-      setIsAuthenticated(true);
-      localStorage.setItem('imovelhub_current_user', JSON.stringify(newUser));
-      localStorage.setItem('imovelhub_is_authenticated', 'true');
-      storeAccount(cleanEmail, password, newUser);
-
-      addToast({ 
-        type: 'success', 
-        title: 'Login Realizado com Sucesso', 
-        message: `Bem-vindo(a), ${newUser.name}!` 
-      });
-      return true;
-    }
-
-    // 8. Error
+    // 3. Reject invalid credentials or deleted account
     addToast({ 
       type: 'error', 
       title: 'Erro de Login', 
-      message: 'E-mail ou senha incorretos. Digite sua senha com pelo menos 6 dígitos.' 
+      message: 'E-mail ou senha incorretos. Verifique suas credenciais ou cadastre-se caso ainda não possua conta.' 
     });
     return false;
   };
@@ -441,6 +317,7 @@ export const AuthProvider: React.FC<{
     creci?: string;
   }): Promise<boolean> => {
     const cleanEmail = data.email.trim().toLowerCase();
+    unmarkAccountDeleted(cleanEmail);
     let createdUserId = `user_${Date.now()}`;
 
     if (isSupabaseConfigured && supabase) {
