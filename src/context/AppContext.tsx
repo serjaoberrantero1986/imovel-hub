@@ -169,6 +169,7 @@ const AppCompositeProvider: React.FC<{
     loginWithGoogle: auth.loginWithGoogle,
     signUp: auth.signUp,
     logout: auth.logout,
+    deleteAccount: auth.deleteAccount,
     updateUserProfile: auth.updateUserProfile,
     verifyCreci: auth.verifyCreci,
     switchUserRole: auth.switchUserRole,

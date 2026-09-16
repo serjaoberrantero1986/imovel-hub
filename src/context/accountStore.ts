@@ -11,34 +11,20 @@ export const getStoredAccounts = (): StoredAccount[] => {
   try {
     const raw = localStorage.getItem('imovelhub_registered_accounts');
     const list: StoredAccount[] = raw ? JSON.parse(raw) : [];
-    
-    // Ensure Edson Ricardo Souza is always registered by default
-    const hasEdson = list.some(a => 
-      a.email.toLowerCase() === 'souzanegocio@creci.org' || 
-      a.email.toLowerCase() === 'edsonricardosouza@gmail.com'
-    );
-    if (!hasEdson && BROKERS[2]) {
-      list.push({
-        email: 'souzanegocio@creci.org',
-        password: '',
-        profile: {
-          ...BROKERS[2],
-          email: 'souzanegocio@creci.org',
-          emailAliases: ['edsonricardosouza@gmail.com', 'souzanegocio@creci.org', 'souzanegocio@creci.org.br']
-        }
-      });
-      list.push({
-        email: 'edsonricardosouza@gmail.com',
-        password: '',
-        profile: {
-          ...BROKERS[2],
-          email: 'edsonricardosouza@gmail.com'
-        }
-      });
-    }
     return list;
   } catch (e) {
     return [];
+  }
+};
+
+export const removeStoredAccount = (email: string) => {
+  try {
+    const accounts = getStoredAccounts();
+    const cleanEmail = email.trim().toLowerCase();
+    const filtered = accounts.filter(a => a.email.toLowerCase() !== cleanEmail);
+    localStorage.setItem('imovelhub_registered_accounts', JSON.stringify(filtered));
+  } catch (e) {
+    console.warn('Could not remove registered account:', e);
   }
 };
 

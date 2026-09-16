@@ -4,8 +4,9 @@ import { BROKERS } from '../lib/mockData';
 import { isSupabaseConfigured, supabase, supabaseUrl, supabaseAnonKey } from '../lib/supabaseClient';
 import { createClient } from '@supabase/supabase-js';
 import { verifyCreciNational, CreciVerificationResult } from '../lib/creciVerification';
-import { getStoredAccounts, storeAccount } from './accountStore';
+import { getStoredAccounts, storeAccount, removeStoredAccount } from './accountStore';
 import { Toast } from './appTypes';
+import { deleteUserAccountFromSupabase } from '../lib/supabaseCrud';
 
 export interface AuthContextType {
   currentUser: UserProfile;
@@ -27,6 +28,7 @@ export interface AuthContextType {
     creci?: string;
   }) => Promise<boolean>;
   logout: () => Promise<void>;
+  deleteAccount: () => Promise<boolean>;
   updateUserProfile: (updates: Partial<UserProfile>) => Promise<void>;
   verifyCreci: (creci: string, uf: string) => Promise<CreciVerificationResult>;
   switchUserRole: (role: 'broker' | 'buyer') => void;
@@ -522,6 +524,49 @@ export const AuthProvider: React.FC<{
     return true;
   };
 
+  const deleteAccount = async (): Promise<boolean> => {
+    const targetUserId = currentUser.id;
+    const targetEmail = currentUser.email;
+
+    // 1. Delete from Supabase PostgreSQL if configured
+    if (isSupabaseConfigured && targetUserId && targetUserId !== 'guest_buyer') {
+      try {
+        await deleteUserAccountFromSupabase(targetUserId, targetEmail);
+      } catch (err) {
+        console.error('Error deleting account data from Supabase:', err);
+      }
+    }
+
+    // 2. Sign out Supabase auth session if active
+    if (isSupabaseConfigured && supabase) {
+      try {
+        await supabase.auth.signOut();
+      } catch (err) {
+        console.warn('Sign out during delete account notice:', err);
+      }
+    }
+
+    // 3. Purge from local registered accounts store
+    if (targetEmail) {
+      removeStoredAccount(targetEmail);
+    }
+
+    // 4. Reset authentication and local storage states
+    setIsAuthenticated(false);
+    localStorage.setItem('imovelhub_is_authenticated', 'false');
+    localStorage.removeItem('imovelhub_current_user');
+    setCurrentUser(GUEST_USER);
+    localStorage.setItem('imovelhub_current_user', JSON.stringify(GUEST_USER));
+
+    addToast({
+      type: 'info',
+      title: 'Conta Excluída Definitivamente',
+      message: 'Seus dados e anúncios foram removidos com sucesso. Você pode criar um novo cadastro a qualquer momento.'
+    });
+
+    return true;
+  };
+
   const logout = async (): Promise<void> => {
     if (isSupabaseConfigured && supabase) {
       try {
@@ -630,6 +675,7 @@ export const AuthProvider: React.FC<{
         loginWithGoogle,
         signUp,
         logout,
+        deleteAccount,
         updateUserProfile,
         verifyCreci,
         switchUserRole

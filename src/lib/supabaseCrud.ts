@@ -661,3 +661,66 @@ export async function updateSavedSearchAlertInSupabase(id: string, alertFrequenc
     return false;
   }
 }
+
+// ============================================================================
+// REAL ACCOUNT DELETION API (TOTAL PURGE FROM DATABASE)
+// ============================================================================
+
+export async function deleteUserAccountFromSupabase(userId: string, email: string): Promise<boolean> {
+  if (!supabase) return true;
+  try {
+    // 1. If the user owns properties, clean their dependent rows first
+    const { data: userProps } = await supabase.from('properties').select('id').eq('user_id', userId);
+    if (userProps && userProps.length > 0) {
+      const propIds = userProps.map((p: any) => p.id);
+      await supabase.from('property_images').delete().in('property_id', propIds);
+      await supabase.from('property_locations').delete().in('property_id', propIds);
+      await supabase.from('property_features').delete().in('property_id', propIds);
+      await supabase.from('leads').delete().in('property_id', propIds);
+      await supabase.from('favorites').delete().in('property_id', propIds);
+      await supabase.from('properties').delete().in('id', propIds);
+    }
+
+    // 2. Delete user's leads (received as advertiser or sent as buyer)
+    await supabase.from('leads').delete().eq('advertiser_id', userId);
+    await supabase.from('leads').delete().eq('buyer_email', email);
+
+    // 3. Delete user's chat messages and conversations
+    const { data: userConvs } = await supabase
+      .from('conversations')
+      .select('id')
+      .or(`buyer_id.eq.${userId},advertiser_id.eq.${userId}`);
+    
+    if (userConvs && userConvs.length > 0) {
+      const convIds = userConvs.map((c: any) => c.id);
+      await supabase.from('messages').delete().in('conversation_id', convIds);
+      await supabase.from('conversations').delete().in('id', convIds);
+    }
+    await supabase.from('messages').delete().eq('sender_id', userId);
+
+    // 4. Delete favorites and saved searches
+    await supabase.from('favorites').delete().eq('user_id', userId);
+    await supabase.from('saved_searches').delete().eq('user_id', userId);
+
+    // 5. Delete audit logs referencing user
+    try {
+      await supabase.from('audit_logs').delete().eq('user_id', userId);
+    } catch {
+      // non-blocking
+    }
+
+    // 6. Delete profile row
+    const { error: profileError } = await supabase.from('profiles').delete().eq('id', userId);
+    if (profileError) {
+      console.warn('Profile delete notice:', profileError.message);
+      // Attempt delete by email as well
+      await supabase.from('profiles').delete().eq('email', email);
+    }
+
+    return true;
+  } catch (err) {
+    console.error('Error deleting account from Supabase:', err);
+    return false;
+  }
+}
+

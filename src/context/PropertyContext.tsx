@@ -50,7 +50,7 @@ export const PropertyProvider: React.FC<{
     if (!isSupabaseConfigured) return;
     try {
       const remoteProps = await fetchPropertiesFromSupabase();
-      if (remoteProps && remoteProps.length > 0) {
+      if (remoteProps !== null) {
         setProperties(remoteProps);
       }
     } catch (e) {

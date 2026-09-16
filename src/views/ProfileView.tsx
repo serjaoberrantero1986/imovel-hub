@@ -26,7 +26,9 @@ import {
   Layers,
   HelpCircle,
   RefreshCw,
-  FileCheck
+  FileCheck,
+  Trash2,
+  AlertTriangle
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { UserProfile, PropertyType, PropertyPurpose } from '../types';
@@ -45,6 +47,8 @@ export const ProfileView: React.FC = () => {
     openAuthModal,
     updateUserProfile, 
     logout, 
+    deleteAccount,
+    refreshData,
     setCurrentView,
     addToast
   } = useApp();
@@ -53,6 +57,11 @@ export const ProfileView: React.FC = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [isVerifyingCreci, setIsVerifyingCreci] = useState(false);
   const [creciResult, setCreciResult] = useState<CreciVerificationResult | null>(null);
+
+  // Delete account confirmation state
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [deleteConfirmationText, setDeleteConfirmationText] = useState('');
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
 
   // Form State initialized from currentUser
   const [formData, setFormData] = useState<UserProfile>({ ...currentUser });
@@ -208,6 +217,35 @@ export const ProfileView: React.FC = () => {
   const handleLogout = async () => {
     await logout();
     setCurrentView('portal');
+  };
+
+  // Handle Definitive Account Deletion
+  const handleDeleteAccount = async () => {
+    if (deleteConfirmationText.trim().toUpperCase() !== 'EXCLUIR') {
+      addToast({
+        type: 'warning',
+        title: 'Confirmação Incorreta',
+        message: 'Digite a palavra EXCLUIR para confirmar a exclusão definitiva da sua conta.'
+      });
+      return;
+    }
+
+    setIsDeletingAccount(true);
+    try {
+      await deleteAccount();
+      await refreshData();
+      setIsDeleteModalOpen(false);
+      setDeleteConfirmationText('');
+      setCurrentView('portal');
+    } catch (err: any) {
+      addToast({
+        type: 'error',
+        title: 'Erro ao excluir conta',
+        message: err?.message || 'Ocorreu um erro ao processar a exclusão. Tente novamente.'
+      });
+    } finally {
+      setIsDeletingAccount(false);
+    }
   };
 
   // Available UF list
@@ -952,6 +990,104 @@ export const ProfileView: React.FC = () => {
                   )}
                 </button>
               </form>
+            </div>
+
+            {/* Box: Zona de Perigo / Excluir Conta */}
+            <div className="bg-red-50/50 dark:bg-red-950/20 rounded-3xl p-6 border border-red-200 dark:border-red-900/50 space-y-4">
+              <div className="flex items-start gap-3.5">
+                <div className="p-3 rounded-2xl bg-red-100 dark:bg-red-900/50 text-red-600 dark:text-red-400 shrink-0">
+                  <Trash2 className="w-6 h-6" />
+                </div>
+                <div className="space-y-1">
+                  <h3 className="text-base font-extrabold text-red-950 dark:text-red-300">
+                    Zona de Perigo: Excluir Minha Conta
+                  </h3>
+                  <p className="text-xs text-red-700/80 dark:text-red-400/80 leading-relaxed">
+                    A exclusão da sua conta ({currentUser.email}) é <b>definitiva e irreversível</b>. Todos os seus dados pessoais, perfil, imóveis anunciados, fotos, localizações, mensagens e preferências serão completamente removidos do banco de dados de produção. Caso deseje retornar futuramente, será necessário realizar um novo cadastro do zero.
+                  </p>
+                </div>
+              </div>
+
+              <div className="pt-2 flex justify-start">
+                <button
+                  id="btn-open-delete-account-modal"
+                  type="button"
+                  onClick={() => {
+                    setDeleteConfirmationText('');
+                    setIsDeleteModalOpen(true);
+                  }}
+                  className="px-5 py-2.5 rounded-2xl bg-red-600 hover:bg-red-700 active:scale-95 text-white font-bold text-xs shadow-md shadow-red-600/20 flex items-center gap-2 transition-all cursor-pointer"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  <span>Excluir Minha Conta Definitivamente</span>
+                </button>
+              </div>
+            </div>
+
+          </div>
+        )}
+
+        {/* Modal de Confirmação de Exclusão Definitiva de Conta */}
+        {isDeleteModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-in fade-in duration-200">
+            <div className="max-w-md w-full bg-white dark:bg-slate-900 rounded-3xl p-6 border border-red-200 dark:border-red-900/60 shadow-2xl space-y-5">
+              <div className="w-14 h-14 rounded-2xl bg-red-100 dark:bg-red-950 border border-red-200 dark:border-red-900 flex items-center justify-center mx-auto text-red-600 dark:text-red-400">
+                <AlertTriangle className="w-7 h-7" />
+              </div>
+
+              <div className="text-center space-y-2">
+                <h3 className="text-lg font-black text-slate-900 dark:text-white">
+                  Confirmar Exclusão de Conta?
+                </h3>
+                <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
+                  Esta ação <b>apagará definitivamente</b> sua conta (<span className="font-semibold text-slate-800 dark:text-slate-200">{currentUser.email}</span>) e todos os anúncios ou dados vinculados no banco de dados. Não restará nenhum registro anterior.
+                </p>
+              </div>
+
+              <div className="p-3.5 rounded-2xl bg-red-50 dark:bg-red-950/40 border border-red-100 dark:border-red-900/40 space-y-1.5">
+                <label className="block text-[11px] font-bold text-red-900 dark:text-red-300">
+                  Para confirmar, digite <span className="font-mono underline font-extrabold">EXCLUIR</span> no campo abaixo:
+                </label>
+                <input
+                  id="input-confirm-delete-account"
+                  type="text"
+                  placeholder="EXCLUIR"
+                  value={deleteConfirmationText}
+                  onChange={e => setDeleteConfirmationText(e.target.value)}
+                  className="w-full px-3.5 py-2 rounded-xl bg-white dark:bg-slate-900 border border-red-300 dark:border-red-800 text-xs font-mono font-bold text-slate-900 dark:text-white uppercase tracking-wider focus:outline-none focus:ring-2 focus:ring-red-500"
+                  autoFocus
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 pt-2">
+                <button
+                  id="btn-cancel-delete-account"
+                  type="button"
+                  disabled={isDeletingAccount}
+                  onClick={() => {
+                    setIsDeleteModalOpen(false);
+                    setDeleteConfirmationText('');
+                  }}
+                  className="py-2.5 px-4 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                >
+                  Cancelar
+                </button>
+
+                <button
+                  id="btn-confirm-delete-account-permanently"
+                  type="button"
+                  disabled={isDeletingAccount || deleteConfirmationText.trim().toUpperCase() !== 'EXCLUIR'}
+                  onClick={handleDeleteAccount}
+                  className="py-2.5 px-4 rounded-xl bg-red-600 hover:bg-red-700 active:scale-95 text-white text-xs font-extrabold shadow-lg shadow-red-600/30 flex items-center justify-center gap-1.5 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isDeletingAccount ? (
+                    <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin"></span>
+                  ) : (
+                    <Trash2 className="w-4 h-4" />
+                  )}
+                  <span>{isDeletingAccount ? 'Excluindo...' : 'Excluir Definitivamente'}</span>
+                </button>
+              </div>
             </div>
           </div>
         )}
