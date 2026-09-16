@@ -58,12 +58,12 @@ export const PropertyProvider: React.FC<{
     }
   }, []);
 
-  // Initial load from Supabase if configured
+  // Initial load from Supabase if configured and whenever user changes
   useEffect(() => {
     if (isSupabaseConfigured) {
       refreshProperties();
     }
-  }, [refreshProperties]);
+  }, [refreshProperties, currentUser?.id]);
 
   const addProperty = async (data: Omit<Property, 'id' | 'code' | 'createdAt' | 'updatedAt' | 'viewsCount' | 'leadsCount' | 'favoritesCount' | 'sharesCount' | 'advertiser' | 'userId'>): Promise<Property> => {
     const codeNum = Math.floor(10000000 + Math.random() * 90000000);

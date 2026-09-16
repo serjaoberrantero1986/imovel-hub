@@ -45,6 +45,11 @@ export const MyPropertiesView: React.FC = () => {
   const [isDeleting, setIsDeleting] = useState(false);
 
   const myProperties = properties.filter(p => {
+    // Strictly ensure property belongs to the currently logged in user
+    const isOwner = (currentUser?.id && p.userId === currentUser.id) ||
+      (currentUser?.email && p.advertiser?.email && p.advertiser.email.toLowerCase() === currentUser.email.toLowerCase());
+    if (!isOwner) return false;
+
     const matchesStatus = filterStatus === 'all' || p.status === filterStatus;
     const matchesSearch = !searchTerm.trim() || 
       p.title.toLowerCase().includes(searchTerm.toLowerCase()) || 

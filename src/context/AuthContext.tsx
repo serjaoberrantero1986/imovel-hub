@@ -4,7 +4,7 @@ import { BROKERS } from '../lib/mockData';
 import { isSupabaseConfigured, supabase, supabaseUrl, supabaseAnonKey } from '../lib/supabaseClient';
 import { createClient } from '@supabase/supabase-js';
 import { verifyCreciNational, CreciVerificationResult } from '../lib/creciVerification';
-import { getStoredAccounts, storeAccount, removeStoredAccount, isAccountDeleted, unmarkAccountDeleted } from './accountStore';
+import { getStoredAccounts, storeAccount, removeStoredAccount } from './accountStore';
 import { Toast } from './appTypes';
 import { deleteUserAccountFromSupabase } from '../lib/supabaseCrud';
 
@@ -62,7 +62,7 @@ export const AuthProvider: React.FC<{
       if (saved) {
         try {
           const parsed = JSON.parse(saved);
-          if (parsed && parsed.id !== 'guest_buyer' && parsed.email && !isAccountDeleted(parsed.email)) {
+          if (parsed && parsed.id !== 'guest_buyer' && parsed.email) {
             return parsed;
           }
         } catch (e) {
@@ -89,17 +89,16 @@ export const AuthProvider: React.FC<{
   useEffect(() => {
     if (!isSupabaseConfigured || !supabase) return;
 
+    // Purge any legacy deleted-accounts key from local storage
+    try {
+      localStorage.removeItem('imovelhub_deleted_accounts');
+    } catch {
+      // Ignore
+    }
+
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
         const userEmail = (session.user.email || '').toLowerCase();
-        if (isAccountDeleted(userEmail)) {
-          supabase.auth.signOut();
-          setIsAuthenticated(false);
-          localStorage.setItem('imovelhub_is_authenticated', 'false');
-          localStorage.removeItem('imovelhub_current_user');
-          setCurrentUser(GUEST_USER);
-          return;
-        }
 
         supabase.from('profiles').select('*').eq('id', session.user.id).maybeSingle()
           .then(async ({ data: profileData }) => {
@@ -156,15 +155,7 @@ export const AuthProvider: React.FC<{
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session?.user) {
-        const userEmail = (session.user.email || '').toLowerCase();
-        if (isAccountDeleted(userEmail)) {
-          supabase.auth.signOut();
-          setIsAuthenticated(false);
-          localStorage.setItem('imovelhub_is_authenticated', 'false');
-          localStorage.removeItem('imovelhub_current_user');
-          setCurrentUser(GUEST_USER);
-          return;
-        }
+        // User is active in Supabase session
       } else if (_event === 'SIGNED_OUT') {
         setIsAuthenticated(false);
         localStorage.setItem('imovelhub_is_authenticated', 'false');
@@ -180,16 +171,6 @@ export const AuthProvider: React.FC<{
 
   const login = async (email: string, password: string): Promise<boolean> => {
     const cleanEmail = email.trim().toLowerCase();
-
-    // Check if this account was explicitly deleted by the user
-    if (isAccountDeleted(cleanEmail)) {
-      addToast({
-        type: 'error',
-        title: 'Conta Não Encontrada',
-        message: 'Esta conta foi excluída definitivamente. Para acessar novamente, por favor realize um novo cadastro na aba "Cadastrar".'
-      });
-      return false;
-    }
 
     // 1. If Supabase is configured, attempt Supabase Auth first
     if (isSupabaseConfigured && supabase) {
@@ -374,7 +355,6 @@ export const AuthProvider: React.FC<{
     creci?: string;
   }): Promise<boolean> => {
     const cleanEmail = data.email.trim().toLowerCase();
-    unmarkAccountDeleted(cleanEmail);
     let createdUserId = `user_${Date.now()}`;
 
     if (isSupabaseConfigured && supabase) {
