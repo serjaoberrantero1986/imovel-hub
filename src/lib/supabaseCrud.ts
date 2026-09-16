@@ -669,6 +669,17 @@ export async function updateSavedSearchAlertInSupabase(id: string, alertFrequenc
 export async function deleteUserAccountFromSupabase(userId: string, email: string): Promise<boolean> {
   if (!supabase) return true;
   try {
+    // Attempt complete purge via Supabase RPC function (which removes from auth.users and all tables)
+    try {
+      const { error: rpcError } = await supabase.rpc('delete_user_account');
+      if (!rpcError) {
+        return true;
+      }
+      console.warn('RPC delete_user_account notice (falling back to direct deletes):', rpcError.message);
+    } catch (rpcErr) {
+      console.warn('RPC delete_user_account exception:', rpcErr);
+    }
+
     // 1. If the user owns properties, clean their dependent rows first
     const { data: userProps } = await supabase.from('properties').select('id').eq('user_id', userId);
     if (userProps && userProps.length > 0) {

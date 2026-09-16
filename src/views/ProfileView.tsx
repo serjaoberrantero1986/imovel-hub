@@ -1040,7 +1040,7 @@ export const ProfileView: React.FC = () => {
                   Confirmar Exclusão de Conta?
                 </h3>
                 <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-                  Esta ação <b>apagará definitivamente</b> sua conta (<span className="font-semibold text-slate-800 dark:text-slate-200">{currentUser.email}</span>) e todos os anúncios ou dados vinculados no banco de dados. Não restará nenhum registro anterior.
+                  Esta ação <b>apagará definitivamente</b> seus dados de perfil (<span className="font-semibold text-slate-800 dark:text-slate-200">{currentUser.email}</span>), anúncios, favoritos, leads e mensagens do banco de dados. O acesso a esta conta será desativado permanentemente.
                 </p>
               </div>
 

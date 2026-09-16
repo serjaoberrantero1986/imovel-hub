@@ -131,7 +131,7 @@ export const AuthModal: React.FC = () => {
           resetForm();
           closeAuthModal();
         } else {
-          setErrorMessage('E-mail ou senha incorretos. Se ainda não possui cadastro, clique na aba "Cadastrar" acima.');
+          setErrorMessage('Não foi possível realizar o login. Verifique seus dados ou cadastre-se caso ainda não possua conta.');
         }
       } catch (err: any) {
         setErrorMessage(err.message || 'Erro ao realizar login.');

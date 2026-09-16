@@ -214,6 +214,7 @@ DROP POLICY IF EXISTS "Public access saved_searches" ON public.saved_searches;
 CREATE POLICY "profiles_select_policy" ON public.profiles FOR SELECT USING (true);
 CREATE POLICY "profiles_insert_policy" ON public.profiles FOR INSERT WITH CHECK (auth.uid() = id OR auth.role() = 'service_role');
 CREATE POLICY "profiles_update_policy" ON public.profiles FOR UPDATE USING (auth.uid() = id OR auth.role() = 'service_role');
+CREATE POLICY "profiles_delete_policy" ON public.profiles FOR DELETE USING (auth.uid() = id OR auth.role() = 'service_role');
 
 -- B. PROPERTIES RLS (Anti-IDOR)
 -- Leitura: Qualquer um pode ver imóveis ativos; proprietário pode ver seus rascunhos/pausados
@@ -285,3 +286,59 @@ CREATE POLICY "audit_logs_insert_policy" ON public.audit_logs FOR INSERT WITH CH
 -- Leitura: Apenas administradores ou service_role
 CREATE POLICY "audit_logs_select_policy" ON public.audit_logs FOR SELECT
   USING (EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin') OR auth.role() = 'service_role');
+
+-- ==============================================================================
+-- H. RPC FUNCTION PARA EXCLUSÃO DEFINITIVA DA CONTA (AUTH.USERS + PUBLIC)
+-- ==============================================================================
+-- Esta função permite que o usuário autenticado exclua sua própria conta de forma irrevogável,
+-- apagando seus registros de public.* e removendo sua linha em auth.users.
+CREATE OR REPLACE FUNCTION public.delete_user_account()
+RETURNS boolean
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, auth
+AS $$
+DECLARE
+  v_user_id UUID;
+BEGIN
+  v_user_id := auth.uid();
+  IF v_user_id IS NULL THEN
+    RAISE EXCEPTION 'Não autenticado';
+  END IF;
+
+  -- 1. Excluir dependências dos imóveis pertencentes ao usuário
+  DELETE FROM public.property_images WHERE property_id IN (SELECT id FROM public.properties WHERE user_id = v_user_id);
+  DELETE FROM public.property_locations WHERE property_id IN (SELECT id FROM public.properties WHERE user_id = v_user_id);
+  DELETE FROM public.property_features WHERE property_id IN (SELECT id FROM public.properties WHERE user_id = v_user_id);
+  DELETE FROM public.leads WHERE property_id IN (SELECT id FROM public.properties WHERE user_id = v_user_id);
+  DELETE FROM public.favorites WHERE property_id IN (SELECT id FROM public.properties WHERE user_id = v_user_id);
+  DELETE FROM public.properties WHERE user_id = v_user_id;
+
+  -- 2. Excluir leads recebidos ou gerados
+  DELETE FROM public.leads WHERE advertiser_id = v_user_id;
+
+  -- 3. Excluir conversas e mensagens
+  DELETE FROM public.messages WHERE conversation_id IN (SELECT id FROM public.conversations WHERE buyer_id = v_user_id OR advertiser_id = v_user_id);
+  DELETE FROM public.conversations WHERE buyer_id = v_user_id OR advertiser_id = v_user_id;
+  DELETE FROM public.messages WHERE sender_id = v_user_id;
+
+  -- 4. Excluir favoritos e buscas salvas
+  DELETE FROM public.favorites WHERE user_id = v_user_id;
+  DELETE FROM public.saved_searches WHERE user_id = v_user_id;
+
+  -- 5. Excluir logs de auditoria do usuário
+  DELETE FROM public.audit_logs WHERE user_id = v_user_id;
+
+  -- 6. Excluir perfil público
+  DELETE FROM public.profiles WHERE id = v_user_id;
+
+  -- 7. Excluir usuário do Supabase Auth (auth.users)
+  DELETE FROM auth.users WHERE id = v_user_id;
+
+  RETURN true;
+END;
+$$;
+
+-- Permitir que usuários autenticados invoquem a exclusão da própria conta
+GRANT EXECUTE ON FUNCTION public.delete_user_account() TO authenticated;
+
