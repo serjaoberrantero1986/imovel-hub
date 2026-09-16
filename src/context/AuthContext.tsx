@@ -183,10 +183,30 @@ export const AuthProvider: React.FC<{
 
         const { data, error } = authResult;
         if (!error && data?.user) {
-          // Check if profile exists in database; if deleted, reject login
+          // Verify profile exists in database
+          let profile: any = null;
           try {
-            const { data: profile } = await supabase.from('profiles').select('*').eq('id', data.user.id).maybeSingle();
-            if (!profile) {
+            const { data: dbProfile } = await supabase.from('profiles').select('*').eq('id', data.user.id).maybeSingle();
+            profile = dbProfile;
+          } catch (pErr) {
+            console.warn('Could not query profile on login:', pErr);
+          }
+
+          // If no profile found by id, try by email
+          if (!profile && cleanEmail) {
+            try {
+              const { data: dbProfileByEmail } = await supabase.from('profiles').select('*').eq('email', cleanEmail).maybeSingle();
+              profile = dbProfileByEmail;
+            } catch (emailErr) {
+              console.warn('Could not query profile by email:', emailErr);
+            }
+          }
+
+          // If user exists in auth.users but has no profile row at all and is not newly registered, it was deleted
+          if (!profile) {
+            // Check if local registered account was stored
+            const stored = getStoredAccounts().find(a => a.email.toLowerCase() === cleanEmail);
+            if (!stored) {
               await supabase.auth.signOut();
               addToast({
                 type: 'error',
@@ -195,47 +215,53 @@ export const AuthProvider: React.FC<{
               });
               return false;
             }
-
-            let userProfile: UserProfile = {
-              id: data.user.id,
-              name: profile.name || data.user.user_metadata?.name || cleanEmail.split('@')[0],
-              email: profile.email || data.user.email || cleanEmail,
-              phone: profile.phone || data.user.user_metadata?.phone,
-              whatsapp: profile.phone || data.user.user_metadata?.phone,
-              role: (profile.role as any) || (data.user.user_metadata?.role as any) || 'broker',
-              creci: profile.creci || data.user.user_metadata?.creci,
-              agencyName: profile.agency_name,
-              agencyLogo: profile.agency_logo,
-              verified: profile.verified ?? false,
-              avatarUrl: profile.avatar_url || data.user.user_metadata?.avatar_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=256&q=80',
-              bio: profile.bio,
-              creciStatus: profile.verified ? 'verified' : (profile.creci ? 'pending' : 'unverified')
-            };
-
-            setIsAuthenticated(true);
-            localStorage.setItem('imovelhub_is_authenticated', 'true');
-            storeAccount(cleanEmail, password, userProfile);
-            setCurrentUser(userProfile);
-            localStorage.setItem('imovelhub_current_user', JSON.stringify(userProfile));
-
-            addToast({ 
-              type: 'success', 
-              title: 'Login Realizado com Sucesso', 
-              message: `Bem-vindo de volta, ${userProfile.name}!` 
-            });
-            return true;
-          } catch (pErr) {
-            console.warn('Could not verify profile on login:', pErr);
           }
+
+          let userProfile: UserProfile = {
+            id: data.user.id,
+            name: profile?.name || data.user.user_metadata?.name || cleanEmail.split('@')[0],
+            email: profile?.email || data.user.email || cleanEmail,
+            phone: profile?.phone || data.user.user_metadata?.phone,
+            whatsapp: profile?.phone || data.user.user_metadata?.phone,
+            role: (profile?.role as any) || (data.user.user_metadata?.role as any) || 'buyer',
+            creci: profile?.creci || data.user.user_metadata?.creci,
+            agencyName: profile?.agency_name,
+            agencyLogo: profile?.agency_logo,
+            verified: profile?.verified ?? false,
+            avatarUrl: profile?.avatar_url || data.user.user_metadata?.avatar_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=256&q=80',
+            bio: profile?.bio,
+            creciStatus: profile?.verified ? 'verified' : (profile?.creci ? 'pending' : 'unverified')
+          };
+
+          setIsAuthenticated(true);
+          localStorage.setItem('imovelhub_is_authenticated', 'true');
+          storeAccount(cleanEmail, password, userProfile);
+          setCurrentUser(userProfile);
+          localStorage.setItem('imovelhub_current_user', JSON.stringify(userProfile));
+
+          addToast({ 
+            type: 'success', 
+            title: 'Login Realizado com Sucesso', 
+            message: `Bem-vindo de volta, ${userProfile.name}!` 
+          });
+          return true;
         } else if (error) {
           console.warn('Supabase auth attempt note:', error.message);
+          if (error.message?.toLowerCase().includes('email not confirmed')) {
+            addToast({
+              type: 'warning',
+              title: 'E-mail Não Confirmado',
+              message: 'Por favor, confirme seu e-mail ou aguarde alguns instantes após o cadastro.'
+            });
+            return false;
+          }
         }
       } catch (err: any) {
         console.warn('Supabase auth try note:', err?.message || err);
       }
     }
 
-    // 2. Check registered accounts
+    // 2. Check registered accounts (local store fallback)
     const storedAccounts = getStoredAccounts();
     const matchedAccount = storedAccounts.find(a => a.email.toLowerCase() === cleanEmail);
     if (matchedAccount) {

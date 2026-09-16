@@ -709,12 +709,15 @@ export async function deleteUserAccountFromSupabase(userId: string, email: strin
       // non-blocking
     }
 
-    // 6. Delete profile row
-    const { error: profileError } = await supabase.from('profiles').delete().eq('id', userId);
-    if (profileError) {
-      console.warn('Profile delete notice:', profileError.message);
-      // Attempt delete by email as well
-      await supabase.from('profiles').delete().eq('email', email);
+    // 6. Delete profile row thoroughly by id and email
+    try {
+      const cleanEmail = (email || '').trim().toLowerCase();
+      await supabase.from('profiles').delete().eq('id', userId);
+      if (cleanEmail) {
+        await supabase.from('profiles').delete().eq('email', cleanEmail);
+      }
+    } catch (profileErr) {
+      console.warn('Profile delete notice:', profileErr);
     }
 
     return true;
