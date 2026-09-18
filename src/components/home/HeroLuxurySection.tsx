@@ -188,34 +188,13 @@ export const HeroLuxurySection: React.FC = () => {
   };
 
   return (
-    <section className="relative w-full overflow-hidden bg-slate-950 text-white min-h-[640px] sm:min-h-[720px] lg:min-h-[760px] flex flex-col justify-between pt-12 pb-16 lg:pb-20">
+    <section 
+      style={{ backgroundColor: '#000000' }}
+      className={`relative w-full bg-[#000000] text-white ${
+        isAdvancedExpanded ? 'min-h-[680px] h-auto' : 'min-h-[680px] lg:h-[680px]'
+      } flex flex-col justify-between pt-6 sm:pt-8 pb-8 sm:pb-10 transition-all duration-300`}
+    >
       
-      {/* 1. Cinematic Background Panorama with Fade Effect */}
-      <motion.div 
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 1.0, ease: 'easeOut' }}
-        className="absolute inset-0 z-0 pointer-events-none select-none overflow-hidden"
-      >
-        {/* User-provided background.jpeg with fade effect and responsive styling */}
-        <div 
-          className="absolute inset-0 bg-cover bg-center sm:bg-[center_right] transition-transform duration-1000 ease-out"
-          style={{
-            backgroundImage: `url('/background.jpeg'), url('/assets/background.jpeg')`,
-            backgroundPosition: 'center 40%'
-          }}
-        />
-
-        {/* Cinematic Fade Overlays */}
-        <div className="absolute inset-0 bg-gradient-to-r from-slate-950 via-slate-950/85 md:via-slate-950/65 to-transparent" />
-        <div className="absolute inset-0 bg-gradient-to-tr from-violet-950/40 via-transparent to-rose-950/25" />
-        <div className="absolute top-0 inset-x-0 h-36 bg-gradient-to-b from-slate-950 via-slate-950/70 to-transparent" />
-        <div className="absolute bottom-0 inset-x-0 h-48 bg-gradient-to-t from-slate-950 via-slate-950/85 to-transparent" />
-
-        {/* Radial ambient glow near pins */}
-        <div className="hidden md:block absolute top-1/3 right-1/4 w-[500px] h-[300px] bg-fuchsia-600/15 blur-[120px] rounded-full" />
-      </motion.div>
-
       {/* 2. Top & Center Container: Headline & Floating Real Properties */}
       <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full flex-1 flex flex-col justify-center">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-6 items-center min-h-[380px] sm:min-h-[440px]">
@@ -407,10 +386,14 @@ export const HeroLuxurySection: React.FC = () => {
       </div>
 
       {/* 3. Bottom Embedded Modern Hero Search Bar (Identical to gemini.jpeg) */}
-      <div className="relative z-30 max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 w-full mt-6 sm:mt-10">
+      <div className="relative z-30 max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 w-full mt-4 sm:mt-6">
         
-        {/* Main Floating Pill Container */}
-        <div className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl rounded-[28px] sm:rounded-full p-2 sm:p-2.5 shadow-2xl shadow-slate-950/60 border border-white/40 dark:border-slate-800 transition-all">
+        {/* Main Floating Pill Container (transitions to rounded-3xl when expanded so all controls fit inside) */}
+        <div className={`bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl ${
+          isAdvancedExpanded 
+            ? 'rounded-3xl p-3.5 sm:p-5' 
+            : 'rounded-[28px] sm:rounded-full p-2 sm:p-2.5'
+        } shadow-2xl shadow-slate-950/60 border border-white/40 dark:border-slate-800 transition-all duration-300`}>
           
           <div className="flex flex-col md:flex-row items-stretch md:items-center gap-2">
             
@@ -630,12 +613,12 @@ export const HeroLuxurySection: React.FC = () => {
                 animate={{ opacity: 1, height: 'auto' }}
                 exit={{ opacity: 0, height: 0 }}
                 transition={{ duration: 0.25 }}
-                className="overflow-hidden border-t border-slate-100 dark:border-slate-800 mt-3 pt-4 px-2 sm:px-4 space-y-5"
+                className="border-t border-slate-100 dark:border-slate-800 mt-3 pt-4 px-2 sm:px-4 md:px-5 space-y-4"
               >
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-slate-800 dark:text-slate-200">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 text-slate-800 dark:text-slate-200">
                   
                   {/* Bedrooms */}
-                  <div>
+                  <div className="min-w-0">
                     <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">
                       Quartos
                     </label>
@@ -651,7 +634,7 @@ export const HeroLuxurySection: React.FC = () => {
                           key={String(item.val)}
                           type="button"
                           onClick={() => setFilters(prev => ({ ...prev, bedrooms: item.val as any }))}
-                          className={`flex-1 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                          className={`flex-1 min-w-0 py-1.5 rounded-xl text-xs font-bold transition-all ${
                             filters.bedrooms === item.val
                               ? 'bg-white dark:bg-slate-700 text-rose-600 dark:text-rose-400 shadow-sm'
                               : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
@@ -664,7 +647,7 @@ export const HeroLuxurySection: React.FC = () => {
                   </div>
 
                   {/* Bathrooms */}
-                  <div>
+                  <div className="min-w-0">
                     <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">
                       Banheiros
                     </label>
@@ -679,7 +662,7 @@ export const HeroLuxurySection: React.FC = () => {
                           key={String(item.val)}
                           type="button"
                           onClick={() => setFilters(prev => ({ ...prev, bathrooms: item.val as any }))}
-                          className={`flex-1 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                          className={`flex-1 min-w-0 py-1.5 rounded-xl text-xs font-bold transition-all ${
                             (filters.bathrooms || 'any') === item.val
                               ? 'bg-white dark:bg-slate-700 text-rose-600 dark:text-rose-400 shadow-sm'
                               : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
@@ -692,7 +675,7 @@ export const HeroLuxurySection: React.FC = () => {
                   </div>
 
                   {/* Parking spots */}
-                  <div>
+                  <div className="min-w-0">
                     <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">
                       Vagas
                     </label>
@@ -707,7 +690,7 @@ export const HeroLuxurySection: React.FC = () => {
                           key={String(item.val)}
                           type="button"
                           onClick={() => setFilters(prev => ({ ...prev, parkingSpots: item.val as any }))}
-                          className={`flex-1 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                          className={`flex-1 min-w-0 py-1.5 rounded-xl text-xs font-bold transition-all ${
                             (filters.parkingSpots || 'any') === item.val
                               ? 'bg-white dark:bg-slate-700 text-rose-600 dark:text-rose-400 shadow-sm'
                               : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
@@ -720,24 +703,24 @@ export const HeroLuxurySection: React.FC = () => {
                   </div>
 
                   {/* Price Range */}
-                  <div>
+                  <div className="min-w-0">
                     <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">
                       Faixa de Preço (R$)
                     </label>
-                    <div className="grid grid-cols-2 gap-2">
+                    <div className="grid grid-cols-2 gap-2 min-w-0">
                       <input
                         type="number"
                         placeholder="Mínimo"
                         value={filters.minPrice || ''}
                         onChange={(e) => setFilters(p => ({ ...p, minPrice: e.target.value ? Number(e.target.value) : undefined }))}
-                        className="w-full px-3 py-1.5 text-xs rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white"
+                        className="w-full min-w-0 px-2.5 sm:px-3 py-1.5 text-xs rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-rose-500"
                       />
                       <input
                         type="number"
                         placeholder="Máximo"
                         value={filters.maxPrice || ''}
                         onChange={(e) => setFilters(p => ({ ...p, maxPrice: e.target.value ? Number(e.target.value) : undefined }))}
-                        className="w-full px-3 py-1.5 text-xs rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white"
+                        className="w-full min-w-0 px-2.5 sm:px-3 py-1.5 text-xs rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-rose-500"
                       />
                     </div>
                   </div>
@@ -745,7 +728,7 @@ export const HeroLuxurySection: React.FC = () => {
                 </div>
 
                 {/* Amenities Quick Selection */}
-                <div>
+                <div className="min-w-0">
                   <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-2">
                     Comodidades & Lazer
                   </label>
@@ -781,14 +764,14 @@ export const HeroLuxurySection: React.FC = () => {
                 </div>
 
                 {/* Bottom Bar Controls inside Expanded Section */}
-                <div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-800">
+                <div className="flex flex-wrap items-center justify-between gap-3 pt-3 px-1 border-t border-slate-100 dark:border-slate-800">
                   <button
                     type="button"
                     onClick={() => {
                       resetFilters();
                       setIsCodeSearchActive(false);
                     }}
-                    className="text-xs font-bold text-slate-500 hover:text-rose-500 flex items-center gap-1.5 py-1 px-2 rounded-xl transition-colors"
+                    className="text-xs font-bold text-slate-500 hover:text-rose-500 flex items-center gap-1.5 py-1 px-1.5 rounded-xl transition-colors cursor-pointer"
                   >
                     <RotateCcw className="w-3.5 h-3.5" />
                     <span>Limpar todos os filtros ({activeFiltersCount})</span>
@@ -797,7 +780,7 @@ export const HeroLuxurySection: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => setSaveModalOpen(true)}
-                    className="text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1.5"
+                    className="text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1.5 py-1 px-1.5 cursor-pointer"
                   >
                     <BookmarkPlus className="w-3.5 h-3.5" />
                     <span>Salvar Esta Busca</span>
