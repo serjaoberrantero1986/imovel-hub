@@ -4,7 +4,8 @@ import {
   fetchConversationsFromSupabase,
   insertConversationToSupabase,
   insertMessageToSupabase,
-  deleteConversationFromSupabase
+  deleteConversationFromSupabase,
+  markConversationAsReadInSupabase
 } from '../lib/supabaseCrud';
 import { isSupabaseConfigured } from '../lib/supabaseClient';
 import { Toast, AppView } from './appTypes';
@@ -60,7 +61,32 @@ export const ChatProvider: React.FC<{
     }
   }, [conversations, activeConversationId]);
 
-  // Sync state when user switches or logs in/out
+  // Mark active conversation as read when selected or loaded
+  useEffect(() => {
+    if (!activeConversationId || !isAuthenticated || currentUser.id === 'guest_buyer') return;
+
+    setConversations(prev => {
+      let hasChanges = false;
+      const updated = prev.map(c => {
+        if (c.id === activeConversationId && c.unreadCount > 0) {
+          hasChanges = true;
+          return { ...c, unreadCount: 0 };
+        }
+        return c;
+      });
+
+      if (hasChanges) {
+        localStorage.setItem(`imovelhub_conversations_${currentUser.id}`, JSON.stringify(updated));
+        if (isSupabaseConfigured) {
+          markConversationAsReadInSupabase(activeConversationId, currentUser.id);
+        }
+        return updated;
+      }
+      return prev;
+    });
+  }, [activeConversationId, isAuthenticated, currentUser.id]);
+
+  // Sync state when user switches or logs in/out, and listen to lead events & periodic polling
   useEffect(() => {
     if (isAuthenticated && currentUser.id !== 'guest_buyer') {
       const storageKey = `imovelhub_conversations_${currentUser.id}`;
@@ -76,6 +102,21 @@ export const ChatProvider: React.FC<{
         setConversations([]);
       }
       refreshConversations();
+
+      // Poll periodically (every 12 seconds) so badges refresh automatically if a lead arrives
+      const pollTimer = setInterval(() => {
+        refreshConversations();
+      }, 12000);
+
+      const handleLeadEvent = () => {
+        refreshConversations();
+      };
+      window.addEventListener('imovelhub_lead_submitted', handleLeadEvent);
+
+      return () => {
+        clearInterval(pollTimer);
+        window.removeEventListener('imovelhub_lead_submitted', handleLeadEvent);
+      };
     } else {
       setConversations([]);
       setActiveConversationId(null);

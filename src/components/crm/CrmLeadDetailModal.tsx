@@ -468,12 +468,19 @@ export const CrmLeadDetailModal: React.FC<CrmLeadDetailModalProps> = ({
                       </p>
                     </div>
                   </div>
+                </div>
+              )}
 
-                  {lead.message && (
-                    <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-100 dark:border-slate-800 text-xs text-slate-700 dark:text-slate-300 italic">
-                      "{lead.message}"
-                    </div>
-                  )}
+              {/* Mensagem enviada pelo Interessado */}
+              {lead.message && (
+                <div className="p-4 rounded-2xl bg-amber-50/80 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/60 space-y-2">
+                  <div className="flex items-center gap-2 text-xs font-bold text-amber-900 dark:text-amber-200 uppercase tracking-wider font-['Outfit']">
+                    <MessageSquare className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                    <span>Mensagem Enviada pelo Interessado no Formulário</span>
+                  </div>
+                  <div className="p-3.5 rounded-xl bg-white dark:bg-slate-900/80 border border-amber-100 dark:border-amber-900/40 text-xs sm:text-sm text-slate-800 dark:text-slate-200 leading-relaxed italic whitespace-pre-wrap">
+                    "{lead.message}"
+                  </div>
                 </div>
               )}
 

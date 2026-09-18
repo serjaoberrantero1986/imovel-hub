@@ -62,10 +62,16 @@ export const CrmProvider: React.FC<{
     }
   }, []);
 
-  // Initial load from Supabase and on user change
+  // Initial load from Supabase and periodic polling
   useEffect(() => {
     if (isSupabaseConfigured) {
       refreshLeads();
+
+      const timer = setInterval(() => {
+        refreshLeads();
+      }, 12000);
+
+      return () => clearInterval(timer);
     }
   }, [refreshLeads, currentUser?.id]);
 
@@ -99,6 +105,11 @@ export const CrmProvider: React.FC<{
 
     setLeads(prev => [newLead, ...prev]);
     setProperties(prev => prev.map(p => p.id === leadData.propertyId ? { ...p, leadsCount: (p.leadsCount || 0) + 1 } : p));
+
+    // Dispatch global event so chat and navbar update immediately
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('imovelhub_lead_submitted', { detail: newLead }));
+    }
 
     addToast({
       type: 'success',

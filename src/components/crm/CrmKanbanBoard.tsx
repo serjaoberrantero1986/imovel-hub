@@ -259,6 +259,19 @@ export const CrmKanbanBoard: React.FC<CrmKanbanBoardProps> = ({
                           </div>
                         </div>
 
+                        {/* Mensagem enviada pelo Lead */}
+                        {lead.message && (
+                          <div className="p-2.5 rounded-xl bg-amber-50/70 dark:bg-amber-950/30 border border-amber-200/60 dark:border-amber-900/40 text-[11px] text-slate-700 dark:text-slate-300">
+                            <div className="flex items-center gap-1 text-[10px] font-bold text-amber-800 dark:text-amber-300 mb-0.5">
+                              <MessageSquare className="w-3 h-3 text-amber-600 dark:text-amber-400 shrink-0" />
+                              <span>Mensagem do Lead:</span>
+                            </div>
+                            <p className="line-clamp-2 italic text-slate-600 dark:text-slate-300 font-medium">
+                              "{lead.message}"
+                            </p>
+                          </div>
+                        )}
+
                         {/* Matchmaker AI Score Pill */}
                         {matchResult && (
                           <div className="flex items-center justify-between text-[11px] px-2 py-1 rounded-lg bg-emerald-50/70 dark:bg-emerald-950/40 border border-emerald-100 dark:border-emerald-900/50 text-emerald-700 dark:text-emerald-300">

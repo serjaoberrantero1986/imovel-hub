@@ -160,11 +160,18 @@ export const MessagesChatView: React.FC = () => {
                       />
 
                       <div className="min-w-0 flex-1">
-                        <div className="flex items-center justify-between">
+                        <div className="flex items-center justify-between gap-1">
                           <h4 className="text-xs font-bold text-slate-900 dark:text-white truncate">
                             {conv.otherUser.name}
                           </h4>
-                          <span className="text-[10px] text-slate-400">{conv.lastMessageTime}</span>
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <span className="text-[10px] text-slate-400">{conv.lastMessageTime}</span>
+                            {conv.unreadCount > 0 && (
+                              <span className="min-w-4 h-4 px-1 rounded-full bg-rose-600 text-white text-[9px] font-black flex items-center justify-center shadow-xs animate-pulse">
+                                {conv.unreadCount}
+                              </span>
+                            )}
+                          </div>
                         </div>
 
                         <p className="text-[11px] font-semibold text-rose-600 dark:text-rose-400 truncate mt-0.5">
@@ -288,11 +295,11 @@ export const MessagesChatView: React.FC = () => {
                             : 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-bl-xs border border-slate-100 dark:border-slate-700 shadow-sm'
                         }`}
                       >
-                        <p>{msg.text}</p>
+                        <p className="whitespace-pre-wrap">{msg.text}</p>
                         <div className={`flex items-center justify-end gap-1 mt-1 text-[9px] ${
                           isMine ? 'text-rose-200' : 'text-slate-400'
                         }`}>
-                          <span>10:42</span>
+                          <span>{msg.createdAt ? new Date(msg.createdAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : 'Agora'}</span>
                           {isMine && <CheckCheck className="w-3 h-3" />}
                         </div>
                       </div>
