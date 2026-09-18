@@ -35,8 +35,11 @@ export const HeroLuxurySection: React.FC = () => {
     setFilters, 
     resetFilters, 
     saveCurrentSearch, 
-    openPropertyDetail 
+    openPropertyDetail,
+    theme
   } = useApp();
+
+  const isDark = theme === 'dark';
 
   // Search Bar Local State
   const [isCodeSearchActive, setIsCodeSearchActive] = useState<boolean>(Boolean(filters.propertyCode));
@@ -194,11 +197,11 @@ export const HeroLuxurySection: React.FC = () => {
         transition={{ duration: 1.0, ease: 'easeOut' }}
         className="absolute inset-0 z-0 pointer-events-none select-none overflow-hidden"
       >
-        {/* User-requested background.jpeg with fade effect and responsive styling */}
+        {/* User-provided background.jpeg with fade effect and responsive styling */}
         <div 
           className="absolute inset-0 bg-cover bg-center sm:bg-[center_right] transition-transform duration-1000 ease-out"
           style={{
-            backgroundImage: `url('/background.jpeg'), url('/assets/background.jpeg'), url('background.jpeg'), url('https://images.unsplash.com/photo-1519501025264-65ba15a82390?auto=format&fit=crop&w=2400&q=85')`,
+            backgroundImage: `url('/background.jpeg'), url('/assets/background.jpeg')`,
             backgroundPosition: 'center 40%'
           }}
         />
@@ -228,13 +231,13 @@ export const HeroLuxurySection: React.FC = () => {
               </span>
               <span 
                 className="block mt-1 text-transparent bg-clip-text bg-gradient-to-r from-fuchsia-400 via-rose-400 to-rose-300"
-                style={{ fontSize: '50px' }}
+                style={{ fontSize: '45px' }}
               >
                 está mais perto do que
               </span>
               <span 
                 className="block text-transparent bg-clip-text bg-gradient-to-r from-rose-400 via-rose-300 to-amber-200"
-                style={{ fontSize: '50px' }}
+                style={{ fontSize: '45px' }}
               >
                 você imagina.
               </span>
@@ -301,7 +304,6 @@ export const HeroLuxurySection: React.FC = () => {
                     ];
 
                     const currentPosClass = desktopPositions[idx % 3];
-                    const isCardFeatured = property.featured || idx === 1;
 
                     return (
                       <motion.div
@@ -312,19 +314,15 @@ export const HeroLuxurySection: React.FC = () => {
                         className={`shrink-0 md:shrink md:absolute ${currentPosClass} z-20 group cursor-pointer`}
                         onClick={() => openPropertyDetail(property.id)}
                       >
-                        {/* Interactive Floating Card */}
-                        <div className="relative bg-slate-950/85 backdrop-blur-md rounded-2xl p-2.5 sm:p-3 border border-fuchsia-500/30 hover:border-fuchsia-400/80 shadow-xl shadow-slate-950/80 hover:shadow-fuchsia-500/20 transition-all duration-300 transform group-hover:scale-[1.04] group-hover:-translate-y-1 w-[210px] sm:w-[230px]">
-                          
-                          {/* Featured Badge */}
-                          {isCardFeatured && (
-                            <div className="absolute -top-3 left-3 z-30 px-2.5 py-0.5 rounded-full bg-gradient-to-r from-rose-500 to-fuchsia-600 text-white text-[10px] font-extrabold shadow-md flex items-center gap-1">
-                              <Star className="w-2.5 h-2.5 fill-white" />
-                              <span>Destaque</span>
-                            </div>
-                          )}
+                        {/* Interactive Floating Card matching Theme (White on Light, Black on Dark) */}
+                        <div className={`relative ${
+                          isDark 
+                            ? 'bg-slate-950/90 text-white border-fuchsia-500/30 hover:border-fuchsia-400/80 shadow-xl shadow-slate-950/80 hover:shadow-fuchsia-500/20' 
+                            : 'bg-white/95 text-slate-900 border-slate-200/90 hover:border-slate-300 shadow-xl shadow-slate-950/20 hover:shadow-2xl'
+                        } backdrop-blur-md rounded-2xl p-2.5 sm:p-3 border transition-all duration-300 transform group-hover:scale-[1.04] group-hover:-translate-y-1 w-[210px] sm:w-[230px]`}>
 
                           {/* Real Property Image Thumbnail */}
-                          <div className="relative w-full h-24 sm:h-28 rounded-xl overflow-hidden mb-2 bg-slate-800">
+                          <div className={`relative w-full h-24 sm:h-28 rounded-xl overflow-hidden mb-2 ${isDark ? 'bg-slate-800' : 'bg-slate-100'}`}>
                             {getPropertyCoverImage(property) ? (
                               <img
                                 src={getPropertyCoverImage(property)}
@@ -334,34 +332,44 @@ export const HeroLuxurySection: React.FC = () => {
                                 referrerPolicy="no-referrer"
                               />
                             ) : (
-                              <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-slate-900 to-slate-800 text-slate-400 p-2 text-center">
+                              <div className={`w-full h-full flex flex-col items-center justify-center p-2 text-center ${
+                                isDark ? 'bg-gradient-to-br from-slate-900 to-slate-800 text-slate-400' : 'bg-slate-100 text-slate-500'
+                              }`}>
                                 <Home className="w-6 h-6 text-fuchsia-400/70 mb-1" />
-                                <span className="text-[10px] font-medium text-slate-300 truncate max-w-full">
+                                <span className={`text-[10px] font-medium truncate max-w-full ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
                                   {property.title}
                                 </span>
                               </div>
                             )}
-                            <div className="absolute inset-0 bg-gradient-to-t from-slate-950/60 via-transparent to-transparent pointer-events-none" />
+                            <div className={`absolute inset-0 pointer-events-none ${
+                              isDark 
+                                ? 'bg-gradient-to-t from-slate-950/60 via-transparent to-transparent' 
+                                : 'bg-gradient-to-t from-slate-950/30 via-transparent to-transparent'
+                            }`} />
                           </div>
 
-                          {/* Property Details */}
+                          {/* Property Details matching Theme */}
                           <div className="flex items-start justify-between gap-1">
                             <div className="min-w-0 flex-1">
-                              <h4 className="text-xs font-bold text-white truncate leading-tight">
+                              <h4 className={`text-xs font-bold truncate leading-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>
                                 {getPropertyTypeLabel(property.type)}
                               </h4>
-                              <p className="text-[11px] text-slate-300 truncate mt-0.5 flex items-center gap-0.5">
+                              <p className={`text-[11px] truncate mt-0.5 flex items-center gap-0.5 ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
                                 <span className="truncate">
                                   {property.neighborhood ? `${property.neighborhood} - ${property.city || 'SP'}` : (property.city || 'Região')}
                                 </span>
                               </p>
-                              <p className="text-xs sm:text-sm font-extrabold text-white mt-1">
+                              <p className={`text-xs sm:text-sm font-extrabold mt-1 ${isDark ? 'text-white' : 'text-slate-950'}`}>
                                 {formatCurrency(property.price)}
                               </p>
                             </div>
 
-                            {/* Arrow button */}
-                            <div className="w-6 h-6 rounded-full bg-white/10 group-hover:bg-fuchsia-600 flex items-center justify-center text-slate-300 group-hover:text-white transition-colors shrink-0 mt-2">
+                            {/* Arrow button matching Theme */}
+                            <div className={`w-6 h-6 rounded-full flex items-center justify-center transition-colors shrink-0 mt-2 ${
+                              isDark 
+                                ? 'bg-white/10 group-hover:bg-fuchsia-600 text-slate-300 group-hover:text-white' 
+                                : 'bg-slate-100 group-hover:bg-slate-900 text-slate-700 group-hover:text-white'
+                            }`}>
                               <ChevronRight className="w-3.5 h-3.5" />
                             </div>
                           </div>
