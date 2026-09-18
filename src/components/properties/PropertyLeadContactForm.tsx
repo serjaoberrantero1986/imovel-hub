@@ -1,6 +1,6 @@
 import React from 'react';
-import { Send } from 'lucide-react';
-import { LegalTab } from '../../context/AppContext';
+import { Send, UserCheck, LogIn, AlertCircle } from 'lucide-react';
+import { LegalTab, useApp } from '../../context/AppContext';
 
 interface PropertyLeadContactFormProps {
   leadName: string;
@@ -33,6 +33,8 @@ export const PropertyLeadContactForm: React.FC<PropertyLeadContactFormProps> = (
   onSubmit,
   openLegalPage
 }) => {
+  const { isAuthenticated, currentUser, openAuthModal } = useApp();
+
   return (
     <form onSubmit={onSubmit} className="space-y-3 pt-2">
       {/* Honeypot field (hidden from legitimate humans, traps bots) */}
@@ -47,15 +49,32 @@ export const PropertyLeadContactForm: React.FC<PropertyLeadContactFormProps> = (
         aria-hidden="true"
       />
 
-      <div className="text-xs font-bold uppercase tracking-wider text-slate-400">
-        Ou envie uma mensagem direta:
+      <div className="flex items-center justify-between">
+        <div className="text-xs font-bold uppercase tracking-wider text-slate-400">
+          Envie uma mensagem direta:
+        </div>
+        {isAuthenticated && currentUser?.id !== 'guest_buyer' ? (
+          <div className="flex items-center gap-1 text-[11px] font-bold text-emerald-600 dark:text-emerald-400">
+            <UserCheck className="w-3.5 h-3.5" />
+            <span className="truncate max-w-[120px]">{currentUser.name}</span>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => openAuthModal('login')}
+            className="text-[11px] font-bold text-rose-600 dark:text-rose-400 hover:underline flex items-center gap-1"
+          >
+            <LogIn className="w-3 h-3" />
+            <span>Fazer Login</span>
+          </button>
+        )}
       </div>
 
       <div>
         <input
           type="text"
           required
-          placeholder="Seu nome completo"
+          placeholder="Seu nome completo *"
           value={leadName}
           onChange={(e) => setLeadName(e.target.value)}
           className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-medium text-slate-900 dark:text-white focus:outline-none focus:border-rose-500"
@@ -65,8 +84,7 @@ export const PropertyLeadContactForm: React.FC<PropertyLeadContactFormProps> = (
       <div>
         <input
           type="tel"
-          required
-          placeholder="Seu telefone / WhatsApp (com DDD)"
+          placeholder="Seu WhatsApp / Telefone com DDD *"
           value={leadPhone}
           onChange={(e) => setLeadPhone(e.target.value)}
           className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-medium text-slate-900 dark:text-white focus:outline-none focus:border-rose-500"
@@ -76,11 +94,16 @@ export const PropertyLeadContactForm: React.FC<PropertyLeadContactFormProps> = (
       <div>
         <input
           type="email"
-          placeholder="Seu e-mail"
+          placeholder="Seu e-mail *"
           value={leadEmail}
           onChange={(e) => setLeadEmail(e.target.value)}
           className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-medium text-slate-900 dark:text-white focus:outline-none focus:border-rose-500"
         />
+      </div>
+
+      <div className="flex items-center gap-1.5 px-1 text-[10px] text-slate-500 dark:text-slate-400">
+        <AlertCircle className="w-3 h-3 text-slate-400 shrink-0" />
+        <span>* Preenchimento obrigatório de <strong>WhatsApp</strong> ou <strong>E-mail</strong> para retorno.</span>
       </div>
 
       <div>

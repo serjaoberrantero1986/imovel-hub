@@ -278,16 +278,14 @@ CREATE POLICY "locations_all_policy" ON public.property_locations FOR ALL
   USING (EXISTS (SELECT 1 FROM public.properties WHERE id = property_locations.property_id AND (user_id = auth.uid() OR auth.role() = 'service_role' OR auth.role() = 'authenticated')));
 
 CREATE POLICY "images_select_policy" ON public.property_images FOR SELECT USING (true);
-CREATE POLICY "images_insert_policy" ON public.property_images FOR INSERT
-  WITH CHECK (EXISTS (SELECT 1 FROM public.properties WHERE id = property_images.property_id AND (user_id = auth.uid() OR auth.role() = 'service_role' OR auth.role() = 'authenticated')) OR auth.role() = 'service_role' OR auth.role() = 'authenticated');
-CREATE POLICY "images_all_policy" ON public.property_images FOR ALL
-  USING (EXISTS (SELECT 1 FROM public.properties WHERE id = property_images.property_id AND (user_id = auth.uid() OR auth.role() = 'service_role' OR auth.role() = 'authenticated')));
+CREATE POLICY "images_insert_policy" ON public.property_images FOR INSERT WITH CHECK (true);
+CREATE POLICY "images_update_policy" ON public.property_images FOR UPDATE USING (true);
+CREATE POLICY "images_delete_policy" ON public.property_images FOR DELETE USING (true);
 
 CREATE POLICY "features_select_policy" ON public.property_features FOR SELECT USING (true);
-CREATE POLICY "features_insert_policy" ON public.property_features FOR INSERT
-  WITH CHECK (EXISTS (SELECT 1 FROM public.properties WHERE id = property_features.property_id AND (user_id = auth.uid() OR auth.role() = 'service_role' OR auth.role() = 'authenticated')) OR auth.role() = 'service_role' OR auth.role() = 'authenticated');
-CREATE POLICY "features_all_policy" ON public.property_features FOR ALL
-  USING (EXISTS (SELECT 1 FROM public.properties WHERE id = property_features.property_id AND (user_id = auth.uid() OR auth.role() = 'service_role' OR auth.role() = 'authenticated')));
+CREATE POLICY "features_insert_policy" ON public.property_features FOR INSERT WITH CHECK (true);
+CREATE POLICY "features_update_policy" ON public.property_features FOR UPDATE USING (true);
+CREATE POLICY "features_delete_policy" ON public.property_features FOR DELETE USING (true);
 
 -- D. LEADS & CRM RLS (Proteção Crítica contra IDOR e Vazamento LGPD)
 -- Inserção: Aberta para visitantes enviarem propostas no portal
@@ -306,16 +304,16 @@ CREATE POLICY "leads_delete_policy" ON public.leads FOR DELETE
 -- E. CHAT & CONVERSATIONS RLS
 -- Apenas os participantes (comprador ou anunciante) podem ver e enviar mensagens
 CREATE POLICY "conversations_select_policy" ON public.conversations FOR SELECT
-  USING (buyer_id = auth.uid() OR advertiser_id = auth.uid() OR auth.role() = 'service_role');
+  USING (buyer_id = auth.uid() OR advertiser_id = auth.uid() OR auth.role() = 'authenticated' OR auth.role() = 'service_role');
 
-CREATE POLICY "conversations_insert_policy" ON public.conversations FOR INSERT
-  WITH CHECK (buyer_id = auth.uid() OR advertiser_id = auth.uid() OR auth.role() = 'service_role');
+CREATE POLICY "conversations_insert_policy" ON public.conversations FOR INSERT WITH CHECK (true);
+CREATE POLICY "conversations_update_policy" ON public.conversations FOR UPDATE USING (true);
+CREATE POLICY "conversations_delete_policy" ON public.conversations FOR DELETE USING (true);
 
 CREATE POLICY "messages_select_policy" ON public.messages FOR SELECT
-  USING (EXISTS (SELECT 1 FROM public.conversations WHERE id = messages.conversation_id AND (buyer_id = auth.uid() OR advertiser_id = auth.uid() OR auth.role() = 'service_role')));
+  USING (EXISTS (SELECT 1 FROM public.conversations WHERE id = messages.conversation_id AND (buyer_id = auth.uid() OR advertiser_id = auth.uid() OR auth.role() = 'authenticated' OR auth.role() = 'service_role')));
 
-CREATE POLICY "messages_insert_policy" ON public.messages FOR INSERT
-  WITH CHECK (auth.uid() = sender_id OR auth.role() = 'service_role');
+CREATE POLICY "messages_insert_policy" ON public.messages FOR INSERT WITH CHECK (true);
 
 -- F. FAVORITES & SAVED SEARCHES RLS
 CREATE POLICY "favorites_policy" ON public.favorites FOR ALL

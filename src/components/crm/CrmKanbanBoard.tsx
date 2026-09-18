@@ -21,6 +21,7 @@ import {
 import { Lead, LeadStatus, Property } from '../../types';
 import { formatCurrency, formatDateTime } from '../../lib/utils';
 import { calculatePropertyMatchScore } from '../../lib/crmMatching';
+import { useApp } from '../../context/AppContext';
 
 interface CrmKanbanBoardProps {
   leads: Lead[];
@@ -122,6 +123,7 @@ export const CrmKanbanBoard: React.FC<CrmKanbanBoardProps> = ({
   onChangeStage,
   onOpenProperty,
 }) => {
+  const { setCurrentView, setActiveConversationId } = useApp();
 
   const getCleanPhone = (phone?: string) => {
     if (!phone) return '';
@@ -259,19 +261,6 @@ export const CrmKanbanBoard: React.FC<CrmKanbanBoardProps> = ({
                           </div>
                         </div>
 
-                        {/* Mensagem enviada pelo Lead */}
-                        {lead.message && (
-                          <div className="p-2.5 rounded-xl bg-amber-50/70 dark:bg-amber-950/30 border border-amber-200/60 dark:border-amber-900/40 text-[11px] text-slate-700 dark:text-slate-300">
-                            <div className="flex items-center gap-1 text-[10px] font-bold text-amber-800 dark:text-amber-300 mb-0.5">
-                              <MessageSquare className="w-3 h-3 text-amber-600 dark:text-amber-400 shrink-0" />
-                              <span>Mensagem do Lead:</span>
-                            </div>
-                            <p className="line-clamp-2 italic text-slate-600 dark:text-slate-300 font-medium">
-                              "{lead.message}"
-                            </p>
-                          </div>
-                        )}
-
                         {/* Matchmaker AI Score Pill */}
                         {matchResult && (
                           <div className="flex items-center justify-between text-[11px] px-2 py-1 rounded-lg bg-emerald-50/70 dark:bg-emerald-950/40 border border-emerald-100 dark:border-emerald-900/50 text-emerald-700 dark:text-emerald-300">
@@ -317,16 +306,33 @@ export const CrmKanbanBoard: React.FC<CrmKanbanBoardProps> = ({
                         {/* Card Actions Footer */}
                         <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-1">
                           
-                          {/* Quick WhatsApp */}
-                          <button
-                            type="button"
-                            onClick={(e) => handleWhatsAppClick(e, lead)}
-                            title="Abrir WhatsApp com mensagem rápida"
-                            className="p-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/50 dark:hover:bg-emerald-900 text-emerald-600 transition-colors flex items-center gap-1 text-[11px] font-bold"
-                          >
-                            <MessageSquare className="w-3.5 h-3.5" />
-                            <span className="hidden sm:inline">WhatsApp</span>
-                          </button>
+                          <div className="flex items-center gap-1">
+                            {/* Quick WhatsApp */}
+                            <button
+                              type="button"
+                              onClick={(e) => handleWhatsAppClick(e, lead)}
+                              title="Abrir WhatsApp com mensagem rápida"
+                              className="p-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/50 dark:hover:bg-emerald-900 text-emerald-600 transition-colors flex items-center gap-1 text-[11px] font-bold"
+                            >
+                              <MessageSquare className="w-3.5 h-3.5" />
+                              <span className="hidden sm:inline">WhatsApp</span>
+                            </button>
+
+                            {/* Direct Chat/Conversas Button */}
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setActiveConversationId(lead.id);
+                                setCurrentView('messages');
+                              }}
+                              title="Ver histórico de mensagens no Chat"
+                              className="p-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/50 dark:hover:bg-rose-900 text-rose-600 dark:text-rose-400 transition-colors flex items-center gap-1 text-[11px] font-bold"
+                            >
+                              <MessageSquare className="w-3.5 h-3.5" />
+                              <span className="hidden sm:inline">Chat</span>
+                            </button>
+                          </div>
 
                           {/* Stage Mover */}
                           <div className="flex items-center gap-1">

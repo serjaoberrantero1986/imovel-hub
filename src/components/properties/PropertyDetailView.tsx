@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   ArrowLeft, 
   Heart, 
@@ -49,7 +49,10 @@ export const PropertyDetailView: React.FC = () => {
     addLead,
     startOrOpenConversation,
     addToast,
-    openLegalPage
+    openLegalPage,
+    isAuthenticated,
+    currentUser,
+    openAuthModal
   } = useApp();
 
   const property = properties.find(p => p.id === selectedPropertyId) || properties[0];
@@ -59,12 +62,20 @@ export const PropertyDetailView: React.FC = () => {
   const [activePhotoIdx, setActivePhotoIdx] = useState(0);
 
   // Lead Form State
-  const [leadName, setLeadName] = useState('');
-  const [leadEmail, setLeadEmail] = useState('');
-  const [leadPhone, setLeadPhone] = useState('');
+  const [leadName, setLeadName] = useState(() => (isAuthenticated && currentUser?.id !== 'guest_buyer' ? currentUser.name : ''));
+  const [leadEmail, setLeadEmail] = useState(() => (isAuthenticated && currentUser?.id !== 'guest_buyer' ? currentUser.email || '' : ''));
+  const [leadPhone, setLeadPhone] = useState(() => (isAuthenticated && currentUser?.id !== 'guest_buyer' ? currentUser.phone || '' : ''));
   const [leadHoneypot, setLeadHoneypot] = useState('');
   const [leadMessage, setLeadMessage] = useState(`Olá! Tenho interesse no imóvel código ${property.code}. Gostaria de mais informações e disponibilidade para visita.`);
   const [isSubmittingLead, setIsSubmittingLead] = useState(false);
+
+  useEffect(() => {
+    if (isAuthenticated && currentUser?.id !== 'guest_buyer') {
+      if (!leadName) setLeadName(currentUser.name);
+      if (!leadEmail && currentUser.email) setLeadEmail(currentUser.email);
+      if (!leadPhone && currentUser.phone) setLeadPhone(currentUser.phone);
+    }
+  }, [isAuthenticated, currentUser]);
 
   // Visit Scheduling state
   const [scheduleModalOpen, setScheduleModalOpen] = useState(false);
@@ -114,8 +125,25 @@ export const PropertyDetailView: React.FC = () => {
       return;
     }
 
-    if (!leadName.trim() || !leadPhone.trim()) {
-      addToast({ type: 'warning', title: 'Campos Obrigatórios', message: 'Por favor, informe seu nome e telefone para contato.' });
+    if (!leadName.trim()) {
+      addToast({ 
+        type: 'warning', 
+        title: 'Nome Obrigatório', 
+        message: 'Por favor, informe seu nome completo para contato.' 
+      });
+      return;
+    }
+
+    const cleanPhone = leadPhone.replace(/\D/g, '');
+    const hasValidPhone = cleanPhone.length >= 10;
+    const isEmailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(leadEmail.trim());
+
+    if (!hasValidPhone && !isEmailValid) {
+      addToast({ 
+        type: 'warning', 
+        title: 'Canal de Contato Obrigatório', 
+        message: 'Para que o corretor possa responder, informe pelo menos o seu WhatsApp (com DDD) ou seu E-mail, ou faça login no portal.' 
+      });
       return;
     }
 
@@ -129,8 +157,8 @@ export const PropertyDetailView: React.FC = () => {
         propertyImage: property.media[0]?.thumbnailUrl || property.media[0]?.url,
         advertiserId: property.userId,
         buyerName: sanitizeHtml(leadName),
-        buyerEmail: sanitizeHtml(leadEmail) || 'cliente@contato.com',
-        buyerPhone: sanitizeHtml(leadPhone),
+        buyerEmail: isEmailValid ? sanitizeHtml(leadEmail) : (currentUser?.email || 'contato.portal@cliente.com.br'),
+        buyerPhone: hasValidPhone ? sanitizeHtml(leadPhone) : (currentUser?.phone || leadPhone || 'Não informado'),
         message: sanitizeHtml(leadMessage),
         origin: 'portal_form',
         status: 'new'
@@ -150,6 +178,28 @@ export const PropertyDetailView: React.FC = () => {
   };
 
   const handleScheduleVisitSubmit = async () => {
+    const cleanPhone = leadPhone.replace(/\D/g, '');
+    const hasValidPhone = cleanPhone.length >= 10;
+    const isEmailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(leadEmail.trim());
+
+    if (!leadName.trim()) {
+      addToast({ 
+        type: 'warning', 
+        title: 'Nome Obrigatório', 
+        message: 'Por favor, informe seu nome completo para agendar a visita.' 
+      });
+      return;
+    }
+
+    if (!hasValidPhone && !isEmailValid) {
+      addToast({ 
+        type: 'warning', 
+        title: 'Canal de Contato Obrigatório', 
+        message: 'Para agendar a visita, informe pelo menos o seu WhatsApp (com DDD) ou seu E-mail, ou faça login no portal.' 
+      });
+      return;
+    }
+
     const res = await addLead({
       propertyId: property.id,
       propertyTitle: property.title,
@@ -157,9 +207,9 @@ export const PropertyDetailView: React.FC = () => {
       propertyPrice: property.price,
       propertyImage: property.media[0]?.thumbnailUrl || property.media[0]?.url,
       advertiserId: property.userId,
-      buyerName: leadName || 'Cliente Agendamento',
-      buyerEmail: leadEmail || 'agendamento@cliente.com',
-      buyerPhone: leadPhone || '(15) 99999-9999',
+      buyerName: sanitizeHtml(leadName),
+      buyerEmail: isEmailValid ? sanitizeHtml(leadEmail) : (currentUser?.email || 'contato.portal@cliente.com.br'),
+      buyerPhone: hasValidPhone ? sanitizeHtml(leadPhone) : (currentUser?.phone || leadPhone || 'Não informado'),
       message: `Solicitação de visita presencial para o dia ${visitDate} às ${visitTime}.`,
       origin: 'schedule_visit',
       status: 'visit_scheduled',
