@@ -17,13 +17,27 @@ export function formatArea(value: number): string {
 }
 
 export function formatCompactNumber(value: number): string {
+  if (!value || isNaN(value)) return 'R$ 0';
+  
   if (value >= 1000000) {
-    return `R$ ${(value / 1000000).toFixed(1)}M`;
+    const millions = value / 1000000;
+    const formatted = millions.toLocaleString('pt-BR', {
+      maximumFractionDigits: 4,
+      minimumFractionDigits: 0
+    });
+    return `R$ ${formatted}M`;
   }
+  
   if (value >= 1000) {
-    return `R$ ${(value / 1000).toFixed(0)}k`;
+    const thousands = value / 1000;
+    const formatted = thousands.toLocaleString('pt-BR', {
+      maximumFractionDigits: 3,
+      minimumFractionDigits: 0
+    });
+    return `R$ ${formatted}k`;
   }
-  return `R$ ${value}`;
+  
+  return `R$ ${value.toLocaleString('pt-BR')}`;
 }
 
 export function formatDate(dateString: string): string {
@@ -53,10 +67,32 @@ export function formatDateTime(dateString: string): string {
   }
 }
 
-export function generatePropertyCode(type: string = 'IMO'): string {
-  const prefix = Math.floor(10000000 + Math.random() * 90000000);
-  const suffix = type.slice(0, 4).toUpperCase();
-  return `${prefix}-${suffix}`;
+const TYPE_PREFIXES: Record<string, string> = {
+  apartment: 'AP',
+  condo_house: 'CC',
+  house: 'CA',
+  penthouse: 'CB',
+  land: 'TR',
+  chacara: 'CH',
+  farm: 'FA',
+  commercial: 'CM',
+  launch: 'LC',
+  rural: 'RU',
+};
+
+export function generatePropertyCode(type: string = 'apartment', existingCodes: string[] = []): string {
+  const prefix = TYPE_PREFIXES[type?.toLowerCase()] || (type && type.length >= 2 ? type.slice(0, 2).toUpperCase() : 'IM');
+  
+  const existingSet = new Set(existingCodes.map(c => c?.toUpperCase()));
+  for (let attempt = 0; attempt < 50; attempt++) {
+    const num = Math.floor(1000 + Math.random() * 9000);
+    const candidate = `${prefix}-${num}`;
+    if (!existingSet.has(candidate)) {
+      return candidate;
+    }
+  }
+  const timestampNum = Date.now().toString().slice(-4);
+  return `${prefix}-${timestampNum}`;
 }
 
 export function generateSlug(title: string, code: string): string {
@@ -66,4 +102,34 @@ export function generateSlug(title: string, code: string): string {
     .replace(/[\u0300-\u036f]/g, '')
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/(^-|-$)+/g, '')}-${code.toLowerCase()}`;
+}
+
+export function getPropertyTypeLabel(type: string): string {
+  if (!type) return '';
+  const map: Record<string, string> = {
+    apartment: 'Apartamento',
+    house: 'Casa de Bairro',
+    condo_house: 'Casa em Condomínio',
+    land: 'Terreno',
+    chacara: 'Chácara',
+    farm: 'Sítio/Fazenda',
+    commercial: 'Comercial',
+    launch: 'Lançamento',
+    penthouse: 'Cobertura',
+    rural: 'Rural'
+  };
+  return map[type.toLowerCase()] || type;
+}
+
+export function getPropertyPurposeLabel(purpose: string): string {
+  if (!purpose) return '';
+  const map: Record<string, string> = {
+    sale: 'Venda',
+    rent: 'Locação',
+    launch: 'Lançamento',
+    seasonal: 'Temporada',
+    season: 'Temporada',
+    temporada: 'Temporada'
+  };
+  return map[purpose.toLowerCase()] || purpose;
 }

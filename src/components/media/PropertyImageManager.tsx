@@ -489,21 +489,8 @@ export const PropertyImageManager: React.FC<PropertyImageManagerProps> = ({
           </div>
         </div>
 
-        {/* Action Buttons: Supabase badge & Manual Link */}
+        {/* Action Buttons: Manual Link */}
         <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => setSupabaseModalOpen(true)}
-            className={`px-3 py-1.5 rounded-2xl text-xs font-bold flex items-center gap-1.5 border transition-all cursor-pointer ${
-              supabaseReady
-                ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'
-                : 'bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700 hover:border-slate-300'
-            }`}
-          >
-            <Database className="w-3.5 h-3.5" />
-            <span>{supabaseReady ? 'Supabase Storage Ativo' : 'Supabase Storage (Config)'}</span>
-          </button>
-
           {!isLocked && (
             <button
               type="button"

@@ -19,7 +19,7 @@ import {
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { Property, PropertyStatus, PropertyMedia } from '../types';
-import { formatCurrency, formatDate } from '../lib/utils';
+import { formatCurrency, formatDate, getPropertyTypeLabel, getPropertyPurposeLabel } from '../lib/utils';
 import { PropertyImageManager } from '../components/media/PropertyImageManager';
 
 export const MyPropertiesView: React.FC = () => {
@@ -186,7 +186,7 @@ export const MyPropertiesView: React.FC = () => {
                       {prop.code}
                     </span>
                     <span className="text-[10px] uppercase font-bold text-rose-600 dark:text-rose-400">
-                      {prop.purpose === 'sale' ? 'Venda' : prop.purpose === 'rent' ? 'Locação' : 'Lançamento'} • {prop.type}
+                      {getPropertyPurposeLabel(prop.purpose)} • {getPropertyTypeLabel(prop.type)}
                     </span>
                   </div>
 

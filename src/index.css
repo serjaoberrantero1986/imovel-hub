@@ -146,6 +146,9 @@
 .custom-map-price-marker {
   background: transparent !important;
   border: none !important;
+  width: auto !important;
+  height: auto !important;
+  white-space: nowrap !important;
 }
 
 .custom-leaflet-popup .leaflet-popup-content-wrapper {

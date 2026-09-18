@@ -175,22 +175,22 @@ export const SearchPreferencesProvider: React.FC<{
   const isFavorite = (propertyId: string) => favoriteIds.includes(propertyId);
 
   const toggleComparison = (propertyId: string) => {
-    setComparisonIds(prev => {
-      let next: string[];
-      if (prev.includes(propertyId)) {
-        addToast({ type: 'info', title: 'Imóvel removido da comparação' });
-        next = prev.filter(id => id !== propertyId);
-      } else {
-        if (prev.length >= 4) {
-          addToast({ type: 'warning', title: 'Limite Atingido', message: 'Você pode comparar no máximo 4 imóveis simultaneamente.' });
-          return prev;
-        }
-        addToast({ type: 'success', title: 'Adicionado ao Comparador', message: `${prev.length + 1} de 4 selecionados.` });
-        next = [...prev, propertyId];
-      }
+    const isAlreadyIn = comparisonIds.includes(propertyId);
+    if (isAlreadyIn) {
+      const next = comparisonIds.filter(id => id !== propertyId);
+      setComparisonIds(next);
       localStorage.setItem('imovelhub_comparisons', JSON.stringify(next));
-      return next;
-    });
+      addToast({ type: 'info', title: 'Imóvel removido da comparação' });
+    } else {
+      if (comparisonIds.length >= 4) {
+        addToast({ type: 'warning', title: 'Limite Atingido', message: 'Você pode comparar no máximo 4 imóveis simultaneamente.' });
+        return;
+      }
+      const next = [...comparisonIds, propertyId];
+      setComparisonIds(next);
+      localStorage.setItem('imovelhub_comparisons', JSON.stringify(next));
+      addToast({ type: 'success', title: 'Adicionado ao Comparador', message: `${next.length} de 4 selecionados.` });
+    }
   };
 
   const clearComparison = () => {

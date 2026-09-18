@@ -1,5 +1,6 @@
 import { supabase } from './supabaseClient';
 import { Property, Lead, Conversation, Message, SavedSearch, PropertyMedia, UserProfile } from '../types';
+import { getCityFallbackCoordinates } from './geocoding';
 
 function ensureValidUuid(id?: string): string {
   if (id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
@@ -104,11 +105,15 @@ export function mapDbPropertyToApp(
     addressNumber: location?.street_number || '',
     addressComplement: location?.complement || '',
     neighborhood: location?.neighborhood || 'Bairro Nobre',
-    city: location?.city || 'Sorocaba',
-    state: location?.state || 'SP',
-    zipCode: location?.zip_code || '18000-000',
-    latitude: location?.latitude || -23.5015,
-    longitude: location?.longitude || -47.4526,
+    city: location?.city || '',
+    state: location?.state || '',
+    zipCode: location?.zip_code || '',
+    latitude: (location?.latitude !== null && location?.latitude !== undefined && !isNaN(Number(location.latitude)))
+      ? Number(location.latitude)
+      : getCityFallbackCoordinates(location?.city, location?.state)[0],
+    longitude: (location?.longitude !== null && location?.longitude !== undefined && !isNaN(Number(location.longitude)))
+      ? Number(location.longitude)
+      : getCityFallbackCoordinates(location?.city, location?.state)[1],
 
     amenities: features,
     images: media.map(m => m.url).filter(Boolean),

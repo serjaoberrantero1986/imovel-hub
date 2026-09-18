@@ -133,17 +133,17 @@ export const PropertyMap: React.FC<PropertyMapProps> = ({
       const formattedPrice = formatCompactNumber(prop.price);
 
       const markerHtml = `
-        <div class="cursor-pointer transition-transform duration-200 ${isHovered ? 'scale-125 z-50' : 'hover:scale-110 z-10'}">
-          <div class="px-2.5 py-1 rounded-full text-xs font-extrabold shadow-xl flex items-center gap-1 border border-white/90 ${
+        <div class="cursor-pointer transition-transform duration-200 select-none whitespace-nowrap inline-flex items-center -translate-x-1/2 -translate-y-1/2 ${isHovered ? 'scale-125 z-50' : 'hover:scale-110 z-10'}">
+          <div class="px-2.5 py-1 rounded-full text-xs font-extrabold shadow-xl flex items-center gap-1 border border-white/90 whitespace-nowrap ${
             isHovered
               ? 'bg-rose-600 text-white ring-4 ring-rose-500/40 shadow-rose-600/30'
-              : prop.purpose === 'rent'
+              : (prop.purpose === 'rent' || prop.purpose === 'seasonal')
               ? 'bg-indigo-600 text-white'
               : prop.purpose === 'launch'
               ? 'bg-amber-600 text-white'
               : 'bg-slate-900 text-white dark:bg-white dark:text-slate-900'
           }">
-            <span class="font-mono">${formattedPrice}</span>
+            <span class="font-mono whitespace-nowrap leading-none">${formattedPrice}</span>
           </div>
         </div>
       `;
@@ -151,8 +151,8 @@ export const PropertyMap: React.FC<PropertyMapProps> = ({
       const customIcon = L.divIcon({
         html: markerHtml,
         className: 'custom-map-price-marker',
-        iconSize: [64, 28],
-        iconAnchor: [32, 14]
+        iconSize: [0, 0],
+        iconAnchor: [0, 0]
       });
 
       const marker = L.marker([prop.latitude, prop.longitude], { icon: customIcon }).addTo(map);
@@ -164,7 +164,7 @@ export const PropertyMap: React.FC<PropertyMapProps> = ({
           <div class="relative h-32 w-full bg-slate-200 overflow-hidden">
             <img src="${coverImage}" class="w-full h-full object-cover" />
             <div class="absolute top-2 left-2 px-2 py-0.5 rounded bg-black/70 text-white text-[10px] font-bold">
-              ${prop.purpose === 'sale' ? 'Venda' : prop.purpose === 'rent' ? 'Locação' : 'Lançamento'}
+              ${prop.purpose === 'sale' ? 'Venda' : (prop.purpose === 'rent' ? 'Locação' : prop.purpose === 'seasonal' ? 'Temporada' : 'Lançamento')}
             </div>
             <div class="absolute bottom-2 right-2 px-2 py-0.5 rounded bg-white/90 dark:bg-slate-900/90 text-slate-900 dark:text-white text-[10px] font-mono font-bold">
               Cód: ${prop.code}
@@ -205,8 +205,13 @@ export const PropertyMap: React.FC<PropertyMapProps> = ({
     });
 
     // Auto-fit to visible properties
-    if (bounds.isValid() && validCount > 1) {
-      map.fitBounds(bounds, { padding: [40, 40], maxZoom: 15 });
+    if (bounds.isValid()) {
+      if (validCount > 1) {
+        map.fitBounds(bounds, { padding: [50, 50], maxZoom: 16 });
+      } else if (validCount === 1) {
+        const center = bounds.getCenter();
+        map.setView(center, 15);
+      }
     }
   }, [properties, hoveredPropertyId, openPropertyDetail]);
 
@@ -223,7 +228,11 @@ export const PropertyMap: React.FC<PropertyMapProps> = ({
         }
       });
       if (bounds.isValid() && count > 0) {
-        leafletMapRef.current?.fitBounds(bounds, { padding: [40, 40], maxZoom: 15 });
+        if (count > 1) {
+          leafletMapRef.current?.fitBounds(bounds, { padding: [50, 50], maxZoom: 16 });
+        } else {
+          leafletMapRef.current?.setView(bounds.getCenter(), 15);
+        }
         return;
       }
     }

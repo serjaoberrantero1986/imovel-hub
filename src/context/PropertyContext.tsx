@@ -9,6 +9,7 @@ import {
 import { isSupabaseConfigured } from '../lib/supabaseClient';
 import { Toast } from './appTypes';
 import { UserProfile } from '../types';
+import { generatePropertyCode } from '../lib/utils';
 
 export interface PropertyContextType {
   properties: Property[];
@@ -86,8 +87,8 @@ export const PropertyProvider: React.FC<{
       return null;
     }
 
-    const codeNum = Math.floor(10000000 + Math.random() * 90000000);
-    const code = `${codeNum}-MEOA`;
+    const existingCodes = properties.map(p => p.code);
+    const code = generatePropertyCode(data.type, existingCodes);
     const id = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : '00000000-0000-4000-8000-000000000000'.replace(/[08]/g, () => ((Math.random()*16)|0).toString(16));
     const now = new Date().toISOString();
 

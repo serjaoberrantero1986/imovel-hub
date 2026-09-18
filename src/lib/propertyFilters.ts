@@ -27,9 +27,28 @@ export function filterProperties(properties: Property[], filters: FilterState): 
       }
     }
 
-    // Purpose filter
-    if (filters.purpose && filters.purpose !== 'all' && prop.purpose !== filters.purpose) {
-      return false;
+    // Purpose filter (imóveis de temporada são modalidades de aluguel/locação)
+    if (filters.purpose && filters.purpose !== 'all') {
+      if (filters.purpose === 'rent') {
+        const isRentOrSeasonal =
+          prop.purpose === 'rent' ||
+          prop.purpose === 'seasonal' ||
+          (prop.purpose as string) === 'season' ||
+          (prop.purpose as string) === 'temporada';
+        if (!isRentOrSeasonal) {
+          return false;
+        }
+      } else if (filters.purpose === 'sale') {
+        if (prop.purpose !== 'sale') {
+          return false;
+        }
+      } else if (filters.purpose === 'launch') {
+        if (prop.purpose !== 'launch' && (prop.type as string) !== 'launch') {
+          return false;
+        }
+      } else if (prop.purpose !== filters.purpose) {
+        return false;
+      }
     }
 
     // Types filter

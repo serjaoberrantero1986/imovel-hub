@@ -25,6 +25,28 @@ export const Footer: React.FC = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  const handlePropertyTypeClick = (typeId: string) => {
+    setFilters(prev => ({
+      ...prev,
+      types: [typeId as any],
+      purpose: 'all',
+      searchTerm: ''
+    }));
+    setCurrentView('search');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const portalPropertyTypes = [
+    { id: 'apartment', label: 'Apartamento' },
+    { id: 'house', label: 'Casa de Bairro' },
+    { id: 'condo_house', label: 'Casa em Condomínio' },
+    { id: 'land', label: 'Terreno' },
+    { id: 'chacara', label: 'Chácara' },
+    { id: 'farm', label: 'Sítio/Fazenda' },
+    { id: 'commercial', label: 'Comercial' },
+    { id: 'launch', label: 'Lançamento' }
+  ];
+
   return (
     <footer className="bg-slate-900 text-slate-300 pt-16 pb-12 border-t border-slate-800">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -45,9 +67,14 @@ export const Footer: React.FC = () => {
             <p className="text-sm text-slate-400 leading-relaxed">
               A plataforma imobiliária completa para você encontrar, vender e alugar imóveis com segurança e transparência.
             </p>
-            <div className="flex items-center gap-2 text-xs text-slate-400">
-              <ShieldCheck className="w-4 h-4 text-emerald-400" />
-              <span>CRECI 275886-F</span>
+            <div className="space-y-1 text-xs text-slate-400">
+              <div className="flex items-center gap-2">
+                <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
+                <span>CRECI 275886-F</span>
+              </div>
+              <div className="text-slate-400 pl-6 text-xs font-normal">
+                Edson Ricardo Souza Delgado de Oliveira
+              </div>
             </div>
           </div>
 
@@ -73,59 +100,20 @@ export const Footer: React.FC = () => {
             </p>
           </div>
 
-          {/* Col 3: Links Rápidos */}
+          {/* Col 3: Tipos de Imóveis (Navegação) */}
           <div className="space-y-3">
             <h4 className="text-sm font-bold uppercase tracking-wider text-white">Navegação</h4>
             <ul className="space-y-2 text-sm">
-              <li>
-                <button 
-                  onClick={() => { setCurrentView('search'); setFilters(p => ({ ...p, purpose: 'sale' })); }} 
-                  className="hover:text-rose-400 transition-colors"
-                >
-                  Apartamentos à venda
-                </button>
-              </li>
-              <li>
-                <button 
-                  onClick={() => { setCurrentView('search'); setFilters(p => ({ ...p, purpose: 'rent' })); }} 
-                  className="hover:text-rose-400 transition-colors"
-                >
-                  Casas e apartamentos para locação
-                </button>
-              </li>
-              <li>
-                <button 
-                  onClick={() => { setCurrentView('search'); setFilters(p => ({ ...p, types: ['condo_house'] })); }} 
-                  className="hover:text-rose-400 transition-colors"
-                >
-                  Condomínios Fechados
-                </button>
-              </li>
-              <li>
-                <button 
-                  onClick={() => { setCurrentView('search'); setFilters(p => ({ ...p, purpose: 'launch' })); }} 
-                  className="hover:text-rose-400 transition-colors"
-                >
-                  Lançamentos na Planta
-                </button>
-              </li>
-              <li>
-                <button 
-                  onClick={() => setCurrentView('comparator')} 
-                  className="hover:text-rose-400 transition-colors"
-                >
-                  Comparador de Imóveis
-                </button>
-              </li>
-              <li>
-                <button 
-                  onClick={() => openLegalPage('security')} 
-                  className="hover:text-amber-400 transition-colors flex items-center gap-1.5"
-                >
-                  <span className="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
-                  <span>Dicas de Segurança Imobiliária</span>
-                </button>
-              </li>
+              {portalPropertyTypes.map(type => (
+                <li key={type.id}>
+                  <button 
+                    onClick={() => handlePropertyTypeClick(type.id)} 
+                    className="hover:text-rose-400 transition-colors text-left"
+                  >
+                    {type.label}
+                  </button>
+                </li>
+              ))}
             </ul>
           </div>
 
