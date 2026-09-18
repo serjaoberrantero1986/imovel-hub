@@ -48,7 +48,8 @@ export const CrmLeadsView: React.FC = () => {
     openPropertyDetail, 
     addToast, 
     isSyncing, 
-    refreshData 
+    refreshData,
+    markLeadAsViewed
   } = useApp();
 
   const [activeTab, setActiveTab] = useState<'kanban' | 'dashboard' | 'table' | 'tasks'>('kanban');
@@ -153,11 +154,13 @@ export const CrmLeadsView: React.FC = () => {
 
   // Handlers
   const handleOpenLead = (lead: Lead) => {
+    markLeadAsViewed(lead.id);
     setSelectedLead(lead);
     setIsDetailModalOpen(true);
   };
 
   const handleAdvanceStage = async (lead: Lead) => {
+    markLeadAsViewed(lead.id);
     const currentIndex = KANBAN_STAGES.findIndex(s => s.id === lead.status);
     if (currentIndex < KANBAN_STAGES.length - 1) {
       const nextStatus = KANBAN_STAGES[currentIndex + 1].id;

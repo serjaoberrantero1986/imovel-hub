@@ -123,7 +123,15 @@ export const CrmKanbanBoard: React.FC<CrmKanbanBoardProps> = ({
   onChangeStage,
   onOpenProperty,
 }) => {
-  const { setCurrentView, setActiveConversationId } = useApp();
+  const { 
+    setCurrentView, 
+    setActiveConversationId, 
+    conversations, 
+    markAsRead, 
+    startOrOpenConversation,
+    markLeadAsViewed,
+    viewedLeadIds
+  } = useApp();
 
   const getCleanPhone = (phone?: string) => {
     if (!phone) return '';
@@ -198,20 +206,32 @@ export const CrmKanbanBoard: React.FC<CrmKanbanBoardProps> = ({
 
                     const pendingTasks = lead.tasks?.filter(t => !t.completed) || [];
                     const nextTask = pendingTasks[0];
+                    const isUnread = lead.status === 'new' && !viewedLeadIds.includes(lead.id);
 
                     return (
                       <div
                         key={lead.id}
-                        onClick={() => onOpenLead(lead)}
-                        className={`group p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:shadow-lg transition-all duration-200 cursor-pointer space-y-3 ${stage.borderHover}`}
+                        onClick={() => {
+                          markLeadAsViewed(lead.id);
+                          onOpenLead(lead);
+                        }}
+                        className={`group p-3.5 rounded-2xl bg-white dark:bg-slate-900 border ${
+                          isUnread ? 'border-rose-400 dark:border-rose-700 shadow-md shadow-rose-500/5 ring-1 ring-rose-400/30' : 'border-slate-200 dark:border-slate-800'
+                        } hover:shadow-lg transition-all duration-200 cursor-pointer space-y-3 ${stage.borderHover}`}
                       >
                         {/* Top: Name & Priority / Privacy Badges */}
                         <div className="flex items-start justify-between gap-2">
                           <div className="min-w-0">
-                            <div className="flex items-center gap-1.5">
+                            <div className="flex items-center gap-1.5 flex-wrap">
                               <h4 className="text-xs font-bold text-slate-900 dark:text-white truncate group-hover:text-rose-600 dark:group-hover:text-rose-400 transition-colors">
                                 {lead.buyerName}
                               </h4>
+                              {isUnread && (
+                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-black bg-rose-100 text-rose-700 dark:bg-rose-950/90 dark:text-rose-300 animate-pulse">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-rose-600" />
+                                  Novo
+                                </span>
+                              )}
                               {lead.accessRestricted && (
                                 <span title="Dados protegidos por política de privacidade" className="inline-flex">
                                   <ShieldCheck className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
@@ -310,7 +330,10 @@ export const CrmKanbanBoard: React.FC<CrmKanbanBoardProps> = ({
                             {/* Quick WhatsApp */}
                             <button
                               type="button"
-                              onClick={(e) => handleWhatsAppClick(e, lead)}
+                              onClick={(e) => {
+                                markLeadAsViewed(lead.id);
+                                handleWhatsAppClick(e, lead);
+                              }}
                               title="Abrir WhatsApp com mensagem rápida"
                               className="p-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/50 dark:hover:bg-emerald-900 text-emerald-600 transition-colors flex items-center gap-1 text-[11px] font-bold"
                             >
@@ -323,11 +346,24 @@ export const CrmKanbanBoard: React.FC<CrmKanbanBoardProps> = ({
                               type="button"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                setActiveConversationId(lead.id);
+                                markLeadAsViewed(lead.id);
+                                const matchingConv = conversations.find(c => 
+                                  c.id === lead.id || 
+                                  (lead.propertyId && c.propertyId === lead.propertyId && (
+                                    c.messages.some(m => m.text.includes(lead.buyerName) || (lead.buyerPhone && m.text.includes(lead.buyerPhone)))
+                                  ))
+                                ) || conversations.find(c => lead.propertyId && c.propertyId === lead.propertyId);
+
+                                if (matchingConv) {
+                                  setActiveConversationId(matchingConv.id);
+                                  markAsRead(matchingConv.id);
+                                } else if (lead.propertyId) {
+                                  startOrOpenConversation(lead.propertyId);
+                                }
                                 setCurrentView('messages');
                               }}
                               title="Ver histórico de mensagens no Chat"
-                              className="p-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/50 dark:hover:bg-rose-900 text-rose-600 dark:text-rose-400 transition-colors flex items-center gap-1 text-[11px] font-bold"
+                              className="p-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/50 dark:hover:bg-rose-900 text-rose-600 dark:text-rose-400 transition-colors flex items-center gap-1 text-[11px] font-bold cursor-pointer"
                             >
                               <MessageSquare className="w-3.5 h-3.5" />
                               <span className="hidden sm:inline">Chat</span>
@@ -341,6 +377,7 @@ export const CrmKanbanBoard: React.FC<CrmKanbanBoardProps> = ({
                                 type="button"
                                 onClick={(e) => {
                                   e.stopPropagation();
+                                  markLeadAsViewed(lead.id);
                                   onAdvanceStage(lead);
                                 }}
                                 title="Avançar para o próximo estágio"
@@ -356,6 +393,7 @@ export const CrmKanbanBoard: React.FC<CrmKanbanBoardProps> = ({
                                 type="button"
                                 onClick={(e) => {
                                   e.stopPropagation();
+                                  markLeadAsViewed(lead.id);
                                   onChangeStage(lead, 'closed_won');
                                 }}
                                 title="Fechar Negócio"

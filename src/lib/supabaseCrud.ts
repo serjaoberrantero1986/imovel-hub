@@ -950,13 +950,14 @@ export async function markConversationAsReadInSupabase(conversationId: string, u
   try {
     const validConvId = ensureValidUuid(conversationId);
     
-    // Update unread count for advertiser
+    // Update unread count for advertiser and buyer
     await supabase.from('conversations').update({
       advertiser_unread_count: 0,
+      buyer_unread_count: 0,
       updated_at: new Date().toISOString()
     }).eq('id', validConvId);
 
-    // Also mark messages as read
+    // Mark messages in this conversation as read
     await supabase.from('messages')
       .update({ read_at: new Date().toISOString() })
       .eq('conversation_id', validConvId)

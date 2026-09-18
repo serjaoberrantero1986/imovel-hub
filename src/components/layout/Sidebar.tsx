@@ -41,7 +41,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
     openAuthModal,
     theme, 
     toggleTheme, 
-    leads, 
+    leads,
+    unreadLeadsCount, 
     favoriteIds, 
     comparisonIds, 
     conversations,
@@ -72,7 +73,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const brokerNavItems = [
     { id: 'dashboard' as AppView, label: 'Dashboard & Métricas', icon: LayoutDashboard },
     { id: 'my_properties' as AppView, label: 'Meus Anúncios', icon: Building2 },
-    { id: 'crm_leads' as AppView, label: 'CRM & Leads', icon: Users, badge: leads.length, badgeColor: 'bg-emerald-600 text-white' },
+    { id: 'crm_leads' as AppView, label: 'CRM & Leads', icon: Users, badge: unreadLeadsCount, badgeColor: 'bg-emerald-600 text-white' },
   ];
 
   return (

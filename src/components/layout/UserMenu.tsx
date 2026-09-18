@@ -28,6 +28,7 @@ export const UserMenu: React.FC = () => {
     currentView,
     setCurrentView, 
     leads, 
+    unreadLeadsCount,
     favoriteIds, 
     comparisonIds, 
     conversations,

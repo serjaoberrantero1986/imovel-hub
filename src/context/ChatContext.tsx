@@ -15,6 +15,7 @@ export interface ChatContextType {
   conversations: Conversation[];
   activeConversationId: string | null;
   setActiveConversationId: (id: string | null) => void;
+  markAsRead: (conversationId: string) => Promise<void>;
   sendMessage: (conversationId: string, text: string) => Promise<void>;
   startOrOpenConversation: (propertyId: string) => void;
   deleteConversation: (conversationId: string) => Promise<void>;
@@ -61,29 +62,39 @@ export const ChatProvider: React.FC<{
     }
   }, [conversations, activeConversationId]);
 
-  // Mark active conversation as read when selected or loaded
-  useEffect(() => {
-    if (!activeConversationId || !isAuthenticated || currentUser.id === 'guest_buyer') return;
+  const markAsRead = async (conversationId: string) => {
+    if (!conversationId || !isAuthenticated || currentUser.id === 'guest_buyer') return;
 
     setConversations(prev => {
       let hasChanges = false;
       const updated = prev.map(c => {
-        if (c.id === activeConversationId && c.unreadCount > 0) {
+        if (c.id === conversationId && (c.unreadCount > 0 || c.messages.some(m => !m.read))) {
           hasChanges = true;
-          return { ...c, unreadCount: 0 };
+          return {
+            ...c,
+            unreadCount: 0,
+            messages: c.messages.map(m => ({ ...m, read: true }))
+          };
         }
         return c;
       });
 
       if (hasChanges) {
         localStorage.setItem(`imovelhub_conversations_${currentUser.id}`, JSON.stringify(updated));
-        if (isSupabaseConfigured) {
-          markConversationAsReadInSupabase(activeConversationId, currentUser.id);
-        }
         return updated;
       }
       return prev;
     });
+
+    if (isSupabaseConfigured) {
+      await markConversationAsReadInSupabase(conversationId, currentUser.id);
+    }
+  };
+
+  // Mark active conversation as read when selected or loaded
+  useEffect(() => {
+    if (!activeConversationId || !isAuthenticated || currentUser.id === 'guest_buyer') return;
+    markAsRead(activeConversationId);
   }, [activeConversationId, isAuthenticated, currentUser.id]);
 
   // Sync state when user switches or logs in/out, and listen to lead events & periodic polling
@@ -128,8 +139,20 @@ export const ChatProvider: React.FC<{
     try {
       const remoteConvs = await fetchConversationsFromSupabase(currentUser.id);
       if (remoteConvs !== null) {
-        setConversations(remoteConvs);
-        localStorage.setItem(`imovelhub_conversations_${currentUser.id}`, JSON.stringify(remoteConvs));
+        // If an active conversation is open, preserve unreadCount = 0 so polling doesn't reset it
+        const sanitized = remoteConvs.map(c => {
+          if (c.id === activeConversationId) {
+            return {
+              ...c,
+              unreadCount: 0,
+              messages: c.messages.map(m => ({ ...m, read: true }))
+            };
+          }
+          return c;
+        });
+
+        setConversations(sanitized);
+        localStorage.setItem(`imovelhub_conversations_${currentUser.id}`, JSON.stringify(sanitized));
       }
     } catch (e) {
       console.warn('Error fetching conversations from Supabase:', e);
@@ -275,6 +298,7 @@ export const ChatProvider: React.FC<{
         conversations,
         activeConversationId,
         setActiveConversationId,
+        markAsRead,
         sendMessage,
         startOrOpenConversation,
         deleteConversation,

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   MessageSquare, 
   Send, 
@@ -13,6 +13,7 @@ import {
   Trash2,
   LogIn,
   ArrowRight,
+  ArrowLeft,
   Sparkles
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
@@ -22,7 +23,8 @@ export const MessagesChatView: React.FC = () => {
   const { 
     conversations, 
     activeConversationId, 
-    setActiveConversationId, 
+    setActiveConversationId,
+    markAsRead, 
     sendMessage, 
     deleteConversation,
     currentUser,
@@ -35,8 +37,22 @@ export const MessagesChatView: React.FC = () => {
   const [messageInput, setMessageInput] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [mobileThreadOpen, setMobileThreadOpen] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const activeConversation = conversations.find(c => c.id === activeConversationId) || conversations[0];
+
+  // When active conversation changes, mark as read immediately
+  useEffect(() => {
+    if (activeConversation?.id) {
+      markAsRead(activeConversation.id);
+    }
+  }, [activeConversation?.id]);
+
+  // Scroll to bottom of message list on updates
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [activeConversation?.messages?.length]);
 
   const filteredConversations = conversations.filter(c => 
     c.otherUser.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -100,22 +116,24 @@ export const MessagesChatView: React.FC = () => {
   }
 
   return (
-    <div className="min-h-[calc(100vh-100px)] bg-slate-50 dark:bg-slate-950 py-6 transition-colors">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-[calc(100vh-140px)]">
+    <div className="min-h-[calc(100vh-80px)] bg-slate-50 dark:bg-slate-950 py-2 sm:py-6 transition-colors">
+      <div className="max-w-7xl mx-auto px-2 sm:px-6 lg:px-8 h-[calc(100dvh-130px)] sm:h-[calc(100vh-140px)]">
         
-        <div className="h-full bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-xl overflow-hidden grid grid-cols-1 md:grid-cols-12">
+        <div className="h-full bg-white dark:bg-slate-900 rounded-2xl sm:rounded-3xl border border-slate-200 dark:border-slate-800 shadow-xl overflow-hidden grid grid-cols-1 md:grid-cols-12">
           
           {/* LEFT SIDEBAR (4 cols): Conversations List */}
-          <div className="md:col-span-5 lg:col-span-4 border-r border-slate-100 dark:border-slate-800 flex flex-col h-full">
+          <div className={`md:col-span-5 lg:col-span-4 border-r border-slate-100 dark:border-slate-800 flex flex-col h-full ${
+            mobileThreadOpen ? 'hidden md:flex' : 'flex'
+          }`}>
             
             {/* Search Header */}
-            <div className="p-4 border-b border-slate-100 dark:border-slate-800 space-y-3">
+            <div className="p-3 sm:p-4 border-b border-slate-100 dark:border-slate-800 space-y-2.5">
               <div className="flex items-center justify-between">
-                <h2 className="text-lg font-bold text-slate-900 dark:text-white font-['Outfit'] flex items-center gap-2">
+                <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white font-['Outfit'] flex items-center gap-2">
                   <MessageSquare className="w-5 h-5 text-rose-500" />
                   <span>Mensagens</span>
                 </h2>
-                <span className="text-xs font-bold text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full">
+                <span className="text-[11px] font-bold text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full">
                   {conversations.length} conversas
                 </span>
               </div>
@@ -133,7 +151,7 @@ export const MessagesChatView: React.FC = () => {
             </div>
 
             {/* Conversation Items List */}
-            <div className="flex-1 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800/60">
+            <div className="flex-1 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800/60 min-h-0">
               {filteredConversations.length === 0 ? (
                 <div className="p-8 text-center text-slate-400 text-xs space-y-2">
                   <MessageSquare className="w-8 h-8 mx-auto text-slate-300 dark:text-slate-600" />
@@ -146,8 +164,12 @@ export const MessagesChatView: React.FC = () => {
                   return (
                     <div
                       key={conv.id}
-                      onClick={() => setActiveConversationId(conv.id)}
-                      className={`p-4 cursor-pointer transition-all flex items-start gap-3 ${
+                      onClick={() => {
+                        setActiveConversationId(conv.id);
+                        markAsRead(conv.id);
+                        setMobileThreadOpen(true);
+                      }}
+                      className={`p-3.5 sm:p-4 cursor-pointer transition-all flex items-start gap-3 ${
                         isActive
                           ? 'bg-rose-50/60 dark:bg-rose-950/30 border-l-4 border-rose-600'
                           : 'hover:bg-slate-50 dark:hover:bg-slate-800/40'
@@ -156,7 +178,7 @@ export const MessagesChatView: React.FC = () => {
                       <img
                         src={conv.otherUser.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&q=80'}
                         alt={conv.otherUser.name}
-                        className="w-12 h-12 rounded-2xl object-cover ring-2 ring-rose-500/20 shrink-0"
+                        className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl object-cover ring-2 ring-rose-500/20 shrink-0"
                       />
 
                       <div className="min-w-0 flex-1">
@@ -192,39 +214,53 @@ export const MessagesChatView: React.FC = () => {
 
           {/* RIGHT PANEL (8 cols): Active Chat Thread */}
           {activeConversation ? (
-            <div className="md:col-span-7 lg:col-span-8 flex flex-col h-full bg-slate-50/30 dark:bg-slate-900/30">
+            <div className={`md:col-span-7 lg:col-span-8 flex flex-col h-full bg-slate-50/30 dark:bg-slate-900/30 ${
+              mobileThreadOpen ? 'flex' : 'hidden md:flex'
+            }`}>
               
               {/* Chat Top Banner & Property Info */}
-              <div className="p-4 border-b border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center justify-between gap-4">
-                <div className="flex items-center gap-3">
+              <div className="p-3 sm:p-4 border-b border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center justify-between gap-2 sm:gap-4 shrink-0">
+                <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                  {/* Mobile Back Button */}
+                  <button
+                    type="button"
+                    onClick={() => setMobileThreadOpen(false)}
+                    className="md:hidden p-1.5 -ml-1 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors cursor-pointer shrink-0"
+                    title="Voltar para a lista de conversas"
+                    aria-label="Voltar para a lista"
+                  >
+                    <ArrowLeft className="w-5 h-5 text-slate-700 dark:text-slate-200" />
+                  </button>
+
                   <img
                     src={activeConversation.otherUser.avatarUrl || 'https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&w=150&q=80'}
-                    className="w-10 h-10 rounded-xl object-cover"
+                    className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl object-cover shrink-0"
+                    alt={activeConversation.otherUser.name}
                   />
-                  <div>
+                  <div className="min-w-0">
                     <div className="flex items-center gap-1.5">
-                      <h3 className="text-sm font-bold text-slate-900 dark:text-white">
+                      <h3 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white truncate">
                         {activeConversation.otherUser.name}
                       </h3>
-                      <ShieldCheck className="w-4 h-4 text-emerald-500" />
+                      <ShieldCheck className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-500 shrink-0" />
                     </div>
-                    <span className="text-xs text-slate-400">
+                    <span className="text-[11px] text-slate-400 block truncate">
                       {activeConversation.otherUser.agencyName || 'Corretor Associado'}
                     </span>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
                   {/* Property quick badge */}
                   <div 
                     onClick={() => openPropertyDetail(activeConversation.propertyId)}
-                    className="flex items-center gap-2 p-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 cursor-pointer hover:border-rose-500 transition-colors"
+                    className="flex items-center gap-1.5 sm:gap-2 p-1.5 sm:p-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 cursor-pointer hover:border-rose-500 transition-colors"
                   >
                     {activeConversation.propertyImage && (
-                      <img src={activeConversation.propertyImage} className="w-8 h-8 rounded-lg object-cover" />
+                      <img src={activeConversation.propertyImage} className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg object-cover" />
                     )}
                     <div className="text-left hidden sm:block">
-                      <div className="text-[11px] font-bold text-slate-900 dark:text-white truncate max-w-[140px]">
+                      <div className="text-[11px] font-bold text-slate-900 dark:text-white truncate max-w-[130px]">
                         {activeConversation.propertyTitle}
                       </div>
                       <div className="text-[10px] text-rose-600 font-extrabold">
@@ -237,14 +273,15 @@ export const MessagesChatView: React.FC = () => {
                   {/* Botão discreto para exclusão da conversa */}
                   {confirmDeleteId === activeConversation.id ? (
                     <div className="flex items-center gap-1.5 p-1 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 text-xs">
-                      <span className="text-[11px] text-rose-700 dark:text-rose-300 font-medium pl-1">Excluir?</span>
+                      <span className="text-[10px] text-rose-700 dark:text-rose-300 font-medium pl-1">Excluir?</span>
                       <button
                         type="button"
                         onClick={() => {
                           deleteConversation(activeConversation.id);
                           setConfirmDeleteId(null);
+                          setMobileThreadOpen(false);
                         }}
-                        className="px-2 py-0.5 text-[11px] font-bold bg-rose-600 hover:bg-rose-700 text-white rounded-lg transition-colors cursor-pointer"
+                        className="px-2 py-0.5 text-[10px] font-bold bg-rose-600 hover:bg-rose-700 text-white rounded-lg transition-colors cursor-pointer"
                         title="Confirmar exclusão"
                       >
                         Sim
@@ -252,7 +289,7 @@ export const MessagesChatView: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => setConfirmDeleteId(null)}
-                        className="px-1.5 py-0.5 text-[11px] text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 transition-colors cursor-pointer"
+                        className="px-1.5 py-0.5 text-[10px] text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 transition-colors cursor-pointer"
                         title="Cancelar"
                       >
                         Não
@@ -262,7 +299,7 @@ export const MessagesChatView: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => setConfirmDeleteId(activeConversation.id)}
-                      className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-xl transition-colors cursor-pointer"
+                      className="p-1.5 sm:p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-xl transition-colors cursor-pointer"
                       title="Excluir conversa"
                       aria-label="Excluir conversa"
                     >
@@ -273,23 +310,24 @@ export const MessagesChatView: React.FC = () => {
               </div>
 
               {/* Chat Messages History */}
-              <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
+              <div className="flex-1 min-h-0 overflow-y-auto p-3 sm:p-6 space-y-3 sm:space-y-4">
                 {activeConversation.messages.map(msg => {
                   const isMine = msg.senderId === currentUser.id;
                   return (
                     <div
                       key={msg.id}
-                      className={`flex items-end gap-2.5 ${isMine ? 'justify-end' : 'justify-start'}`}
+                      className={`flex items-end gap-2 ${isMine ? 'justify-end' : 'justify-start'}`}
                     >
                       {!isMine && (
                         <img
                           src={msg.senderAvatar || activeConversation.otherUser.avatarUrl}
                           className="w-7 h-7 rounded-full object-cover shrink-0"
+                          alt="Avatar"
                         />
                       )}
 
                       <div
-                        className={`max-w-md p-3.5 rounded-2xl text-xs leading-relaxed ${
+                        className={`max-w-[85%] sm:max-w-md p-3 sm:p-3.5 rounded-2xl text-xs leading-relaxed ${
                           isMine
                             ? 'bg-rose-600 text-white rounded-br-xs shadow-md shadow-rose-600/20'
                             : 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-bl-xs border border-slate-100 dark:border-slate-700 shadow-sm'
@@ -306,21 +344,23 @@ export const MessagesChatView: React.FC = () => {
                     </div>
                   );
                 })}
+                <div ref={messagesEndRef} />
               </div>
 
               {/* Chat Input Bar */}
-              <form onSubmit={handleSend} className="p-3 sm:p-4 bg-white dark:bg-slate-900 border-t border-slate-100 dark:border-slate-800 flex items-center gap-2">
+              <form onSubmit={handleSend} className="shrink-0 p-2.5 sm:p-4 bg-white dark:bg-slate-900 border-t border-slate-100 dark:border-slate-800 flex items-center gap-2">
                 <input
                   type="text"
-                  placeholder="Escreva sua mensagem para o corretor..."
+                  placeholder="Escreva sua mensagem para o anunciante..."
                   value={messageInput}
                   onChange={(e) => setMessageInput(e.target.value)}
-                  className="flex-1 px-4 py-3 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-medium text-slate-900 dark:text-white focus:outline-none focus:border-rose-500"
+                  className="flex-1 px-3.5 py-2.5 sm:px-4 sm:py-3 rounded-xl sm:rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs sm:text-sm font-medium text-slate-900 dark:text-white focus:outline-none focus:border-rose-500"
                 />
                 <button
                   type="submit"
                   disabled={!messageInput.trim()}
-                  className="p-3 rounded-2xl bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white shadow-md shadow-rose-600/20 transition-all"
+                  className="p-2.5 sm:p-3 rounded-xl sm:rounded-2xl bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white shadow-md shadow-rose-600/20 transition-all cursor-pointer shrink-0"
+                  title="Enviar mensagem"
                 >
                   <Send className="w-4 h-4" />
                 </button>
@@ -328,7 +368,9 @@ export const MessagesChatView: React.FC = () => {
 
             </div>
           ) : (
-            <div className="md:col-span-7 lg:col-span-8 flex flex-col items-center justify-center p-8 text-center text-slate-400 space-y-4">
+            <div className={`md:col-span-7 lg:col-span-8 flex flex-col items-center justify-center p-8 text-center text-slate-400 space-y-4 ${
+              mobileThreadOpen ? 'flex' : 'hidden md:flex'
+            }`}>
               <div className="w-16 h-16 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-400 flex items-center justify-center">
                 <MessageSquare className="w-8 h-8" />
               </div>

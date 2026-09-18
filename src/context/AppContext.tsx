@@ -181,6 +181,9 @@ const AppCompositeProvider: React.FC<{
     togglePropertyStatus: propertyCtx.togglePropertyStatus,
     // CRM slice
     leads: crm.leads,
+    viewedLeadIds: crm.viewedLeadIds,
+    unreadLeadsCount: crm.unreadLeadsCount,
+    markLeadAsViewed: crm.markLeadAsViewed,
     addLead: crm.addLead,
     updateLead: crm.updateLead,
     updateLeadStatus: crm.updateLeadStatus,
@@ -198,6 +201,7 @@ const AppCompositeProvider: React.FC<{
     conversations: chat.conversations,
     activeConversationId: chat.activeConversationId,
     setActiveConversationId: chat.setActiveConversationId,
+    markAsRead: chat.markAsRead,
     sendMessage: chat.sendMessage,
     startOrOpenConversation: chat.startOrOpenConversation,
     deleteConversation: chat.deleteConversation,

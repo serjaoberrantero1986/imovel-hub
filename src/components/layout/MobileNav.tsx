@@ -21,7 +21,8 @@ export const MobileNav: React.FC = () => {
     favoriteIds, 
     comparisonIds, 
     conversations,
-    leads, 
+    leads,
+    unreadLeadsCount, 
     currentUser 
   } = useApp();
 
@@ -50,7 +51,7 @@ export const MobileNav: React.FC = () => {
         id: 'crm_leads' as AppView, 
         label: 'Leads', 
         icon: Users, 
-        badge: (leads || []).length,
+        badge: unreadLeadsCount,
         badgeColor: 'bg-indigo-600'
       },
       { 

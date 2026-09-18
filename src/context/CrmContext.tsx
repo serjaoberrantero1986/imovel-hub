@@ -13,6 +13,9 @@ import { UserProfile } from '../types';
 
 export interface CrmContextType {
   leads: Lead[];
+  viewedLeadIds: string[];
+  unreadLeadsCount: number;
+  markLeadAsViewed: (leadId: string) => void;
   addLead: (lead: Omit<Lead, 'id' | 'createdAt' | 'updatedAt'>) => Promise<{ success: boolean; error?: string }>;
   updateLead: (leadId: string, updates: Partial<Lead>) => Promise<void>;
   updateLeadStatus: (leadId: string, status: Lead['status'], notes?: string) => Promise<void>;
@@ -40,6 +43,60 @@ export const CrmProvider: React.FC<{
   addToast: (toast: Omit<Toast, 'id'>) => void;
 }> = ({ children, currentUser, properties, setProperties, addToast }) => {
   const [leads, setLeads] = useState<Lead[]>([]);
+
+  // Track leads viewed by the current user to compute accurate unread counts
+  const [viewedLeadIds, setViewedLeadIds] = useState<string[]>(() => {
+    try {
+      const key = `imovelhub_viewed_leads_${currentUser?.id || 'guest'}`;
+      const saved = localStorage.getItem(key);
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  // Keep viewed leads synced when user changes
+  useEffect(() => {
+    try {
+      const key = `imovelhub_viewed_leads_${currentUser?.id || 'guest'}`;
+      const saved = localStorage.getItem(key);
+      if (saved) {
+        setViewedLeadIds(JSON.parse(saved));
+      } else {
+        setViewedLeadIds([]);
+      }
+    } catch {
+      setViewedLeadIds([]);
+    }
+  }, [currentUser?.id]);
+
+  const markLeadAsViewed = useCallback((leadId: string) => {
+    if (!leadId) return;
+    setViewedLeadIds(prev => {
+      if (prev.includes(leadId)) return prev;
+      const updated = [...prev, leadId];
+      try {
+        const key = `imovelhub_viewed_leads_${currentUser?.id || 'guest'}`;
+        localStorage.setItem(key, JSON.stringify(updated));
+      } catch (e) {
+        console.warn('Failed to save viewed leads to localStorage', e);
+      }
+      return updated;
+    });
+  }, [currentUser?.id]);
+
+  // Count leads that are 'new' and haven't been viewed yet by this broker
+  const unreadLeadsCount = leads.filter(l => {
+    const isOwner = !currentUser?.id || 
+      currentUser.role === 'admin' || 
+      l.advertiserId === currentUser.id || 
+      properties.some(p => p.id === l.propertyId && (
+        p.userId === currentUser.id || 
+        (p.advertiser?.email && currentUser.email && p.advertiser.email.toLowerCase() === currentUser.email.toLowerCase())
+      ));
+    if (!isOwner) return false;
+    return l.status === 'new' && !viewedLeadIds.includes(l.id);
+  }).length;
 
   // Purge any stale mock leads from localStorage
   useEffect(() => {
@@ -138,6 +195,7 @@ export const CrmProvider: React.FC<{
   };
 
   const updateLeadStatus = async (leadId: string, status: Lead['status'], notes?: string) => {
+    markLeadAsViewed(leadId);
     const stageNameMap: Record<string, string> = {
       new: 'NOVO LEAD',
       contacted: 'CONTATO REALIZADO',
@@ -350,6 +408,9 @@ export const CrmProvider: React.FC<{
     <CrmContext.Provider
       value={{
         leads,
+        viewedLeadIds,
+        unreadLeadsCount,
+        markLeadAsViewed,
         addLead,
         updateLead,
         updateLeadStatus,
