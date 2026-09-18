@@ -129,8 +129,7 @@ export async function fetchPropertiesFromSupabase(): Promise<Property[] | null> 
         *,
         property_locations (*),
         property_images (*),
-        property_features (feature_id),
-        profiles:user_id (*)
+        property_features (*)
       `)
       .order('created_at', { ascending: false });
 
@@ -143,11 +142,29 @@ export async function fetchPropertiesFromSupabase(): Promise<Property[] | null> 
       return [];
     }
 
+    // Fetch advertiser profiles for unique user_ids safely without foreign key constraint failure
+    const userIds = [...new Set(dbProperties.map((p: any) => p.user_id).filter(Boolean))];
+    const profilesMap: Record<string, any> = {};
+    if (userIds.length > 0) {
+      try {
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('*')
+          .in('id', userIds);
+
+        (profiles || []).forEach((prof: any) => {
+          profilesMap[prof.id] = prof;
+        });
+      } catch (profErr) {
+        console.warn('Could not query advertiser profiles:', profErr);
+      }
+    }
+
     return dbProperties.map((p: any) => {
       const location = Array.isArray(p.property_locations) ? p.property_locations[0] : p.property_locations;
       const images = p.property_images || [];
-      const features = (p.property_features || []).map((f: any) => f.feature_id);
-      const profile = p.profiles;
+      const features = (p.property_features || []).map((f: any) => f.feature_id || f);
+      const profile = profilesMap[p.user_id];
       return mapDbPropertyToApp(p, location, images, features, profile);
     });
   } catch (err) {
@@ -248,18 +265,22 @@ export async function insertPropertyToSupabase(property: Property): Promise<Inse
     }
 
     // 4. Insert Location
+    const zipCode = property.zipCode && property.zipCode.trim().length > 0 
+      ? property.zipCode.trim() 
+      : '00000-000';
+
     const { error: locError } = await supabase.from('property_locations').insert({
       id: crypto.randomUUID(),
       property_id: propertyId,
-      street: property.addressStreet,
+      street: property.addressStreet || 'Não informado',
       street_number: property.addressNumber || null,
       complement: property.addressComplement || null,
-      neighborhood: property.neighborhood,
-      city: property.city,
-      state: property.state,
-      zip_code: property.zipCode,
-      latitude: property.latitude,
-      longitude: property.longitude
+      neighborhood: property.neighborhood || 'Centro',
+      city: property.city || 'Sorocaba',
+      state: property.state || 'SP',
+      zip_code: zipCode,
+      latitude: property.latitude || null,
+      longitude: property.longitude || null
     });
 
     if (locError) {

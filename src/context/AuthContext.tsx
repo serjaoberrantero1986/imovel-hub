@@ -129,20 +129,43 @@ export const AuthProvider: React.FC<{
               }
             }
 
+            let localSaved: Partial<UserProfile> = {};
+            try {
+              const raw = localStorage.getItem('imovelhub_current_user');
+              if (raw) {
+                const parsed = JSON.parse(raw);
+                if (parsed && (parsed.id === session.user.id || parsed.email?.toLowerCase() === userEmail)) {
+                  localSaved = parsed;
+                }
+              }
+            } catch {
+              // Ignore
+            }
+
+            const meta = session.user.user_metadata || {};
+            const resolvedAvatar = activeProfile?.avatar_url || meta.avatar_url || localSaved.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=256&q=80';
+
             const mapped: UserProfile = {
               id: session.user.id,
-              name: activeProfile?.name || session.user.user_metadata?.name || userEmail.split('@')[0] || 'Usuário',
+              name: activeProfile?.name || meta.name || localSaved.name || userEmail.split('@')[0] || 'Usuário',
               email: session.user.email || activeProfile?.email || userEmail,
-              phone: activeProfile?.phone || session.user.user_metadata?.phone,
-              whatsapp: activeProfile?.whatsapp || activeProfile?.phone || session.user.user_metadata?.phone,
-              role: (activeProfile?.role as any) || (session.user.user_metadata?.role as any) || 'buyer',
-              creci: activeProfile?.creci || session.user.user_metadata?.creci,
-              agencyName: activeProfile?.agency_name,
-              agencyLogo: activeProfile?.agency_logo,
-              verified: activeProfile?.verified ?? false,
-              avatarUrl: activeProfile?.avatar_url || session.user.user_metadata?.avatar_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=256&q=80',
-              bio: activeProfile?.bio,
-              creciStatus: activeProfile?.verified ? 'verified' : (activeProfile?.creci ? 'pending' : 'unverified')
+              phone: activeProfile?.phone || meta.phone || localSaved.phone,
+              whatsapp: activeProfile?.whatsapp || activeProfile?.phone || meta.whatsapp || meta.phone || localSaved.whatsapp || localSaved.phone,
+              role: (activeProfile?.role as any) || (meta.role as any) || localSaved.role || 'buyer',
+              creci: activeProfile?.creci || meta.creci || localSaved.creci,
+              creciUf: activeProfile?.creci_uf || meta.creci_uf || localSaved.creciUf || 'SP',
+              creciType: activeProfile?.creci_type || meta.creci_type || localSaved.creciType,
+              agencyName: activeProfile?.agency_name || meta.agency_name || localSaved.agencyName,
+              agencyLogo: activeProfile?.agency_logo || meta.agency_logo || localSaved.agencyLogo,
+              verified: activeProfile?.verified ?? meta.verified ?? localSaved.verified ?? false,
+              avatarUrl: resolvedAvatar,
+              bio: activeProfile?.bio || meta.bio || localSaved.bio,
+              city: activeProfile?.city || meta.city || localSaved.city,
+              state: activeProfile?.state || meta.state || localSaved.state || 'SP',
+              website: activeProfile?.website || meta.website || localSaved.website,
+              instagram: activeProfile?.instagram || meta.instagram || localSaved.instagram,
+              linkedin: activeProfile?.linkedin || meta.linkedin || localSaved.linkedin,
+              creciStatus: activeProfile?.verified ? 'verified' : ((activeProfile?.creci || meta.creci || localSaved.creci) ? 'pending' : 'unverified')
             };
             setIsAuthenticated(true);
             localStorage.setItem('imovelhub_is_authenticated', 'true');
@@ -239,15 +262,21 @@ export const AuthProvider: React.FC<{
             name: profile?.name || data.user.user_metadata?.name || cleanEmail.split('@')[0],
             email: profile?.email || data.user.email || cleanEmail,
             phone: profile?.phone || data.user.user_metadata?.phone,
-            whatsapp: profile?.whatsapp || profile?.phone || data.user.user_metadata?.phone,
+            whatsapp: profile?.whatsapp || profile?.phone || data.user.user_metadata?.whatsapp || data.user.user_metadata?.phone,
             role: (profile?.role as any) || (data.user.user_metadata?.role as any) || 'buyer',
             creci: profile?.creci || data.user.user_metadata?.creci,
-            agencyName: profile?.agency_name,
-            agencyLogo: profile?.agency_logo,
-            verified: profile?.verified ?? false,
+            creciUf: profile?.creci_uf || data.user.user_metadata?.creci_uf || 'SP',
+            agencyName: profile?.agency_name || data.user.user_metadata?.agency_name,
+            agencyLogo: profile?.agency_logo || data.user.user_metadata?.agency_logo,
+            verified: profile?.verified ?? data.user.user_metadata?.verified ?? false,
             avatarUrl: profile?.avatar_url || data.user.user_metadata?.avatar_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=256&q=80',
-            bio: profile?.bio,
-            creciStatus: profile?.verified ? 'verified' : (profile?.creci ? 'pending' : 'unverified')
+            bio: profile?.bio || data.user.user_metadata?.bio,
+            city: profile?.city || data.user.user_metadata?.city,
+            state: profile?.state || data.user.user_metadata?.state || 'SP',
+            website: profile?.website || data.user.user_metadata?.website,
+            instagram: profile?.instagram || data.user.user_metadata?.instagram,
+            linkedin: profile?.linkedin || data.user.user_metadata?.linkedin,
+            creciStatus: profile?.verified ? 'verified' : ((profile?.creci || data.user.user_metadata?.creci) ? 'pending' : 'unverified')
           };
 
           setIsAuthenticated(true);
@@ -546,13 +575,38 @@ export const AuthProvider: React.FC<{
   };
 
   const updateUserProfile = async (updates: Partial<UserProfile>): Promise<void> => {
-    const updated = { ...currentUser, ...updates };
+    const updated: UserProfile = { ...currentUser, ...updates };
     setCurrentUser(updated);
     localStorage.setItem('imovelhub_current_user', JSON.stringify(updated));
 
     if (isSupabaseConfigured && supabase && currentUser.id) {
       try {
-        await supabase.from('profiles').update({
+        // 1. Persist to Supabase Auth User Metadata (persists securely on user's auth record)
+        try {
+          await supabase.auth.updateUser({
+            data: {
+              name: updated.name,
+              phone: updated.phone || null,
+              whatsapp: updated.whatsapp || updated.phone || null,
+              avatar_url: updated.avatarUrl || null,
+              creci: updated.creci || null,
+              creci_uf: updated.creciUf || null,
+              agency_name: updated.agencyName || null,
+              agency_logo: updated.agencyLogo || null,
+              city: updated.city || null,
+              state: updated.state || null,
+              bio: updated.bio || null,
+              website: updated.website || null,
+              instagram: updated.instagram || null,
+              linkedin: updated.linkedin || null
+            }
+          });
+        } catch (authUpdateErr) {
+          console.warn('Could not update user metadata in Supabase auth:', authUpdateErr);
+        }
+
+        // 2. Persist to public.profiles table
+        const profilePayload: Record<string, any> = {
           name: updated.name,
           phone: updated.phone || null,
           whatsapp: updated.whatsapp || updated.phone || null,
@@ -561,7 +615,33 @@ export const AuthProvider: React.FC<{
           agency_logo: updated.agencyLogo || null,
           avatar_url: updated.avatarUrl || null,
           verified: updated.verified ?? false
-        }).eq('id', currentUser.id);
+        };
+
+        if (updated.city !== undefined) profilePayload.city = updated.city;
+        if (updated.state !== undefined) profilePayload.state = updated.state;
+        if (updated.bio !== undefined) profilePayload.bio = updated.bio;
+        if (updated.website !== undefined) profilePayload.website = updated.website;
+        if (updated.instagram !== undefined) profilePayload.instagram = updated.instagram;
+        if (updated.linkedin !== undefined) profilePayload.linkedin = updated.linkedin;
+
+        const { error: updateErr } = await supabase
+          .from('profiles')
+          .update(profilePayload)
+          .eq('id', currentUser.id);
+
+        if (updateErr) {
+          // Fallback to base columns if extended columns are not yet added in Supabase
+          await supabase.from('profiles').update({
+            name: updated.name,
+            phone: updated.phone || null,
+            whatsapp: updated.whatsapp || updated.phone || null,
+            creci: updated.creci || null,
+            agency_name: updated.agencyName || null,
+            agency_logo: updated.agencyLogo || null,
+            avatar_url: updated.avatarUrl || null,
+            verified: updated.verified ?? false
+          }).eq('id', currentUser.id);
+        }
       } catch (err) {
         console.error('Error updating profile in Supabase:', err);
       }
