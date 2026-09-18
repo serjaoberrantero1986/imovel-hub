@@ -30,8 +30,8 @@ export const PropertyMap: React.FC<PropertyMapProps> = ({
   const leafletMapRef = useRef<L.Map | null>(null);
   const leafletMarkersRef = useRef<{ [id: string]: L.Marker }>({});
 
-  // Default coordinate center (Sorocaba / SP)
-  const defaultCenter: [number, number] = [-23.5015, -47.4580];
+  // Default coordinate center (Central Brazil)
+  const defaultCenter: [number, number] = [-15.7801, -47.9292];
 
   // Initialize Leaflet Map (OpenStreetMap engine - no API key required)
   useEffect(() => {
@@ -40,11 +40,13 @@ export const PropertyMap: React.FC<PropertyMapProps> = ({
 
     // Calculate initial center based on properties if available
     let initialCenter: [number, number] = defaultCenter;
+    let initialZoom = 4;
     if (properties.length > 0) {
       for (const p of properties) {
         const [pLat, pLng] = resolvePropertyCoordinates(p);
         if (pLat && pLng) {
           initialCenter = [pLat, pLng];
+          initialZoom = properties.length === 1 ? 15 : 12;
           break;
         }
       }
@@ -52,7 +54,7 @@ export const PropertyMap: React.FC<PropertyMapProps> = ({
 
     const map = L.map(leafletContainerRef.current, {
       center: initialCenter,
-      zoom: 13,
+      zoom: initialZoom,
       zoomControl: false,
       attributionControl: false
     });
@@ -264,7 +266,7 @@ export const PropertyMap: React.FC<PropertyMapProps> = ({
         return;
       }
     }
-    leafletMapRef.current?.setView(defaultCenter, 13);
+    leafletMapRef.current?.setView(defaultCenter, 4);
   };
 
   return (

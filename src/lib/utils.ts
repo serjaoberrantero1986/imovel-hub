@@ -72,27 +72,76 @@ const TYPE_PREFIXES: Record<string, string> = {
   condo_house: 'CC',
   house: 'CA',
   penthouse: 'CB',
-  land: 'TR',
+  land: 'TE',
   chacara: 'CH',
   farm: 'FA',
-  commercial: 'CM',
-  launch: 'LC',
+  commercial: 'CO',
+  launch: 'LA',
   rural: 'RU',
 };
 
-export function generatePropertyCode(type: string = 'apartment', existingCodes: string[] = []): string {
-  const prefix = TYPE_PREFIXES[type?.toLowerCase()] || (type && type.length >= 2 ? type.slice(0, 2).toUpperCase() : 'IM');
-  
+const PURPOSE_PREFIXES: Record<string, string> = {
+  sale: 'V',
+  rent: 'L',
+  seasonal: 'T',
+  launch: 'LNC',
+};
+
+export interface PropertyCodeOptions {
+  type?: string;
+  purpose?: string;
+  state?: string;
+  city?: string;
+}
+
+/**
+ * Geração Inteligente de Códigos Imobiliários.
+ * Estrutura estratégica de mercado: [FINALIDADE][TIPO]-[UF]-[SEQUENCIAL]
+ * Exemplos:
+ *  - Venda de Apartamento no RJ: VAP-RJ-1042
+ *  - Locação de Casa em SP: LCA-SP-2015
+ *  - Venda de Casa em Condomínio no RJ: VCC-RJ-3081
+ *  - Locação Comercial em MG: LCO-MG-4105
+ */
+export function generatePropertyCode(
+  paramsOrType: string | PropertyCodeOptions = 'apartment',
+  existingCodes: string[] = []
+): string {
+  let type = 'apartment';
+  let purpose = 'sale';
+  let state = 'BR';
+
+  if (typeof paramsOrType === 'string') {
+    type = paramsOrType || 'apartment';
+  } else if (paramsOrType && typeof paramsOrType === 'object') {
+    type = paramsOrType.type || 'apartment';
+    purpose = paramsOrType.purpose || 'sale';
+    if (paramsOrType.state && paramsOrType.state.trim().length >= 2) {
+      state = paramsOrType.state.trim().slice(0, 2).toUpperCase();
+    } else if (paramsOrType.city && paramsOrType.city.trim().length >= 2) {
+      state = paramsOrType.city.trim().slice(0, 3).toUpperCase();
+    }
+  }
+
+  const pCode = PURPOSE_PREFIXES[purpose?.toLowerCase()] || 'V';
+  const tCode = TYPE_PREFIXES[type?.toLowerCase()] || (type && type.length >= 2 ? type.slice(0, 2).toUpperCase() : 'IM');
+  const regional = state.toUpperCase();
+  const basePrefix = `${pCode}${tCode}-${regional}`;
+
   const existingSet = new Set(existingCodes.map(c => c?.toUpperCase()));
-  for (let attempt = 0; attempt < 50; attempt++) {
+  
+  // Tenta encontrar um número sequencial / pseudo-aleatório elegante de 4 dígitos
+  for (let attempt = 0; attempt < 100; attempt++) {
     const num = Math.floor(1000 + Math.random() * 9000);
-    const candidate = `${prefix}-${num}`;
+    const candidate = `${basePrefix}-${num}`;
     if (!existingSet.has(candidate)) {
       return candidate;
     }
   }
+
+  // Fallback baseado no timestamp
   const timestampNum = Date.now().toString().slice(-4);
-  return `${prefix}-${timestampNum}`;
+  return `${basePrefix}-${timestampNum}`;
 }
 
 export function generateSlug(title: string, code: string): string {

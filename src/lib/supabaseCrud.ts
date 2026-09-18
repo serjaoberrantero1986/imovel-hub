@@ -550,10 +550,14 @@ export async function fetchLeadsFromSupabase(): Promise<Lead[] | null> {
 export async function insertLeadToSupabase(lead: Lead): Promise<boolean> {
   if (!supabase) return false;
   try {
+    const validId = ensureValidUuid(lead.id);
+    const validPropId = lead.propertyId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(lead.propertyId) ? lead.propertyId : null;
+    const validAdvId = lead.advertiserId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(lead.advertiserId) ? lead.advertiserId : null;
+
     const { error } = await supabase.from('leads').insert({
-      id: lead.id,
-      property_id: lead.propertyId || null,
-      advertiser_id: lead.advertiserId,
+      id: validId,
+      property_id: validPropId,
+      advertiser_id: validAdvId,
       buyer_name: lead.buyerName,
       buyer_email: lead.buyerEmail,
       buyer_phone: lead.buyerPhone,
@@ -564,6 +568,9 @@ export async function insertLeadToSupabase(lead: Lead): Promise<boolean> {
       budget: lead.budget || null,
       scheduled_visit_date: lead.scheduledVisitDate || null
     });
+    if (error) {
+      console.warn('Supabase lead insert notice:', error.message);
+    }
     return !error;
   } catch (e) {
     console.error('Error inserting lead to Supabase:', e);

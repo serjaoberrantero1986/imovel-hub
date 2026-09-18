@@ -88,7 +88,12 @@ export const PropertyProvider: React.FC<{
     }
 
     const existingCodes = properties.map(p => p.code);
-    const code = generatePropertyCode(data.type, existingCodes);
+    const code = generatePropertyCode({
+      type: data.type,
+      purpose: data.purpose,
+      state: data.state,
+      city: data.city
+    }, existingCodes);
     const id = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : '00000000-0000-4000-8000-000000000000'.replace(/[08]/g, () => ((Math.random()*16)|0).toString(16));
     const now = new Date().toISOString();
 

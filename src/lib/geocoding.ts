@@ -7,56 +7,93 @@ export interface GeocodeCoordinates {
 
 const geocodeCache = new Map<string, GeocodeCoordinates>();
 
-// Tabela de coordenadas de bairros emblemáticos
+// Tabela de coordenadas de bairros emblemáticos indexados por CIDADE:BAIRRO
+// Garante isolamento estrito para evitar que o "Centro" de uma cidade seja atribuído a outra
 const NEIGHBORHOOD_COORDINATES: Record<string, [number, number]> = {
-  // Rio de Janeiro
-  'copacabana': [-22.9719, -43.1843],
-  'ipanema': [-22.9868, -43.2003],
-  'leblon': [-22.9839, -43.2237],
-  'barra da tijuca': [-23.0004, -43.3659],
-  'recreio dos bandeirantes': [-23.0278, -43.4687],
-  'recreio': [-23.0278, -43.4687],
-  'botafogo': [-22.9519, -43.1848],
-  'flamengo': [-22.9304, -43.1783],
-  'tijuca': [-22.9341, -43.2458],
-  'laranjeiras': [-22.9344, -43.1878],
-  'gávea': [-22.9786, -43.2347],
-  'gavea': [-22.9786, -43.2347],
-  'jardim botânico': [-22.9667, -43.2272],
-  'jardim botanico': [-22.9667, -43.2272],
-  'lagoa': [-22.9680, -43.2050],
-  'humaitá': [-22.9575, -43.1972],
-  'humaita': [-22.9575, -43.1972],
-  'urca': [-22.9490, -43.1630],
-  'santo cristo': [-22.8988, -43.1998],
-  'porto maravilha': [-22.8988, -43.1998],
-  // São Paulo
-  'moema': [-23.6025, -46.6625],
-  'vila mariana': [-23.5892, -46.6344],
-  'pinheiros': [-23.5670, -46.6934],
-  'itaim bibi': [-23.5843, -46.6775],
-  'jardins': [-23.5645, -46.6667],
-  'morumbi': [-23.5985, -46.7118],
-  'bela vista': [-23.5630, -46.6543],
-  'perdizes': [-23.5369, -46.6734],
-  'santana': [-23.5042, -46.6264],
-  'tatuapé': [-23.5407, -46.5768],
-  'tatuape': [-23.5407, -46.5768],
-  'mooca': [-23.5552, -46.5988],
-  'brooklin': [-23.6190, -46.6908],
-  'vila madalena': [-23.5539, -46.6917],
-  'alphaville': [-23.5005, -46.8530],
-  // Sorocaba
-  'campolim': [-23.5283, -47.4667],
-  'parque campolim': [-23.5283, -47.4667],
-  'centro': [-23.5015, -47.4580],
-  'além ponte': [-23.5039, -47.4414],
-  'alem ponte': [-23.5039, -47.4414],
-  'wanel ville': [-23.4912, -47.4988],
-  'jardim dos estados': [-23.5222, -47.4678],
-  'vila hortência': [-23.5117, -47.4398],
-  'vila hortencia': [-23.5117, -47.4398],
-  'alto da boa vista': [-23.4831, -47.4339]
+  // Rio de Janeiro / RJ
+  'rio de janeiro:copacabana': [-22.9719, -43.1843],
+  'rio de janeiro:ipanema': [-22.9868, -43.2003],
+  'rio de janeiro:leblon': [-22.9839, -43.2237],
+  'rio de janeiro:barra da tijuca': [-23.0004, -43.3659],
+  'rio de janeiro:barra': [-23.0004, -43.3659],
+  'rio de janeiro:recreio dos bandeirantes': [-23.0278, -43.4687],
+  'rio de janeiro:recreio': [-23.0278, -43.4687],
+  'rio de janeiro:botafogo': [-22.9519, -43.1848],
+  'rio de janeiro:flamengo': [-22.9304, -43.1783],
+  'rio de janeiro:tijuca': [-22.9341, -43.2458],
+  'rio de janeiro:laranjeiras': [-22.9344, -43.1878],
+  'rio de janeiro:gávea': [-22.9786, -43.2347],
+  'rio de janeiro:gavea': [-22.9786, -43.2347],
+  'rio de janeiro:jardim botânico': [-22.9667, -43.2272],
+  'rio de janeiro:jardim botanico': [-22.9667, -43.2272],
+  'rio de janeiro:lagoa': [-22.9680, -43.2050],
+  'rio de janeiro:humaitá': [-22.9575, -43.1972],
+  'rio de janeiro:humaita': [-22.9575, -43.1972],
+  'rio de janeiro:urca': [-22.9490, -43.1630],
+  'rio de janeiro:santo cristo': [-22.8988, -43.1998],
+  'rio de janeiro:porto maravilha': [-22.8988, -43.1998],
+  'rio de janeiro:centro': [-22.9035, -43.1812],
+  'rio de janeiro:santa teresa': [-22.9234, -43.1914],
+  'rio de janeiro:leme': [-22.9634, -43.1672],
+  'rio de janeiro:maracanã': [-22.9121, -43.2302],
+  'rio de janeiro:maracana': [-22.9121, -43.2302],
+  'rio de janeiro:grajaú': [-22.9248, -43.2625],
+  'rio de janeiro:grajau': [-22.9248, -43.2625],
+
+  // Niterói / RJ
+  'niterói:icarai': [-22.9056, -43.1114],
+  'niteroi:icarai': [-22.9056, -43.1114],
+  'niterói:icaraí': [-22.9056, -43.1114],
+  'niterói:centro': [-22.8859, -43.1153],
+  'niteroi:centro': [-22.8859, -43.1153],
+
+  // São Paulo / SP
+  'são paulo:moema': [-23.6025, -46.6625],
+  'sao paulo:moema': [-23.6025, -46.6625],
+  'são paulo:vila mariana': [-23.5892, -46.6344],
+  'sao paulo:vila mariana': [-23.5892, -46.6344],
+  'são paulo:pinheiros': [-23.5670, -46.6934],
+  'sao paulo:pinheiros': [-23.5670, -46.6934],
+  'são paulo:itaim bibi': [-23.5843, -46.6775],
+  'sao paulo:itaim bibi': [-23.5843, -46.6775],
+  'são paulo:jardins': [-23.5645, -46.6667],
+  'sao paulo:jardins': [-23.5645, -46.6667],
+  'são paulo:morumbi': [-23.5985, -46.7118],
+  'sao paulo:morumbi': [-23.5985, -46.7118],
+  'são paulo:bela vista': [-23.5630, -46.6543],
+  'sao paulo:bela vista': [-23.5630, -46.6543],
+  'são paulo:perdizes': [-23.5369, -46.6734],
+  'sao paulo:perdizes': [-23.5369, -46.6734],
+  'são paulo:santana': [-23.5042, -46.6264],
+  'sao paulo:santana': [-23.5042, -46.6264],
+  'são paulo:tatuapé': [-23.5407, -46.5768],
+  'sao paulo:tatuapé': [-23.5407, -46.5768],
+  'sao paulo:tatuape': [-23.5407, -46.5768],
+  'são paulo:mooca': [-23.5552, -46.5988],
+  'sao paulo:mooca': [-23.5552, -46.5988],
+  'são paulo:brooklin': [-23.6190, -46.6908],
+  'sao paulo:brooklin': [-23.6190, -46.6908],
+  'são paulo:vila madalena': [-23.5539, -46.6917],
+  'sao paulo:vila madalena': [-23.5539, -46.6917],
+  'são paulo:centro': [-23.5489, -46.6388],
+  'sao paulo:centro': [-23.5489, -46.6388],
+
+  // Sorocaba / SP
+  'sorocaba:campolim': [-23.5283, -47.4667],
+  'sorocaba:parque campolim': [-23.5283, -47.4667],
+  'sorocaba:centro': [-23.5015, -47.4580],
+  'sorocaba:além ponte': [-23.5039, -47.4414],
+  'sorocaba:alem ponte': [-23.5039, -47.4414],
+  'sorocaba:wanel ville': [-23.4912, -47.4988],
+  'sorocaba:jardim dos estados': [-23.5222, -47.4678],
+  'sorocaba:vila hortência': [-23.5117, -47.4398],
+  'sorocaba:vila hortencia': [-23.5117, -47.4398],
+  'sorocaba:alto da boa vista': [-23.4831, -47.4339],
+  'sorocaba:vila leão': [-23.5152, -47.4628],
+  'sorocaba:vila leao': [-23.5152, -47.4628],
+  'sorocaba:trujillo': [-23.4942, -47.4675],
+  'sorocaba:santa rosália': [-23.4942, -47.4498],
+  'sorocaba:santa rosalia': [-23.4942, -47.4498],
 };
 
 // Cidades e Capitais Brasileiras com coordenadas centrais oficiais
@@ -172,38 +209,50 @@ const STATE_CAPITALS: Record<string, [number, number]> = {
   'TO': [-10.2491, -48.3243]
 };
 
+// Limites geográficos dos estados (bounding boxes) para validação estrita de integridade
+const STATE_BOUNDS: Record<string, { minLat: number; maxLat: number; minLng: number; maxLng: number }> = {
+  'RJ': { minLat: -23.40, maxLat: -20.70, minLng: -44.95, maxLng: -40.90 },
+  'SP': { minLat: -25.35, maxLat: -19.70, minLng: -53.20, maxLng: -44.10 },
+  'MG': { minLat: -22.95, maxLat: -14.20, minLng: -51.10, maxLng: -39.80 },
+  'PR': { minLat: -26.75, maxLat: -22.50, minLng: -54.70, maxLng: -48.00 },
+  'SC': { minLat: -29.40, maxLat: -25.90, minLng: -53.90, maxLng: -48.30 },
+  'RS': { minLat: -33.80, maxLat: -27.00, minLng: -57.70, maxLng: -49.60 },
+  'DF': { minLat: -16.05, maxLat: -15.45, minLng: -48.30, maxLng: -47.30 },
+  'BA': { minLat: -18.35, maxLat: -8.50, minLng: -46.65, maxLng: -37.30 }
+};
+
 export function getCityFallbackCoordinates(city?: string, state?: string, neighborhood?: string): [number, number] {
-  // Verifica primeiro se o bairro tem coordenada exata (ex: Copacabana, Campolim, etc.)
-  if (neighborhood) {
-    const cleanNeigh = neighborhood.trim().toLowerCase();
-    if (NEIGHBORHOOD_COORDINATES[cleanNeigh]) {
-      return NEIGHBORHOOD_COORDINATES[cleanNeigh];
+  const cleanCity = (city || '').trim().toLowerCase();
+  const cleanNeigh = (neighborhood || '').trim().toLowerCase();
+  const cleanState = (state || '').trim().toUpperCase();
+
+  // 1. Verifica par cidade:bairro (ex: 'rio de janeiro:copacabana' ou 'sorocaba:campolim')
+  if (cleanCity && cleanNeigh) {
+    const compositeKey = `${cleanCity}:${cleanNeigh}`;
+    if (NEIGHBORHOOD_COORDINATES[compositeKey]) {
+      return NEIGHBORHOOD_COORDINATES[compositeKey];
     }
   }
 
-  if (city) {
-    const cleanCity = city.trim().toLowerCase();
-    if (CITY_COORDINATES[cleanCity]) {
-      return CITY_COORDINATES[cleanCity];
-    }
+  // 2. Coordenadas da cidade
+  if (cleanCity && CITY_COORDINATES[cleanCity]) {
+    return CITY_COORDINATES[cleanCity];
   }
 
-  if (state) {
-    const cleanState = state.trim().toUpperCase();
-    if (STATE_CAPITALS[cleanState]) {
-      return STATE_CAPITALS[cleanState];
-    }
+  // 3. Capital do estado
+  if (cleanState && STATE_CAPITALS[cleanState]) {
+    return STATE_CAPITALS[cleanState];
   }
 
-  // Ponto central aproximado do Brasil
+  // 4. Centro do Brasil (Brasília)
   return [-15.7801, -47.9292];
 }
 
 /**
  * Validador e normalizador inteligente de coordenadas.
- * Se o imóvel possui coordenadas que conflitam grosseiramente com a sua cidade
- * (ex: diz que é Rio de Janeiro / RJ mas a latitude/longitude é de Sorocaba -23.5015, -47.4580),
- * corrige automaticamente para a localização correta da cidade e bairro do anúncio.
+ * Se o imóvel possui coordenadas que conflitam com sua cidade/estado real
+ * (ex: cadastro no Rio de Janeiro / RJ mas coordenadas salvas em Sorocaba -23.5015, -47.4580),
+ * corrige automaticamente para as coordenadas verdadeiras da cidade e bairro do anúncio.
  */
 export function resolvePropertyCoordinates(prop: {
   city?: string;
@@ -219,22 +268,38 @@ export function resolvePropertyCoordinates(prop: {
   const lat = prop.latitude != null && !isNaN(Number(prop.latitude)) ? Number(prop.latitude) : null;
   const lng = prop.longitude != null && !isNaN(Number(prop.longitude)) ? Number(prop.longitude) : null;
 
-  // Verifica se as coordenadas batem com o default antigo de Sorocaba
+  // 1. Detecta se a coordenada gravada é o default de Sorocaba (-23.5015, -47.4580)
   const isOldSorocabaDefault = lat !== null && lng !== null &&
     Math.abs(lat - (-23.5015)) < 0.05 &&
     Math.abs(lng - (-47.4580)) < 0.05;
 
-  // Se a coordenada atual é o default de Sorocaba, mas a cidade NÃO é Sorocaba, descarta e resolve pela cidade
   if (isOldSorocabaDefault && city && city !== 'sorocaba') {
     return getCityFallbackCoordinates(city, state, neighborhood);
   }
 
-  // Se já tem coordenadas válidas que não são o default errôneo, mantém
+  // 2. Validação de fronteira geográfica por estado (bounding box)
+  if (lat !== null && lng !== null && state && STATE_BOUNDS[state]) {
+    const bounds = STATE_BOUNDS[state];
+    const isOutsideState =
+      lat < bounds.minLat || lat > bounds.maxLat ||
+      lng < bounds.minLng || lng > bounds.maxLng;
+
+    if (isOutsideState) {
+      return getCityFallbackCoordinates(city, state, neighborhood);
+    }
+  }
+
+  // 3. Caso especial: Rio de Janeiro com longitude de São Paulo / Sorocaba (lng < -45.0)
+  if ((state === 'RJ' || city.includes('rio de janeiro')) && lng !== null && lng < -45.0) {
+    return getCityFallbackCoordinates(city, state, neighborhood);
+  }
+
+  // 4. Se já tem coordenadas válidas e coerentes com a localidade, mantém
   if (lat !== null && lng !== null && (lat !== 0 || lng !== 0)) {
     return [lat, lng];
   }
 
-  // Caso contrário, usa a melhor aproximação pela cidade/bairro
+  // 5. Fallback estruturado por cidade e bairro
   return getCityFallbackCoordinates(city, state, neighborhood);
 }
 
@@ -261,11 +326,13 @@ export async function geocodeAddress(params: {
     return geocodeCache.get(cacheKey)!;
   }
 
-  // 1. Checagem prévia em presets locais instantâneos
-  if (neighborhood) {
-    const nKey = neighborhood.toLowerCase();
-    if (NEIGHBORHOOD_COORDINATES[nKey]) {
-      const [pLat, pLon] = NEIGHBORHOOD_COORDINATES[nKey];
+  // 1. Checagem em presets composite (cidade:bairro) para resposta instantânea e precisa
+  const cleanCity = city.toLowerCase();
+  const cleanNeigh = neighborhood.toLowerCase();
+  if (cleanCity && cleanNeigh) {
+    const compositeKey = `${cleanCity}:${cleanNeigh}`;
+    if (NEIGHBORHOOD_COORDINATES[compositeKey]) {
+      const [pLat, pLon] = NEIGHBORHOOD_COORDINATES[compositeKey];
       const presetResult: GeocodeCoordinates = {
         latitude: pLat,
         longitude: pLon,
@@ -277,7 +344,7 @@ export async function geocodeAddress(params: {
     }
   }
 
-  // 2. Tentativas de busca no OpenStreetMap Nominatim do mais específico ao mais genérico
+  // 2. Consultas no OpenStreetMap Nominatim do mais específico ao mais geral
   const queries: { query: string; source: GeocodeCoordinates['source'] }[] = [];
 
   if (street && city) {
@@ -313,7 +380,6 @@ export async function geocodeAddress(params: {
       const timeoutId = setTimeout(() => controller.abort(), 4000);
 
       const url = `https://nominatim.openstreetmap.org/search?format=json&countrycodes=br&limit=1&q=${encodeURIComponent(query)}`;
-      // Não passar header 'User-Agent' proibido pelo browser
       const response = await fetch(url, {
         signal: controller.signal,
         headers: {
@@ -329,6 +395,14 @@ export async function geocodeAddress(params: {
           const lon = parseFloat(data[0].lon);
 
           if (!isNaN(lat) && !isNaN(lon)) {
+            // Valida se a coordenada retornada pelo Nominatim condiz com o estado solicitado
+            if (state && STATE_BOUNDS[state.toUpperCase()]) {
+              const bounds = STATE_BOUNDS[state.toUpperCase()];
+              if (lat < bounds.minLat || lat > bounds.maxLat || lon < bounds.minLng || lon > bounds.maxLng) {
+                continue; // Ignora resultado fora do estado esperado
+              }
+            }
+
             const result: GeocodeCoordinates = {
               latitude: lat,
               longitude: lon,
@@ -341,11 +415,11 @@ export async function geocodeAddress(params: {
         }
       }
     } catch {
-      // Continua para a próxima query menos específica
+      // Continua para a próxima query menos restritiva
     }
   }
 
-  // 3. Fallback inteligente baseado em tabelas de coordenadas conhecidas
+  // 3. Fallback inteligente e garantido baseado em tabelas oficiais
   const [fLat, fLon] = getCityFallbackCoordinates(city, state, neighborhood);
   const fallbackResult: GeocodeCoordinates = {
     latitude: fLat,
@@ -356,5 +430,3 @@ export async function geocodeAddress(params: {
   geocodeCache.set(cacheKey, fallbackResult);
   return fallbackResult;
 }
-
-

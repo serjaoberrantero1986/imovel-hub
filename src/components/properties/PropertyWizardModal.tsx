@@ -24,7 +24,7 @@ import {
 import { useApp } from '../../context/AppContext';
 import { Property, PropertyType, PropertyPurpose, PropertyMedia } from '../../types';
 import { AMENITIES_LIST } from '../../lib/mockData';
-import { formatCurrency, getPropertyTypeLabel, getPropertyPurposeLabel } from '../../lib/utils';
+import { formatCurrency, getPropertyTypeLabel, getPropertyPurposeLabel, generatePropertyCode } from '../../lib/utils';
 import { PropertyImageManager } from '../media/PropertyImageManager';
 import { geocodeAddress, resolvePropertyCoordinates } from '../../lib/geocoding';
 
@@ -996,9 +996,14 @@ export const PropertyWizardModal: React.FC = () => {
               <div className="p-5 rounded-3xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 space-y-4">
                 <div className="flex items-center justify-between flex-wrap gap-2">
                   <div>
-                    <span className="text-[10px] font-mono uppercase bg-slate-200 dark:bg-slate-700 px-2 py-0.5 rounded font-bold">
-                      {getPropertyPurposeLabel(purpose)} • {getPropertyTypeLabel(type)}
-                    </span>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-[10px] font-mono uppercase bg-slate-200 dark:bg-slate-700 px-2 py-0.5 rounded font-bold">
+                        {getPropertyPurposeLabel(purpose)} • {getPropertyTypeLabel(type)}
+                      </span>
+                      <span className="text-[10px] font-mono font-bold bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-900/60 px-2 py-0.5 rounded">
+                        {editingProperty ? `Cód: ${editingProperty.code}` : `Cód. Inteligente: ${generatePropertyCode({ type, purpose, state, city })}`}
+                      </span>
+                    </div>
                     <h3 className="text-base font-extrabold text-slate-900 dark:text-white mt-1">
                       {title || 'Imóvel sem título'}
                     </h3>
