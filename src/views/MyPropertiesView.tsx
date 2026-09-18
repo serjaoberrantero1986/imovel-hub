@@ -213,13 +213,15 @@ export const MyPropertiesView: React.FC = () => {
     }
   };
 
-  const handleUpdatePropertyMedia = (newMedia: PropertyMedia[], newVideoUrl?: string) => {
+  const handleUpdatePropertyMedia = async (newMedia: PropertyMedia[], newVideoUrl?: string) => {
     if (!managingPhotosProperty) return;
-    updateProperty(managingPhotosProperty.id, {
+    const success = await updateProperty(managingPhotosProperty.id, {
       media: newMedia,
       videoUrl: newVideoUrl !== undefined ? newVideoUrl : managingPhotosProperty.videoUrl
     });
-    setManagingPhotosProperty(prev => prev ? { ...prev, media: newMedia, videoUrl: newVideoUrl !== undefined ? newVideoUrl : prev.videoUrl } : null);
+    if (success) {
+      setManagingPhotosProperty(prev => prev ? { ...prev, media: newMedia, videoUrl: newVideoUrl !== undefined ? newVideoUrl : prev.videoUrl } : null);
+    }
   };
 
   const handleSelectStatus = async (propId: string, newStatus: PropertyStatus) => {

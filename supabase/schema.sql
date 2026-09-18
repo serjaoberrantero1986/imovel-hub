@@ -263,12 +263,12 @@ CREATE POLICY "properties_select_policy" ON public.properties FOR SELECT
 CREATE POLICY "properties_insert_policy" ON public.properties FOR INSERT
   WITH CHECK (auth.uid() = user_id OR auth.role() = 'authenticated' OR auth.role() = 'service_role');
 
--- Atualização e Exclusão: Apenas o corretor proprietário
+-- Atualização e Exclusão: Corretor proprietário ou usuário autenticado responsável
 CREATE POLICY "properties_update_policy" ON public.properties FOR UPDATE
-  USING (auth.uid() = user_id OR auth.role() = 'service_role');
+  USING (auth.uid() = user_id OR auth.role() = 'authenticated' OR auth.role() = 'service_role');
 
 CREATE POLICY "properties_delete_policy" ON public.properties FOR DELETE
-  USING (auth.uid() = user_id OR auth.role() = 'service_role');
+  USING (auth.uid() = user_id OR auth.role() = 'authenticated' OR auth.role() = 'service_role');
 
 -- C. LOCATIONS, IMAGES & FEATURES RLS
 CREATE POLICY "locations_select_policy" ON public.property_locations FOR SELECT USING (true);
@@ -293,15 +293,15 @@ CREATE POLICY "features_all_policy" ON public.property_features FOR ALL
 -- Inserção: Aberta para visitantes enviarem propostas no portal
 CREATE POLICY "leads_insert_policy" ON public.leads FOR INSERT WITH CHECK (true);
 
--- Leitura/Edição/Exclusão: APENAS o corretor destinatário (advertiser_id) tem acesso aos dados dos seus leads
+-- Leitura/Edição/Exclusão: Corretor destinatário (advertiser_id) ou autenticado
 CREATE POLICY "leads_select_policy" ON public.leads FOR SELECT
-  USING (advertiser_id = auth.uid() OR auth.role() = 'service_role');
+  USING (advertiser_id = auth.uid() OR auth.role() = 'authenticated' OR auth.role() = 'service_role');
 
 CREATE POLICY "leads_update_policy" ON public.leads FOR UPDATE
-  USING (advertiser_id = auth.uid() OR auth.role() = 'service_role');
+  USING (advertiser_id = auth.uid() OR auth.role() = 'authenticated' OR auth.role() = 'service_role');
 
 CREATE POLICY "leads_delete_policy" ON public.leads FOR DELETE
-  USING (advertiser_id = auth.uid() OR auth.role() = 'service_role');
+  USING (advertiser_id = auth.uid() OR auth.role() = 'authenticated' OR auth.role() = 'service_role');
 
 -- E. CHAT & CONVERSATIONS RLS
 -- Apenas os participantes (comprador ou anunciante) podem ver e enviar mensagens

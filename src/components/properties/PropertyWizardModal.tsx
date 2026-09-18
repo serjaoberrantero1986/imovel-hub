@@ -433,10 +433,12 @@ export const PropertyWizardModal: React.FC = () => {
 
     try {
       if (editingProperty) {
-        await updateProperty(editingProperty.id, propertyData);
-        openPropertyDetail(editingProperty.id);
-        setIsWizardOpen(false);
-        setEditingProperty(null);
+        const success = await updateProperty(editingProperty.id, propertyData);
+        if (success) {
+          openPropertyDetail(editingProperty.id);
+          setIsWizardOpen(false);
+          setEditingProperty(null);
+        }
       } else {
         const created = await addProperty(propertyData);
         if (created?.id) {

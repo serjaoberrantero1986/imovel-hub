@@ -99,7 +99,7 @@ export const PropertyDetailView: React.FC = () => {
     }
   };
 
-  const handleSubmitLead = (e: React.FormEvent) => {
+  const handleSubmitLead = async (e: React.FormEvent) => {
     e.preventDefault();
 
     // 1. Honeypot Anti-Spambot check
@@ -120,8 +120,8 @@ export const PropertyDetailView: React.FC = () => {
     }
 
     setIsSubmittingLead(true);
-    setTimeout(() => {
-      addLead({
+    try {
+      const res = await addLead({
         propertyId: property.id,
         propertyTitle: property.title,
         propertyCode: property.code,
@@ -135,16 +135,22 @@ export const PropertyDetailView: React.FC = () => {
         origin: 'portal_form',
         status: 'new'
       });
-      setIsSubmittingLead(false);
+
+      if (res && res.success === false) {
+        return;
+      }
+
       setLeadName('');
       setLeadPhone('');
       setLeadEmail('');
       setLeadHoneypot('');
-    }, 600);
+    } finally {
+      setIsSubmittingLead(false);
+    }
   };
 
-  const handleScheduleVisitSubmit = () => {
-    addLead({
+  const handleScheduleVisitSubmit = async () => {
+    const res = await addLead({
       propertyId: property.id,
       propertyTitle: property.title,
       propertyCode: property.code,
@@ -159,7 +165,9 @@ export const PropertyDetailView: React.FC = () => {
       status: 'visit_scheduled',
       scheduledVisitDate: `${visitDate}T${visitTime}:00`
     });
-    setScheduleModalOpen(false);
+    if (res?.success) {
+      setScheduleModalOpen(false);
+    }
   };
 
   // Similar properties

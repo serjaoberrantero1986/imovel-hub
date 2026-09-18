@@ -13,7 +13,7 @@ import { UserProfile } from '../types';
 
 export interface CrmContextType {
   leads: Lead[];
-  addLead: (lead: Omit<Lead, 'id' | 'createdAt' | 'updatedAt'>) => Promise<void>;
+  addLead: (lead: Omit<Lead, 'id' | 'createdAt' | 'updatedAt'>) => Promise<{ success: boolean; error?: string }>;
   updateLead: (leadId: string, updates: Partial<Lead>) => Promise<void>;
   updateLeadStatus: (leadId: string, status: Lead['status'], notes?: string) => Promise<void>;
   updateLeadNotes: (leadId: string, notes: string, privateNotes?: string) => Promise<void>;
@@ -69,7 +69,7 @@ export const CrmProvider: React.FC<{
     }
   }, [refreshLeads, currentUser?.id]);
 
-  const addLead = async (leadData: Omit<Lead, 'id' | 'createdAt' | 'updatedAt'>) => {
+  const addLead = async (leadData: Omit<Lead, 'id' | 'createdAt' | 'updatedAt'>): Promise<{ success: boolean; error?: string }> => {
     const leadId = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `lead-${Date.now()}`;
     const newLead: Lead = {
       ...leadData,
@@ -78,24 +78,35 @@ export const CrmProvider: React.FC<{
       updatedAt: new Date().toISOString()
     };
 
-    setLeads(prev => [newLead, ...prev]);
-    setProperties(prev => prev.map(p => p.id === leadData.propertyId ? { ...p, leadsCount: p.leadsCount + 1 } : p));
-
     if (isSupabaseConfigured) {
-      await insertLeadToSupabase(newLead);
+      const res = await insertLeadToSupabase(newLead);
+      if (!res.success) {
+        addToast({
+          type: 'error',
+          title: 'Erro ao Enviar Contato',
+          message: res.error || 'O banco de dados do Supabase não permitiu registrar o contato.'
+        });
+        return { success: false, error: res.error };
+      }
+
       if (leadData.propertyId) {
         const prop = properties.find(p => p.id === leadData.propertyId);
         if (prop) {
-          await updatePropertyInSupabase(prop.id, { leadsCount: prop.leadsCount + 1 });
+          await updatePropertyInSupabase(prop.id, { leadsCount: (prop.leadsCount || 0) + 1 });
         }
       }
     }
 
+    setLeads(prev => [newLead, ...prev]);
+    setProperties(prev => prev.map(p => p.id === leadData.propertyId ? { ...p, leadsCount: (p.leadsCount || 0) + 1 } : p));
+
     addToast({
       type: 'success',
       title: 'Mensagem Enviada!',
-      message: 'O anunciante recebeu seu contato no banco de dados e responderá em breve.'
+      message: 'O anunciante recebeu seu contato com sucesso e responderá em breve.'
     });
+
+    return { success: true };
   };
 
   const updateLead = async (leadId: string, updates: Partial<Lead>) => {

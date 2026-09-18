@@ -363,9 +363,15 @@ export async function insertPropertyToSupabase(property: Property): Promise<Inse
   }
 }
 
-export async function updatePropertyInSupabase(id: string, updates: Partial<Property>): Promise<boolean> {
-  if (!supabase) return false;
+export async function updatePropertyInSupabase(
+  id: string, 
+  updates: Partial<Property>
+): Promise<{ success: boolean; error?: string }> {
+  if (!supabase) {
+    return { success: false, error: 'Cliente Supabase não está configurado.' };
+  }
   try {
+    const validId = ensureValidUuid(id);
     const dbUpdates: any = {};
     if (updates.title !== undefined) dbUpdates.title = updates.title;
     if (updates.description !== undefined) dbUpdates.description = updates.description;
@@ -387,19 +393,31 @@ export async function updatePropertyInSupabase(id: string, updates: Partial<Prop
     if (updates.favoritesCount !== undefined) dbUpdates.favorites_count = updates.favoritesCount;
     dbUpdates.updated_at = new Date().toISOString();
 
-    const { error } = await supabase.from('properties').update(dbUpdates).eq('id', id);
+    const { data: updatedRows, error } = await supabase
+      .from('properties')
+      .update(dbUpdates)
+      .eq('id', validId)
+      .select('id, user_id');
+
     if (error) {
       console.warn('Supabase property update error:', error);
-      return false;
+      return { success: false, error: `Erro do Supabase ao atualizar imóvel: ${error.message}` };
+    }
+
+    if (!updatedRows || updatedRows.length === 0) {
+      return { 
+        success: false, 
+        error: 'O banco de dados não autorizou a alteração do imóvel (0 registros modificados). Verifique se o anúncio pertence à sua conta ou se a permissão RLS do Supabase permite a atualização.' 
+      };
     }
 
     // Sync media if updated
     if (updates.media) {
-      await supabase.from('property_images').delete().eq('property_id', id);
+      await supabase.from('property_images').delete().eq('property_id', validId);
       if (updates.media.length > 0) {
         const imageRows = updates.media.map(m => ({
           id: ensureValidUuid(m.id),
-          property_id: id,
+          property_id: validId,
           url: m.url,
           thumbnail_url: m.thumbnailUrl || m.url,
           media_type: m.mediaType,
@@ -411,6 +429,18 @@ export async function updatePropertyInSupabase(id: string, updates: Partial<Prop
           mime_type: m.mimeType || null
         }));
         await supabase.from('property_images').insert(imageRows);
+      }
+    }
+
+    // Sync amenities / features if updated
+    if (updates.amenities) {
+      await supabase.from('property_features').delete().eq('property_id', validId);
+      if (updates.amenities.length > 0) {
+        const featureRows = updates.amenities.map(featureId => ({
+          property_id: validId,
+          feature_id: featureId
+        }));
+        await supabase.from('property_features').insert(featureRows);
       }
     }
 
@@ -447,13 +477,13 @@ export async function updatePropertyInSupabase(id: string, updates: Partial<Prop
       locUpdates.latitude = rLat;
       locUpdates.longitude = rLng;
 
-      const { data: existingLoc } = await supabase.from('property_locations').select('id').eq('property_id', id).maybeSingle();
+      const { data: existingLoc } = await supabase.from('property_locations').select('id').eq('property_id', validId).maybeSingle();
       if (existingLoc) {
-        await supabase.from('property_locations').update(locUpdates).eq('property_id', id);
+        await supabase.from('property_locations').update(locUpdates).eq('property_id', validId);
       } else {
         await supabase.from('property_locations').insert({
-          id: crypto.randomUUID(),
-          property_id: id,
+          id: ensureValidUuid(),
+          property_id: validId,
           street: updates.addressStreet || 'Não informado',
           street_number: updates.addressNumber || null,
           complement: updates.addressComplement || null,
@@ -467,10 +497,10 @@ export async function updatePropertyInSupabase(id: string, updates: Partial<Prop
       }
     }
 
-    return true;
-  } catch (e) {
+    return { success: true };
+  } catch (e: any) {
     console.error('Failed to update property in Supabase:', e);
-    return false;
+    return { success: false, error: e?.message || 'Falha inesperada ao atualizar imóvel no banco de dados.' };
   }
 }
 
@@ -547,34 +577,101 @@ export async function fetchLeadsFromSupabase(): Promise<Lead[] | null> {
   }
 }
 
-export async function insertLeadToSupabase(lead: Lead): Promise<boolean> {
-  if (!supabase) return false;
+export async function insertLeadToSupabase(lead: Lead): Promise<{ success: boolean; error?: string }> {
+  if (!supabase) {
+    return { success: false, error: 'Supabase não está configurado.' };
+  }
   try {
     const validId = ensureValidUuid(lead.id);
     const validPropId = lead.propertyId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(lead.propertyId) ? lead.propertyId : null;
-    const validAdvId = lead.advertiserId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(lead.advertiserId) ? lead.advertiserId : null;
+    
+    // Resolve advertiser_id: must be a valid UUID existing in profiles
+    let targetAdvId = lead.advertiserId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(lead.advertiserId) ? lead.advertiserId : null;
+
+    // If advertiserId is not valid UUID, check property's user_id
+    if (!targetAdvId && validPropId) {
+      const { data: propRow } = await supabase
+        .from('properties')
+        .select('user_id')
+        .eq('id', validPropId)
+        .maybeSingle();
+      if (propRow?.user_id) {
+        targetAdvId = propRow.user_id;
+      }
+    }
+
+    // If still null, query first broker/profile in profiles table to satisfy NOT NULL constraint
+    if (!targetAdvId) {
+      const { data: fallbackProfile } = await supabase
+        .from('profiles')
+        .select('id')
+        .limit(1)
+        .maybeSingle();
+      if (fallbackProfile?.id) {
+        targetAdvId = fallbackProfile.id;
+      }
+    }
+
+    if (!targetAdvId) {
+      return { 
+        success: false, 
+        error: 'Não foi possível associar a mensagem ao corretor responsável. Verifique se o perfil existe no Supabase.' 
+      };
+    }
 
     const { error } = await supabase.from('leads').insert({
       id: validId,
       property_id: validPropId,
-      advertiser_id: validAdvId,
+      advertiser_id: targetAdvId,
       buyer_name: lead.buyerName,
       buyer_email: lead.buyerEmail,
       buyer_phone: lead.buyerPhone,
       message: lead.message,
-      origin: lead.origin,
-      status: lead.status,
+      origin: lead.origin || 'portal_form',
+      status: lead.status || 'new',
       notes: lead.notes || null,
       budget: lead.budget || null,
       scheduled_visit_date: lead.scheduledVisitDate || null
     });
+
     if (error) {
       console.warn('Supabase lead insert notice:', error.message);
+      return { success: false, error: `Erro no banco de dados ao salvar lead: ${error.message}` };
     }
-    return !error;
-  } catch (e) {
+
+    // Also initiate or record a conversation in conversations & messages table
+    // so that it also appears in the broker's "Mensagens" inbox!
+    try {
+      const convId = ensureValidUuid();
+      const msgId = ensureValidUuid();
+      
+      const { error: convErr } = await supabase.from('conversations').insert({
+        id: convId,
+        property_id: validPropId,
+        buyer_id: targetAdvId,
+        advertiser_id: targetAdvId,
+        last_message_text: lead.message ? `${lead.buyerName}: ${lead.message}` : `Contato recebido de ${lead.buyerName}`,
+        last_message_at: new Date().toISOString(),
+        advertiser_unread_count: 1
+      });
+
+      if (!convErr) {
+        await supabase.from('messages').insert({
+          id: msgId,
+          conversation_id: convId,
+          sender_id: targetAdvId,
+          text: `[Novo Lead via Portal]\nNome: ${lead.buyerName}\nTelefone: ${lead.buyerPhone}\nE-mail: ${lead.buyerEmail}\n${lead.message ? `Mensagem: ${lead.message}` : ''}`,
+          created_at: new Date().toISOString()
+        });
+      }
+    } catch (chatSyncErr) {
+      console.warn('Notice: Could not sync lead to chat conversations:', chatSyncErr);
+    }
+
+    return { success: true };
+  } catch (e: any) {
     console.error('Error inserting lead to Supabase:', e);
-    return false;
+    return { success: false, error: e?.message || 'Erro inesperado ao registrar contato no Supabase.' };
   }
 }
 

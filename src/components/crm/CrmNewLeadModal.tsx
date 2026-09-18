@@ -17,7 +17,7 @@ interface CrmNewLeadModalProps {
   isOpen: boolean;
   onClose: () => void;
   properties: Property[];
-  onAddLead: (lead: Omit<Lead, 'id' | 'createdAt' | 'updatedAt'>) => Promise<void>;
+  onAddLead: (lead: Omit<Lead, 'id' | 'createdAt' | 'updatedAt'>) => Promise<{ success: boolean; error?: string }>;
 }
 
 export const CrmNewLeadModal: React.FC<CrmNewLeadModalProps> = ({
@@ -62,7 +62,7 @@ export const CrmNewLeadModal: React.FC<CrmNewLeadModalProps> = ({
       .map(n => n.trim())
       .filter(Boolean);
 
-    await onAddLead({
+    const res = await onAddLead({
       buyerName,
       buyerPhone,
       buyerEmail: buyerEmail || undefined,
@@ -109,6 +109,10 @@ export const CrmNewLeadModal: React.FC<CrmNewLeadModalProps> = ({
         }
       ]
     });
+
+    if (res && res.success === false) {
+      return;
+    }
 
     onClose();
   };

@@ -14,9 +14,9 @@ import { generatePropertyCode } from '../lib/utils';
 export interface PropertyContextType {
   properties: Property[];
   addProperty: (propertyData: Omit<Property, 'id' | 'code' | 'createdAt' | 'updatedAt' | 'viewsCount' | 'leadsCount' | 'favoritesCount' | 'sharesCount' | 'advertiser' | 'userId'>) => Promise<Property | null>;
-  updateProperty: (id: string, propertyData: Partial<Property>) => Promise<void>;
+  updateProperty: (id: string, propertyData: Partial<Property>) => Promise<boolean>;
   deleteProperty: (id: string) => Promise<void>;
-  togglePropertyStatus: (id: string, status: PropertyStatus) => Promise<void>;
+  togglePropertyStatus: (id: string, status: PropertyStatus) => Promise<boolean>;
   setProperties: React.Dispatch<React.SetStateAction<Property[]>>;
   refreshProperties: () => Promise<void>;
 }
@@ -159,7 +159,19 @@ export const PropertyProvider: React.FC<{
     }
   };
 
-  const updateProperty = async (id: string, propertyData: Partial<Property>) => {
+  const updateProperty = async (id: string, propertyData: Partial<Property>): Promise<boolean> => {
+    if (isSupabaseConfigured) {
+      const res = await updatePropertyInSupabase(id, propertyData);
+      if (!res.success) {
+        addToast({
+          type: 'error',
+          title: 'Erro ao Salvar Alterações',
+          message: res.error || 'O banco de dados do Supabase não permitiu salvar as alterações do imóvel.'
+        });
+        return false;
+      }
+    }
+
     const updatedAt = new Date().toISOString();
     setProperties(prev => prev.map(p => {
       if (p.id === id) {
@@ -180,15 +192,12 @@ export const PropertyProvider: React.FC<{
       console.warn('Error updating broker storage:', e);
     }
 
-    if (isSupabaseConfigured) {
-      await updatePropertyInSupabase(id, propertyData);
-    }
-
     addToast({
       type: 'success',
       title: 'Anúncio Atualizado',
-      message: 'As alterações foram salvas com sucesso.'
+      message: 'As alterações foram salvas com sucesso no banco de dados.'
     });
+    return true;
   };
 
   const deleteProperty = async (id: string) => {
@@ -213,7 +222,19 @@ export const PropertyProvider: React.FC<{
     });
   };
 
-  const togglePropertyStatus = async (id: string, status: PropertyStatus) => {
+  const togglePropertyStatus = async (id: string, status: PropertyStatus): Promise<boolean> => {
+    if (isSupabaseConfigured) {
+      const res = await updatePropertyInSupabase(id, { status });
+      if (!res.success) {
+        addToast({
+          type: 'error',
+          title: 'Erro ao Modificar Status',
+          message: res.error || 'Não foi possível alterar o status no banco de dados.'
+        });
+        return false;
+      }
+    }
+
     setProperties(prev => prev.map(p => {
       if (p.id === id) {
         return { ...p, status, updatedAt: new Date().toISOString() };
@@ -221,15 +242,12 @@ export const PropertyProvider: React.FC<{
       return p;
     }));
 
-    if (isSupabaseConfigured) {
-      await updatePropertyInSupabase(id, { status });
-    }
-
     addToast({
       type: 'info',
       title: 'Status Modificado',
       message: `Status do imóvel alterado para "${status.toUpperCase()}".`
     });
+    return true;
   };
 
   return (
