@@ -20,6 +20,7 @@ import {
 import { useApp } from '../context/AppContext';
 import { PropertyCard } from '../components/properties/PropertyCard';
 import { PropertyFilterBar } from '../components/properties/PropertyFilterBar';
+import { HeroLuxurySection } from '../components/home/HeroLuxurySection';
 import { PropertyMap } from '../components/properties/PropertyMap';
 import { PropertyCardSkeleton } from '../components/ui/Skeleton';
 import { filterProperties, hasActiveFilters } from '../lib/propertyFilters';
@@ -105,33 +106,8 @@ export const PortalHomeView: React.FC = () => {
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 transition-colors">
       
-      {/* Hero Section with Premium Atmosphere */}
-      <section className="relative pt-12 pb-24 overflow-hidden bg-gradient-to-b from-slate-900 via-slate-900 to-slate-950 text-white">
-        
-        {/* Subtle Background Pattern & Glow */}
-        <div className="absolute inset-0 bg-[radial-gradient(#ffffff0a_1px,transparent_1px)] [background-size:24px_24px] pointer-events-none opacity-60" />
-        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[700px] h-[350px] bg-rose-600/15 blur-[120px] rounded-full pointer-events-none" />
-
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-10">
-          
-          {/* Main Hero Header */}
-          <div className="text-center max-w-3xl mx-auto space-y-4">
-            <h1 className="text-3xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight font-['Outfit'] leading-tight">
-              Encontre o <span className="text-transparent bg-clip-text bg-gradient-to-r from-rose-400 via-amber-300 to-rose-400">Imóvel Perfeito</span>
-            </h1>
-
-            <p className="text-base sm:text-lg text-slate-300 font-normal max-w-2xl mx-auto">
-              Chácaras, sítios, fazendas, terrenos, casas, apartamentos e lançamentos ao seu alcance, com atendimento personalizado.
-            </p>
-          </div>
-
-          {/* Embedded Filter Bar */}
-          <div className="max-w-5xl mx-auto pt-2">
-            <PropertyFilterBar />
-          </div>
-
-        </div>
-      </section>
+      {/* Hero Luxury Section with Real Floating Properties and Modern Search Bar */}
+      <HeroLuxurySection />
 
       {/* Main Content Area */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 space-y-20">

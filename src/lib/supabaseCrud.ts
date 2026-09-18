@@ -24,19 +24,27 @@ export function mapDbPropertyToApp(
   advertiserProfile?: any
 ): Property {
   const media: PropertyMedia[] = images
-    .sort((a, b) => (a.display_order ?? 0) - (b.display_order ?? 0))
-    .map(img => ({
-      id: img.id,
-      url: img.url,
-      thumbnailUrl: img.thumbnail_url || img.url,
-      mediaType: img.media_type || 'image',
-      caption: img.caption || undefined,
-      category: img.category || undefined,
-      isCover: img.is_cover || false,
-      order: img.display_order || 1,
-      size: img.file_size_bytes || undefined,
-      mimeType: img.mime_type || undefined
-    }));
+    .sort((a, b) => {
+      // Prioritize the cover photo
+      if (a.is_cover && !b.is_cover) return -1;
+      if (!a.is_cover && b.is_cover) return 1;
+      return (a.display_order ?? 0) - (b.display_order ?? 0);
+    })
+    .map(img => {
+      const resolvedUrl = img.url || img.image_url || '';
+      return {
+        id: img.id,
+        url: resolvedUrl,
+        thumbnailUrl: img.thumbnail_url || resolvedUrl,
+        mediaType: img.media_type || 'image',
+        caption: img.caption || undefined,
+        category: img.category || undefined,
+        isCover: Boolean(img.is_cover),
+        order: img.display_order || 1,
+        size: img.file_size_bytes || undefined,
+        mimeType: img.mime_type || undefined
+      };
+    });
 
   const advertiser: UserProfile = advertiserProfile
     ? {
@@ -103,6 +111,7 @@ export function mapDbPropertyToApp(
     longitude: location?.longitude || -47.4526,
 
     amenities: features,
+    images: media.map(m => m.url).filter(Boolean),
     media,
     videoUrl: dbProp.video_url || undefined,
     tour360Url: dbProp.tour_360_url || undefined,
