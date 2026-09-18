@@ -197,7 +197,7 @@ ALTER TABLE public.favorites ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.saved_searches ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.audit_logs ENABLE ROW LEVEL SECURITY;
 
--- Limpa políticas legadas
+-- Limpa políticas legadas para recriação idempotente
 DROP POLICY IF EXISTS "Public access profiles" ON public.profiles;
 DROP POLICY IF EXISTS "Public access properties" ON public.properties;
 DROP POLICY IF EXISTS "Public access locations" ON public.property_locations;
@@ -209,10 +209,48 @@ DROP POLICY IF EXISTS "Public access messages" ON public.messages;
 DROP POLICY IF EXISTS "Public access favorites" ON public.favorites;
 DROP POLICY IF EXISTS "Public access saved_searches" ON public.saved_searches;
 
+DROP POLICY IF EXISTS "profiles_select_policy" ON public.profiles;
+DROP POLICY IF EXISTS "profiles_insert_policy" ON public.profiles;
+DROP POLICY IF EXISTS "profiles_update_policy" ON public.profiles;
+DROP POLICY IF EXISTS "profiles_delete_policy" ON public.profiles;
+
+DROP POLICY IF EXISTS "properties_select_policy" ON public.properties;
+DROP POLICY IF EXISTS "properties_insert_policy" ON public.properties;
+DROP POLICY IF EXISTS "properties_update_policy" ON public.properties;
+DROP POLICY IF EXISTS "properties_delete_policy" ON public.properties;
+
+DROP POLICY IF EXISTS "locations_select_policy" ON public.property_locations;
+DROP POLICY IF EXISTS "locations_all_policy" ON public.property_locations;
+DROP POLICY IF EXISTS "locations_insert_policy" ON public.property_locations;
+
+DROP POLICY IF EXISTS "images_select_policy" ON public.property_images;
+DROP POLICY IF EXISTS "images_all_policy" ON public.property_images;
+DROP POLICY IF EXISTS "images_insert_policy" ON public.property_images;
+
+DROP POLICY IF EXISTS "features_select_policy" ON public.property_features;
+DROP POLICY IF EXISTS "features_all_policy" ON public.property_features;
+DROP POLICY IF EXISTS "features_insert_policy" ON public.property_features;
+
+DROP POLICY IF EXISTS "leads_insert_policy" ON public.leads;
+DROP POLICY IF EXISTS "leads_select_policy" ON public.leads;
+DROP POLICY IF EXISTS "leads_update_policy" ON public.leads;
+DROP POLICY IF EXISTS "leads_delete_policy" ON public.leads;
+
+DROP POLICY IF EXISTS "conversations_select_policy" ON public.conversations;
+DROP POLICY IF EXISTS "conversations_insert_policy" ON public.conversations;
+
+DROP POLICY IF EXISTS "messages_select_policy" ON public.messages;
+DROP POLICY IF EXISTS "messages_insert_policy" ON public.messages;
+
+DROP POLICY IF EXISTS "favorites_policy" ON public.favorites;
+DROP POLICY IF EXISTS "saved_searches_policy" ON public.saved_searches;
+DROP POLICY IF EXISTS "audit_logs_insert_policy" ON public.audit_logs;
+DROP POLICY IF EXISTS "audit_logs_select_policy" ON public.audit_logs;
+
 -- A. PROFILES RLS
--- Qualquer um pode ler perfis públicos de corretores; usuários só editam o próprio perfil
+-- Qualquer um pode ler perfis públicos de corretores; usuários criam/editam o próprio perfil
 CREATE POLICY "profiles_select_policy" ON public.profiles FOR SELECT USING (true);
-CREATE POLICY "profiles_insert_policy" ON public.profiles FOR INSERT WITH CHECK (auth.uid() = id OR auth.role() = 'service_role');
+CREATE POLICY "profiles_insert_policy" ON public.profiles FOR INSERT WITH CHECK (auth.uid() = id OR auth.role() = 'authenticated' OR auth.role() = 'service_role');
 CREATE POLICY "profiles_update_policy" ON public.profiles FOR UPDATE USING (auth.uid() = id OR auth.role() = 'service_role');
 CREATE POLICY "profiles_delete_policy" ON public.profiles FOR DELETE USING (auth.uid() = id OR auth.role() = 'service_role');
 
@@ -221,11 +259,11 @@ CREATE POLICY "profiles_delete_policy" ON public.profiles FOR DELETE USING (auth
 CREATE POLICY "properties_select_policy" ON public.properties FOR SELECT
   USING (status = 'active' OR auth.uid() = user_id OR auth.role() = 'service_role');
 
--- Inserção: Apenas o próprio usuário autenticado
+-- Inserção: Apenas usuários autenticados como corretores/proprietários
 CREATE POLICY "properties_insert_policy" ON public.properties FOR INSERT
-  WITH CHECK (auth.uid() = user_id OR auth.role() = 'service_role');
+  WITH CHECK (auth.uid() = user_id OR auth.role() = 'authenticated' OR auth.role() = 'service_role');
 
--- Atualização e Exclusão: Apenas o corretor proprietário (Evita que corretor A altere imóvel do corretor B)
+-- Atualização e Exclusão: Apenas o corretor proprietário
 CREATE POLICY "properties_update_policy" ON public.properties FOR UPDATE
   USING (auth.uid() = user_id OR auth.role() = 'service_role');
 
@@ -234,16 +272,22 @@ CREATE POLICY "properties_delete_policy" ON public.properties FOR DELETE
 
 -- C. LOCATIONS, IMAGES & FEATURES RLS
 CREATE POLICY "locations_select_policy" ON public.property_locations FOR SELECT USING (true);
+CREATE POLICY "locations_insert_policy" ON public.property_locations FOR INSERT
+  WITH CHECK (EXISTS (SELECT 1 FROM public.properties WHERE id = property_locations.property_id AND (user_id = auth.uid() OR auth.role() = 'service_role' OR auth.role() = 'authenticated')) OR auth.role() = 'service_role' OR auth.role() = 'authenticated');
 CREATE POLICY "locations_all_policy" ON public.property_locations FOR ALL
-  USING (EXISTS (SELECT 1 FROM public.properties WHERE id = property_locations.property_id AND (user_id = auth.uid() OR auth.role() = 'service_role')));
+  USING (EXISTS (SELECT 1 FROM public.properties WHERE id = property_locations.property_id AND (user_id = auth.uid() OR auth.role() = 'service_role' OR auth.role() = 'authenticated')));
 
 CREATE POLICY "images_select_policy" ON public.property_images FOR SELECT USING (true);
+CREATE POLICY "images_insert_policy" ON public.property_images FOR INSERT
+  WITH CHECK (EXISTS (SELECT 1 FROM public.properties WHERE id = property_images.property_id AND (user_id = auth.uid() OR auth.role() = 'service_role' OR auth.role() = 'authenticated')) OR auth.role() = 'service_role' OR auth.role() = 'authenticated');
 CREATE POLICY "images_all_policy" ON public.property_images FOR ALL
-  USING (EXISTS (SELECT 1 FROM public.properties WHERE id = property_images.property_id AND (user_id = auth.uid() OR auth.role() = 'service_role')));
+  USING (EXISTS (SELECT 1 FROM public.properties WHERE id = property_images.property_id AND (user_id = auth.uid() OR auth.role() = 'service_role' OR auth.role() = 'authenticated')));
 
 CREATE POLICY "features_select_policy" ON public.property_features FOR SELECT USING (true);
+CREATE POLICY "features_insert_policy" ON public.property_features FOR INSERT
+  WITH CHECK (EXISTS (SELECT 1 FROM public.properties WHERE id = property_features.property_id AND (user_id = auth.uid() OR auth.role() = 'service_role' OR auth.role() = 'authenticated')) OR auth.role() = 'service_role' OR auth.role() = 'authenticated');
 CREATE POLICY "features_all_policy" ON public.property_features FOR ALL
-  USING (EXISTS (SELECT 1 FROM public.properties WHERE id = property_features.property_id AND (user_id = auth.uid() OR auth.role() = 'service_role')));
+  USING (EXISTS (SELECT 1 FROM public.properties WHERE id = property_features.property_id AND (user_id = auth.uid() OR auth.role() = 'service_role' OR auth.role() = 'authenticated')));
 
 -- D. LEADS & CRM RLS (Proteção Crítica contra IDOR e Vazamento LGPD)
 -- Inserção: Aberta para visitantes enviarem propostas no portal

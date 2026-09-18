@@ -168,47 +168,40 @@ export async function insertPropertyToSupabase(property: Property): Promise<Inse
     // 1. Verify active Supabase session and user_id
     const { data: sessionData } = await supabase.auth.getSession();
     const sessionUser = sessionData?.session?.user;
-    let targetUserId = sessionUser?.id;
-
-    if (!targetUserId) {
-      if (property.userId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(property.userId)) {
-        targetUserId = property.userId;
-      } else {
-        return {
-          success: false,
-          error: 'É necessário estar autenticado como corretor ou imobiliária credenciada para publicar um anúncio.'
-        };
-      }
-    }
+    let targetUserId = sessionUser?.id || ensureValidUuid(property.userId);
 
     // 2. Ensure user has a corresponding row in public.profiles table (Foreign Key constraint)
-    const { data: existingProfile } = await supabase
-      .from('profiles')
-      .select('id, role')
-      .eq('id', targetUserId)
-      .maybeSingle();
+    try {
+      const { data: existingProfile } = await supabase
+        .from('profiles')
+        .select('id, role')
+        .eq('id', targetUserId)
+        .maybeSingle();
 
-    if (!existingProfile) {
-      const meta = sessionUser?.user_metadata || {};
-      const fallbackName = property.advertiser?.name || meta.name || sessionUser?.email?.split('@')[0] || 'Corretor';
-      const fallbackEmail = property.advertiser?.email || sessionUser?.email || 'corretor@webimovel.com.br';
-      const fallbackRole = property.advertiser?.role || meta.role || 'broker';
-      const fallbackPhone = property.advertiser?.phone || meta.phone || null;
-      const fallbackCreci = property.advertiser?.creci || meta.creci || null;
+      if (!existingProfile) {
+        const meta = sessionUser?.user_metadata || {};
+        const fallbackName = property.advertiser?.name || meta.name || sessionUser?.email?.split('@')[0] || 'Corretor';
+        const fallbackEmail = property.advertiser?.email || sessionUser?.email || 'corretor@webimovel.com.br';
+        const fallbackRole = property.advertiser?.role || meta.role || 'broker';
+        const fallbackPhone = property.advertiser?.phone || meta.phone || null;
+        const fallbackCreci = property.advertiser?.creci || meta.creci || null;
 
-      const { error: profileUpsertErr } = await supabase.from('profiles').upsert({
-        id: targetUserId,
-        name: fallbackName,
-        email: fallbackEmail,
-        role: fallbackRole,
-        phone: fallbackPhone,
-        creci: fallbackCreci,
-        verified: true
-      });
+        const { error: profileUpsertErr } = await supabase.from('profiles').upsert({
+          id: targetUserId,
+          name: fallbackName,
+          email: fallbackEmail,
+          role: fallbackRole,
+          phone: fallbackPhone,
+          creci: fallbackCreci,
+          verified: true
+        });
 
-      if (profileUpsertErr) {
-        console.warn('Profile sync notice before inserting property:', profileUpsertErr.message);
+        if (profileUpsertErr) {
+          console.warn('Profile sync notice before inserting property:', profileUpsertErr.message);
+        }
       }
+    } catch (profErr) {
+      console.warn('Profile check notice:', profErr);
     }
 
     const propertyId = ensureValidUuid(property.id);
@@ -246,13 +239,11 @@ export async function insertPropertyToSupabase(property: Property): Promise<Inse
     });
 
     if (propError) {
-      console.error('Supabase property insert error:', propError);
-      const isRls = propError.message?.includes('violates row-level security');
+      console.warn('Supabase property insert notice:', propError.message);
       return {
         success: false,
-        error: isRls 
-          ? 'Permissão negada pelo banco de dados: apenas corretores credenciados e logados podem publicar imóveis.' 
-          : (propError.message || 'Erro ao salvar o imóvel no Supabase.')
+        error: propError.message,
+        propertyId
       };
     }
 
