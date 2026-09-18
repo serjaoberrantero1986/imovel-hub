@@ -3,6 +3,7 @@ import L from 'leaflet';
 import { Property } from '../../types';
 import { useApp } from '../../context/AppContext';
 import { formatCompactNumber, formatCurrency } from '../../lib/utils';
+import { resolvePropertyCoordinates } from '../../lib/geocoding';
 import { 
   Layers, 
   ZoomIn, 
@@ -37,8 +38,20 @@ export const PropertyMap: React.FC<PropertyMapProps> = ({
     if (!leafletContainerRef.current) return;
     if (leafletMapRef.current) return;
 
+    // Calculate initial center based on properties if available
+    let initialCenter: [number, number] = defaultCenter;
+    if (properties.length > 0) {
+      for (const p of properties) {
+        const [pLat, pLng] = resolvePropertyCoordinates(p);
+        if (pLat && pLng) {
+          initialCenter = [pLat, pLng];
+          break;
+        }
+      }
+    }
+
     const map = L.map(leafletContainerRef.current, {
-      center: defaultCenter,
+      center: initialCenter,
       zoom: 13,
       zoomControl: false,
       attributionControl: false
@@ -127,7 +140,8 @@ export const PropertyMap: React.FC<PropertyMapProps> = ({
     let validCount = 0;
 
     properties.forEach((prop) => {
-      if (!prop.latitude || !prop.longitude) return;
+      const [lat, lng] = resolvePropertyCoordinates(prop);
+      if (!lat || !lng) return;
 
       const isHovered = prop.id === hoveredPropertyId;
       const formattedPrice = formatCompactNumber(prop.price);
@@ -155,7 +169,7 @@ export const PropertyMap: React.FC<PropertyMapProps> = ({
         iconAnchor: [0, 0]
       });
 
-      const marker = L.marker([prop.latitude, prop.longitude], { icon: customIcon }).addTo(map);
+      const marker = L.marker([lat, lng], { icon: customIcon }).addTo(map);
 
       const coverImage = prop.media[0]?.thumbnailUrl || prop.media[0]?.url || 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?auto=format&fit=crop&w=400&q=80';
       
@@ -200,18 +214,31 @@ export const PropertyMap: React.FC<PropertyMapProps> = ({
       });
 
       leafletMarkersRef.current[prop.id] = marker;
-      bounds.extend([prop.latitude, prop.longitude]);
+      bounds.extend([lat, lng]);
       validCount++;
     });
 
     // Auto-fit to visible properties
     if (bounds.isValid()) {
+      try {
+        map.invalidateSize();
+      } catch {}
       if (validCount > 1) {
         map.fitBounds(bounds, { padding: [50, 50], maxZoom: 16 });
       } else if (validCount === 1) {
         const center = bounds.getCenter();
         map.setView(center, 15);
       }
+      setTimeout(() => {
+        try {
+          map.invalidateSize();
+          if (validCount > 1) {
+            map.fitBounds(bounds, { padding: [50, 50], maxZoom: 16 });
+          } else if (validCount === 1) {
+            map.setView(bounds.getCenter(), 15);
+          }
+        } catch {}
+      }, 150);
     }
   }, [properties, hoveredPropertyId, openPropertyDetail]);
 
@@ -222,8 +249,9 @@ export const PropertyMap: React.FC<PropertyMapProps> = ({
       const bounds = L.latLngBounds([]);
       let count = 0;
       properties.forEach(p => {
-        if (p.latitude && p.longitude) {
-          bounds.extend([p.latitude, p.longitude]);
+        const [pLat, pLng] = resolvePropertyCoordinates(p);
+        if (pLat && pLng) {
+          bounds.extend([pLat, pLng]);
           count++;
         }
       });

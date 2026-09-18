@@ -26,7 +26,7 @@ import { Property, PropertyType, PropertyPurpose, PropertyMedia } from '../../ty
 import { AMENITIES_LIST } from '../../lib/mockData';
 import { formatCurrency, getPropertyTypeLabel, getPropertyPurposeLabel } from '../../lib/utils';
 import { PropertyImageManager } from '../media/PropertyImageManager';
-import { geocodeAddress } from '../../lib/geocoding';
+import { geocodeAddress, resolvePropertyCoordinates } from '../../lib/geocoding';
 
 // Tipos oficiais cadastrados no banco de dados e no portal
 const PORTAL_PROPERTY_TYPES: { id: PropertyType; label: string; desc: string }[] = [
@@ -386,6 +386,15 @@ export const PropertyWizardModal: React.FC = () => {
 
     // Se a geocodificação não retornar nada (endereço inexistente ou sem conexão), 
     // usa o centro geográfico aproximado do Brasil (-14.2350, -51.9253) ou mantém nulo
+    const [finalResolvedLat, finalResolvedLng] = resolvePropertyCoordinates({
+      city: city.trim(),
+      state: state.trim().toUpperCase(),
+      neighborhood: neighborhood.trim(),
+      addressStreet: addressStreet.trim(),
+      latitude: finalLat,
+      longitude: finalLng
+    });
+
     const propertyData = {
       title: title.trim(),
       slug: (title || `${type}-${neighborhood}`).toLowerCase().replace(/[^a-z0-9]+/g, '-'),
@@ -413,8 +422,8 @@ export const PropertyWizardModal: React.FC = () => {
       state: state.trim().toUpperCase(),
       zipCode: zipCode.trim(),
       condoName: condoName.trim() || undefined,
-      latitude: finalLat ?? -23.5015,
-      longitude: finalLng ?? -47.4580,
+      latitude: finalResolvedLat,
+      longitude: finalResolvedLng,
       featured: true,
       isExclusive: false,
       amenities: selectedAmenities,

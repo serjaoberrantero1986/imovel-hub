@@ -31,6 +31,7 @@ import { AMENITIES_LIST } from '../../lib/mockData';
 import { formatCurrency, formatArea, formatDateTime } from '../../lib/utils';
 import { parseYouTubeUrl } from '../../lib/imageProcessing';
 import { PropertyCard } from './PropertyCard';
+import { PropertyMap } from './PropertyMap';
 import { verifyHoneypot, sanitizeHtml, auditService } from '../../lib/security';
 import { SwipeableImageGallery } from './SwipeableImageGallery';
 import { PropertyMortgageCalculator } from './PropertyMortgageCalculator';
@@ -409,6 +410,45 @@ export const PropertyDetailView: React.FC = () => {
                 </div>
               );
             })()}
+
+            {/* Location & Map Section */}
+            <div className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-rose-50 dark:bg-rose-950/60 text-rose-600 flex items-center justify-center">
+                  <MapPin className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-slate-900 dark:text-white font-['Outfit']">
+                    Localização no Mapa
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    {property.neighborhood}, {property.city} - {property.state}
+                  </p>
+                </div>
+              </div>
+
+              <div className="h-64 sm:h-80 w-full rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-800">
+                <PropertyMap
+                  properties={[property]}
+                  className="h-full w-full"
+                />
+              </div>
+
+              <div className="flex items-center justify-between text-xs text-slate-500 pt-1">
+                <span className="flex items-center gap-1.5">
+                  <MapPin className="w-3.5 h-3.5 text-rose-500 shrink-0" />
+                  <span>{property.addressStreet}{property.addressNumber ? `, ${property.addressNumber}` : ''} • {property.neighborhood}, {property.city}/{property.state}</span>
+                </span>
+                <a
+                  href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${property.addressStreet || ''} ${property.addressNumber || ''}, ${property.neighborhood || ''}, ${property.city || ''} - ${property.state || ''}`)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-rose-600 dark:text-rose-400 hover:underline font-semibold"
+                >
+                  Ver no Google Maps ↗
+                </a>
+              </div>
+            </div>
 
             {/* Mortgage Simulator */}
             <PropertyMortgageCalculator propertyPrice={property.price} />

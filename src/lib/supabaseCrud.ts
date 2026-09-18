@@ -1,6 +1,6 @@
 import { supabase } from './supabaseClient';
 import { Property, Lead, Conversation, Message, SavedSearch, PropertyMedia, UserProfile } from '../types';
-import { getCityFallbackCoordinates } from './geocoding';
+import { getCityFallbackCoordinates, resolvePropertyCoordinates } from './geocoding';
 
 function ensureValidUuid(id?: string): string {
   if (id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
@@ -71,6 +71,23 @@ export function mapDbPropertyToApp(
         verified: true
       };
 
+  // Location resolution
+  const rawLat = (location?.latitude !== null && location?.latitude !== undefined && !isNaN(Number(location.latitude)))
+    ? Number(location.latitude)
+    : null;
+  const rawLng = (location?.longitude !== null && location?.longitude !== undefined && !isNaN(Number(location.longitude)))
+    ? Number(location.longitude)
+    : null;
+
+  const [resolvedLat, resolvedLng] = resolvePropertyCoordinates({
+    city: location?.city,
+    state: location?.state,
+    neighborhood: location?.neighborhood,
+    addressStreet: location?.street,
+    latitude: rawLat,
+    longitude: rawLng
+  });
+
   return {
     id: dbProp.id,
     code: dbProp.code,
@@ -84,12 +101,12 @@ export function mapDbPropertyToApp(
     status: dbProp.status,
     featured: dbProp.featured,
     isExclusive: dbProp.is_exclusive,
-    price: dbProp.price,
-    pricePerMeter: dbProp.useful_area > 0 ? Math.round(dbProp.price / dbProp.useful_area) : undefined,
-    condoFee: dbProp.condo_fee,
-    iptuFee: dbProp.iptu_fee,
-    totalArea: dbProp.total_area,
-    usefulArea: dbProp.useful_area,
+    price: Number(dbProp.price),
+    pricePerMeter: dbProp.useful_area > 0 ? Math.round(Number(dbProp.price) / Number(dbProp.useful_area)) : undefined,
+    condoFee: dbProp.condo_fee ? Number(dbProp.condo_fee) : undefined,
+    iptuFee: dbProp.iptu_fee ? Number(dbProp.iptu_fee) : undefined,
+    totalArea: Number(dbProp.total_area || dbProp.useful_area || 0),
+    usefulArea: dbProp.useful_area ? Number(dbProp.useful_area) : undefined,
     bedrooms: dbProp.bedrooms,
     suites: dbProp.suites,
     bathrooms: dbProp.bathrooms,
@@ -100,7 +117,6 @@ export function mapDbPropertyToApp(
     constructionYear: dbProp.construction_year || undefined,
     deliveryDate: dbProp.delivery_date || undefined,
 
-    // Location
     addressStreet: location?.street || 'Endereço Principal',
     addressNumber: location?.street_number || '',
     addressComplement: location?.complement || '',
@@ -108,12 +124,8 @@ export function mapDbPropertyToApp(
     city: location?.city || '',
     state: location?.state || '',
     zipCode: location?.zip_code || '',
-    latitude: (location?.latitude !== null && location?.latitude !== undefined && !isNaN(Number(location.latitude)))
-      ? Number(location.latitude)
-      : getCityFallbackCoordinates(location?.city, location?.state)[0],
-    longitude: (location?.longitude !== null && location?.longitude !== undefined && !isNaN(Number(location.longitude)))
-      ? Number(location.longitude)
-      : getCityFallbackCoordinates(location?.city, location?.state)[1],
+    latitude: resolvedLat,
+    longitude: resolvedLng,
 
     amenities: features,
     images: media.map(m => m.url).filter(Boolean),
@@ -283,6 +295,8 @@ export async function insertPropertyToSupabase(property: Property): Promise<Inse
       ? property.zipCode.trim() 
       : '00000-000';
 
+    const [resolvedLat, resolvedLng] = resolvePropertyCoordinates(property);
+
     const { error: locError } = await supabase.from('property_locations').insert({
       id: crypto.randomUUID(),
       property_id: propertyId,
@@ -290,11 +304,11 @@ export async function insertPropertyToSupabase(property: Property): Promise<Inse
       street_number: property.addressNumber || null,
       complement: property.addressComplement || null,
       neighborhood: property.neighborhood || 'Centro',
-      city: property.city || 'Sorocaba',
-      state: property.state || 'SP',
+      city: property.city || '',
+      state: property.state || '',
       zip_code: zipCode,
-      latitude: property.latitude || null,
-      longitude: property.longitude || null
+      latitude: resolvedLat,
+      longitude: resolvedLng
     });
 
     if (locError) {
@@ -397,6 +411,59 @@ export async function updatePropertyInSupabase(id: string, updates: Partial<Prop
           mime_type: m.mimeType || null
         }));
         await supabase.from('property_images').insert(imageRows);
+      }
+    }
+
+    // Sync location if any location field is updated
+    const hasLocationUpdates = 
+      updates.addressStreet !== undefined ||
+      updates.addressNumber !== undefined ||
+      updates.addressComplement !== undefined ||
+      updates.neighborhood !== undefined ||
+      updates.city !== undefined ||
+      updates.state !== undefined ||
+      updates.zipCode !== undefined ||
+      updates.latitude !== undefined ||
+      updates.longitude !== undefined;
+
+    if (hasLocationUpdates) {
+      const locUpdates: Record<string, any> = {};
+      if (updates.addressStreet !== undefined) locUpdates.street = updates.addressStreet;
+      if (updates.addressNumber !== undefined) locUpdates.street_number = updates.addressNumber || null;
+      if (updates.addressComplement !== undefined) locUpdates.complement = updates.addressComplement || null;
+      if (updates.neighborhood !== undefined) locUpdates.neighborhood = updates.neighborhood;
+      if (updates.city !== undefined) locUpdates.city = updates.city;
+      if (updates.state !== undefined) locUpdates.state = updates.state;
+      if (updates.zipCode !== undefined) locUpdates.zip_code = updates.zipCode;
+
+      const [rLat, rLng] = resolvePropertyCoordinates({
+        city: updates.city,
+        state: updates.state,
+        neighborhood: updates.neighborhood,
+        addressStreet: updates.addressStreet,
+        latitude: updates.latitude,
+        longitude: updates.longitude
+      });
+      locUpdates.latitude = rLat;
+      locUpdates.longitude = rLng;
+
+      const { data: existingLoc } = await supabase.from('property_locations').select('id').eq('property_id', id).maybeSingle();
+      if (existingLoc) {
+        await supabase.from('property_locations').update(locUpdates).eq('property_id', id);
+      } else {
+        await supabase.from('property_locations').insert({
+          id: crypto.randomUUID(),
+          property_id: id,
+          street: updates.addressStreet || 'Não informado',
+          street_number: updates.addressNumber || null,
+          complement: updates.addressComplement || null,
+          neighborhood: updates.neighborhood || 'Centro',
+          city: updates.city || '',
+          state: updates.state || '',
+          zip_code: updates.zipCode || '00000-000',
+          latitude: rLat,
+          longitude: rLng
+        });
       }
     }
 
