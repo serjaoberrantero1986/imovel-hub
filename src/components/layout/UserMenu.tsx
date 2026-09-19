@@ -190,9 +190,9 @@ export const UserMenu: React.FC = () => {
                     <Users className="w-4 h-4 text-emerald-500" />
                     <span>CRM & Gestão de Leads</span>
                   </div>
-                  {leads.length > 0 && (
+                  {unreadLeadsCount > 0 && (
                     <span className="text-[10px] px-1.5 py-0.5 rounded-full font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
-                      {leads.length}
+                      {unreadLeadsCount}
                     </span>
                   )}
                 </button>
