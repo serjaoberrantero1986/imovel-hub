@@ -15,8 +15,7 @@ import {
   Hash,
   ArrowRight,
   RefreshCw,
-  ShieldCheck,
-  Download
+  ShieldCheck
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { UserMenu } from './UserMenu';
@@ -69,11 +68,6 @@ export const Navbar: React.FC = () => {
     }
     setEditingProperty(null);
     setIsWizardOpen(true);
-  };
-
-  const handleTriggerInstall = () => {
-    window.dispatchEvent(new CustomEvent('trigger-pwa-install'));
-    setMobileMenuOpen(false);
   };
 
   const handleNavigate = (view: any, purpose?: any) => {
@@ -274,57 +268,16 @@ export const Navbar: React.FC = () => {
           </div>
 
           <button
-            id="mobile-install-pwa"
-            onClick={handleTriggerInstall}
-            className="w-full min-h-[44px] py-2.5 rounded-xl bg-gradient-to-r from-amber-500/15 via-rose-500/15 to-indigo-500/15 border border-rose-500/30 text-slate-900 dark:text-white font-bold text-xs flex items-center justify-center gap-2 mb-2 transition-colors cursor-pointer"
-          >
-            <Download className="w-4 h-4 text-rose-500" />
-            <span>Instalar Aplicativo Web Imóvel (PWA)</span>
-          </button>
-
-          <button
-            id="mobile-theme-toggle"
-            onClick={toggleTheme}
-            className="w-full min-h-[44px] py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 font-bold text-xs flex items-center justify-center gap-2 mb-2 transition-colors cursor-pointer"
-          >
-            {theme === 'light' ? (
-              <>
-                <Moon className="w-4 h-4 text-indigo-600" />
-                <span>Ativar Modo Escuro</span>
-              </>
-            ) : (
-              <>
-                <Sun className="w-4 h-4 text-amber-400" />
-                <span>Ativar Modo Claro</span>
-              </>
-            )}
-          </button>
-
-          <button
             id="mobile-legal-btn"
             onClick={() => {
               openLegalPage('security');
               setMobileMenuOpen(false);
             }}
-            className="w-full min-h-[44px] py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 font-bold text-xs flex items-center justify-center gap-2 mb-2 transition-colors cursor-pointer"
+            className="w-full min-h-[44px] py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 font-bold text-xs flex items-center justify-center gap-2 transition-colors cursor-pointer"
           >
             <ShieldCheck className="w-4 h-4 text-emerald-500" />
             <span>Central de Segurança e Termos Legais</span>
           </button>
-
-          <Button
-            id="mobile-anunciar-cta"
-            variant="primary"
-            size="md"
-            fullWidth
-            leftIcon={<PlusCircle className="w-4 h-4" />}
-            onClick={() => {
-              handleStartNewListing();
-              setMobileMenuOpen(false);
-            }}
-          >
-            Publicar Anúncio de Imóvel
-          </Button>
         </div>
       )}
 
