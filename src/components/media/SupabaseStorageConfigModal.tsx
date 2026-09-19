@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Database, X } from 'lucide-react';
-import { sanitizeSupabaseUrl } from '../../lib/supabaseClient';
+import { sanitizeSupabaseUrl, updateSupabaseCredentials } from '../../lib/supabaseClient';
 
 interface SupabaseStorageConfigModalProps {
   isOpen: boolean;
@@ -28,9 +28,14 @@ export const SupabaseStorageConfigModal: React.FC<SupabaseStorageConfigModalProp
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const cleanUrl = sanitizeSupabaseUrl(urlInput);
+    const cleanKey = keyInput.trim().replace(/^["']+|["']+$/g, '');
+    const cleanBucket = bucketInput.trim() || 'property-images';
+
     localStorage.setItem('imovelhub_supabase_url', cleanUrl);
-    localStorage.setItem('imovelhub_supabase_anon_key', keyInput.trim().replace(/^["']+|["']+$/g, ''));
-    localStorage.setItem('imovelhub_supabase_bucket', bucketInput.trim() || 'property-images');
+    localStorage.setItem('imovelhub_supabase_anon_key', cleanKey);
+    localStorage.setItem('imovelhub_supabase_bucket', cleanBucket);
+    
+    updateSupabaseCredentials(cleanUrl, cleanKey);
     onSaved('Conexão com o Supabase Storage configurada.');
     onClose();
   };

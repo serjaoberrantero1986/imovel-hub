@@ -209,26 +209,38 @@ export async function insertPropertyToSupabase(property: Property): Promise<Inse
   if (!supabase) return { success: false, error: 'Supabase não inicializado ou credenciais ausentes.' };
   try {
     // 1. Verify active Supabase session and user_id
-    const { data: sessionData } = await supabase.auth.getSession();
-    const sessionUser = sessionData?.session?.user;
-    let targetUserId = sessionUser?.id || ensureValidUuid(property.userId);
+    let sessionUser: any = null;
+    try {
+      const { data: userData } = await supabase.auth.getUser();
+      sessionUser = userData?.user;
+      if (!sessionUser) {
+        const { data: sessionData } = await supabase.auth.getSession();
+        sessionUser = sessionData?.session?.user;
+      }
+    } catch {
+      // fallback
+    }
+
+    // Determine targetUserId: Prefer the logged-in session user ID, then property.userId or advertiser.id
+    const rawUserId = sessionUser?.id || property.userId || property.advertiser?.id;
+    const targetUserId = ensureValidUuid(rawUserId);
 
     // 2. Ensure user has a corresponding row in public.profiles table (Foreign Key constraint)
     try {
       const { data: existingProfile } = await supabase
         .from('profiles')
-        .select('id, role')
+        .select('id, role, email')
         .eq('id', targetUserId)
         .maybeSingle();
 
-      if (!existingProfile) {
-        const meta = sessionUser?.user_metadata || {};
-        const fallbackName = property.advertiser?.name || meta.name || sessionUser?.email?.split('@')[0] || 'Corretor';
-        const fallbackEmail = property.advertiser?.email || sessionUser?.email || 'corretor@webimovel.com.br';
-        const fallbackRole = property.advertiser?.role || meta.role || 'broker';
-        const fallbackPhone = property.advertiser?.phone || meta.phone || null;
-        const fallbackCreci = property.advertiser?.creci || meta.creci || null;
+      const meta = sessionUser?.user_metadata || {};
+      const fallbackName = property.advertiser?.name || meta.name || sessionUser?.email?.split('@')[0] || 'Corretor';
+      const fallbackEmail = property.advertiser?.email || sessionUser?.email || meta.email || 'corretor@webimovel.com.br';
+      const fallbackRole = property.advertiser?.role || meta.role || 'broker';
+      const fallbackPhone = property.advertiser?.phone || meta.phone || null;
+      const fallbackCreci = property.advertiser?.creci || meta.creci || null;
 
+      if (!existingProfile) {
         const { error: profileUpsertErr } = await supabase.from('profiles').upsert({
           id: targetUserId,
           name: fallbackName,
@@ -237,7 +249,7 @@ export async function insertPropertyToSupabase(property: Property): Promise<Inse
           phone: fallbackPhone,
           creci: fallbackCreci,
           verified: true
-        });
+        }, { onConflict: 'id' });
 
         if (profileUpsertErr) {
           console.warn('Profile sync notice before inserting property:', profileUpsertErr.message);

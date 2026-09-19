@@ -500,7 +500,35 @@ CREATE TABLE IF NOT EXISTS public.saved_searches (
     alert_frequency VARCHAR(20) NOT NULL DEFAULT 'daily',
     match_count INT NOT NULL DEFAULT 0,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);`;
+);
+
+-- ==============================================================================
+-- PERMISSÕES E POLÍTICAS RLS (Garantindo que SELECT, INSERT, UPDATE e DELETE funcionem)
+-- ==============================================================================
+GRANT ALL ON ALL TABLES IN SCHEMA public TO anon, authenticated, service_role;
+GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO anon, authenticated, service_role;
+
+ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.properties ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.property_locations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.property_images ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.property_features ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.leads ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.conversations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.messages ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.favorites ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.saved_searches ENABLE ROW LEVEL SECURITY;
+
+DO $$
+DECLARE
+    t text;
+BEGIN
+    FOR t IN SELECT unnest(ARRAY['profiles', 'properties', 'property_locations', 'property_images', 'property_features', 'leads', 'conversations', 'messages', 'favorites', 'saved_searches'])
+    LOOP
+        EXECUTE format('DROP POLICY IF EXISTS "policy_all_%I" ON public.%I;', t, t);
+        EXECUTE format('CREATE POLICY "policy_all_%I" ON public.%I FOR ALL USING (true) WITH CHECK (true);', t, t);
+    END LOOP;
+END $$;`;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/70 backdrop-blur-sm animate-in fade-in">

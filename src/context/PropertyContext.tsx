@@ -28,7 +28,13 @@ export const PropertyProvider: React.FC<{
   currentUser: UserProfile;
   addToast: (toast: Omit<Toast, 'id'>) => void;
 }> = ({ children, currentUser, addToast }) => {
-  const [properties, setProperties] = useState<Property[]>([]);
+  const [properties, setProperties] = useState<Property[]>(() => {
+    try {
+      return JSON.parse(localStorage.getItem('imovelhub_broker_properties') || '[]');
+    } catch {
+      return [];
+    }
+  });
 
   // Do not purge real broker properties
   useEffect(() => {
@@ -140,9 +146,9 @@ export const PropertyProvider: React.FC<{
         });
       } else {
         addToast({
-          type: 'success',
-          title: 'Imóvel Publicado com Sucesso!',
-          message: `Anúncio "${newProp.title}" ativo no portal e disponível para visualização e gestão.`
+          type: 'error',
+          title: 'Aviso de Sincronização com Supabase',
+          message: syncResult.error || `Não foi possível gravar no Supabase. Verifique a sessão e permissões.`
         });
       }
 

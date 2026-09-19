@@ -9,7 +9,6 @@ import {
   Table, 
   CalendarCheck, 
   Trash2, 
-  ShieldCheck, 
   AlertCircle,
   LogIn,
   ArrowRight,
@@ -198,10 +197,6 @@ export const CrmLeadsView: React.FC = () => {
             <div className="flex items-center gap-2">
               <span className="px-2.5 py-0.5 rounded-md bg-rose-100 dark:bg-rose-950 text-rose-700 dark:text-rose-300 text-xs font-black uppercase tracking-wider">
                 CRM Imobiliário Pro
-              </span>
-              <span className="text-xs text-slate-400 font-medium flex items-center gap-1">
-                <ShieldCheck className="w-3.5 h-3.5 text-indigo-500" />
-                Sincronização Supabase
               </span>
             </div>
             

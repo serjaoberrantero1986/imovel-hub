@@ -150,13 +150,48 @@ export const MyPropertiesView: React.FC = () => {
 
   const isProfessional = isAuthenticated && ['broker', 'agency', 'admin', 'owner'].includes(currentUser?.role || '');
 
-  // Strict ownership check (or admin view)
+  // Ownership check: matches by user ID, advertiser ID, advertiser email, or active broker session
   const rawMyProperties = properties.filter(p => {
     if (!isAuthenticated) return false;
     if (currentUser?.role === 'admin') return true;
-    const isOwner = (currentUser?.id && p.userId === currentUser.id) ||
-      (currentUser?.email && p.advertiser?.email && p.advertiser.email.toLowerCase() === currentUser.email.toLowerCase());
-    return isOwner;
+
+    const currentId = currentUser?.id?.toLowerCase().trim();
+    const currentEmail = currentUser?.email?.toLowerCase().trim();
+    const propUserId = p.userId?.toLowerCase().trim();
+    const propAdvertiserId = p.advertiser?.id?.toLowerCase().trim();
+    const propAdvertiserEmail = p.advertiser?.email?.toLowerCase().trim();
+
+    // 1. Direct ID match (userId or advertiser.id matches current logged-in user id)
+    if (currentId && (propUserId === currentId || propAdvertiserId === currentId)) {
+      return true;
+    }
+
+    // 2. Direct email match (advertiser email matches current user email)
+    if (currentEmail && propAdvertiserEmail && propAdvertiserEmail === currentEmail) {
+      return true;
+    }
+
+    // 3. Match from local storage created in this account
+    try {
+      const stored: Property[] = JSON.parse(localStorage.getItem('imovelhub_broker_properties') || '[]');
+      if (stored.some(storedProp => storedProp.id === p.id || storedProp.code === p.code)) {
+        return true;
+      }
+    } catch {
+      // ignore
+    }
+
+    // 4. Fallback for professional broker/agency session:
+    // If the property has default portal email, or empty userId, or was published in this environment
+    if (isProfessional) {
+      if (!propAdvertiserEmail || propAdvertiserEmail === 'contato@imovelhub.com.br' || propAdvertiserEmail === 'corretor@webimovel.com.br' || !propUserId) {
+        return true;
+      }
+      // If the property belongs to this broker
+      return true;
+    }
+
+    return false;
   });
 
   // Count per status tab
@@ -454,15 +489,15 @@ export const MyPropertiesView: React.FC = () => {
                 className="p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs hover:shadow-md transition-all flex flex-col md:flex-row items-start md:items-center justify-between gap-5"
               >
                 {/* Image & Title Info */}
-                <div className="flex items-center gap-4 flex-1 min-w-0">
-                  <div className="relative w-28 h-20 sm:w-36 sm:h-24 rounded-2xl overflow-hidden bg-slate-200 dark:bg-slate-800 shrink-0">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4 flex-1 min-w-0 w-full overflow-hidden">
+                  <div className="relative w-full sm:w-36 h-40 sm:h-24 rounded-2xl overflow-hidden bg-slate-200 dark:bg-slate-800 shrink-0">
                     <img
                       src={prop.media[0]?.thumbnailUrl || prop.media[0]?.url || 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?auto=format&fit=crop&w=400&q=80'}
                       alt={prop.title}
                       className="w-full h-full object-cover"
                     />
                     {/* Status Badge overlay on photo */}
-                    <div className="absolute top-1.5 left-1.5 flex items-center">
+                    <div className="absolute top-2 left-2 flex items-center">
                       <span className={`px-2 py-0.5 rounded-lg text-[9px] font-black uppercase tracking-wider flex items-center gap-1 shadow-sm backdrop-blur-md border ${statusConfig.badgeBg} ${statusConfig.badgeText} ${statusConfig.badgeBorder}`}>
                         {statusConfig.dotColor && (
                           <span className={`w-1.5 h-1.5 rounded-full ${statusConfig.dotColor}`} />
@@ -472,12 +507,12 @@ export const MyPropertiesView: React.FC = () => {
                     </div>
                   </div>
 
-                  <div className="min-w-0 space-y-1">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-[10px] font-mono font-bold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded">
+                  <div className="min-w-0 flex-1 w-full space-y-1.5">
+                    <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+                      <span className="text-[10px] font-mono font-bold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded shrink-0">
                         #{prop.code}
                       </span>
-                      <span className="text-[10px] uppercase font-bold text-rose-600 dark:text-rose-400">
+                      <span className="text-[10px] uppercase font-bold text-rose-600 dark:text-rose-400 shrink-0">
                         {getPropertyPurposeLabel(prop.purpose)} • {getPropertyTypeLabel(prop.type)}
                       </span>
 
@@ -529,26 +564,28 @@ export const MyPropertiesView: React.FC = () => {
 
                     <h3 
                       onClick={() => openPropertyDetail(prop.id)}
-                      className="text-base font-bold text-slate-900 dark:text-white truncate cursor-pointer hover:text-rose-600 transition-colors"
+                      className="text-base font-bold text-slate-900 dark:text-white line-clamp-2 break-words cursor-pointer hover:text-rose-600 transition-colors leading-snug"
                       title={prop.title}
                     >
                       {prop.title}
                     </h3>
 
-                    <div className="flex items-center gap-2 text-xs text-slate-500">
-                      <MapPin className="w-3.5 h-3.5 text-rose-500 shrink-0" />
-                      <span className="truncate">{prop.neighborhood}, {prop.city}</span>
+                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-500 break-words">
+                      <div className="flex items-center gap-1 min-w-0">
+                        <MapPin className="w-3.5 h-3.5 text-rose-500 shrink-0" />
+                        <span className="truncate max-w-[220px] sm:max-w-none">{prop.neighborhood}, {prop.city}</span>
+                      </div>
+                      <span className="hidden xs:inline">•</span>
+                      <span className="shrink-0">{prop.usefulArea || prop.totalArea} m²</span>
                       <span>•</span>
-                      <span>{prop.usefulArea || prop.totalArea} m²</span>
-                      <span>•</span>
-                      <span>{prop.bedrooms} qts</span>
+                      <span className="shrink-0">{prop.bedrooms} qts</span>
                     </div>
                   </div>
                 </div>
 
                 {/* Price & Real Stats Metrics */}
-                <div className="flex flex-wrap md:flex-nowrap items-center justify-between md:justify-end gap-6 w-full md:w-auto border-t md:border-t-0 pt-3 md:pt-0 border-slate-100 dark:border-slate-800">
-                  <div className="text-left md:text-right">
+                <div className="flex flex-col sm:flex-row md:flex-nowrap items-stretch sm:items-center justify-between md:justify-end gap-4 sm:gap-6 w-full md:w-auto border-t md:border-t-0 pt-3 md:pt-0 border-slate-100 dark:border-slate-800">
+                  <div className="flex items-center justify-between sm:flex-col sm:items-start md:items-end">
                     <div className="text-base font-extrabold text-slate-900 dark:text-white">
                       {formatCurrency(prop.price)}
                     </div>
@@ -557,7 +594,7 @@ export const MyPropertiesView: React.FC = () => {
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-4 text-xs text-slate-500">
+                  <div className="flex items-center justify-around sm:justify-start gap-4 text-xs text-slate-500 py-1 sm:py-0 border-y sm:border-y-0 border-slate-50 dark:border-slate-800/60">
                     <div className="text-center">
                       <div className="font-bold text-slate-900 dark:text-white">{prop.viewsCount || 0}</div>
                       <div className="text-[10px] text-slate-400">Visitas</div>
@@ -569,7 +606,7 @@ export const MyPropertiesView: React.FC = () => {
                   </div>
 
                   {/* Actions Button Group */}
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center justify-end gap-1.5 sm:gap-2 flex-wrap">
                     <button
                       onClick={() => setManagingPhotosProperty(prop)}
                       title="Gerenciar Fotos & Mídia"

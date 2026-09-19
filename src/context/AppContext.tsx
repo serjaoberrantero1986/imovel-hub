@@ -24,7 +24,7 @@ export { DEFAULT_FILTERS };
 
 export interface AppContextType extends 
   AuthContextType,
-  Omit<PropertyContextType, 'setProperties' | 'refreshProperties'>,
+  Omit<PropertyContextType, 'setProperties'>,
   Omit<CrmContextType, 'setLeads' | 'refreshLeads'>,
   Omit<ChatContextType, 'setConversations' | 'refreshConversations'>,
   Omit<SearchPreferencesContextType, 'refreshPreferences'> {
@@ -179,6 +179,7 @@ const AppCompositeProvider: React.FC<{
     updateProperty: propertyCtx.updateProperty,
     deleteProperty: propertyCtx.deleteProperty,
     togglePropertyStatus: propertyCtx.togglePropertyStatus,
+    refreshProperties: propertyCtx.refreshProperties,
     // CRM slice
     leads: crm.leads,
     viewedLeadIds: crm.viewedLeadIds,
