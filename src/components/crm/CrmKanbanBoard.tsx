@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { 
   Phone, 
   MessageSquare, 
@@ -16,7 +16,9 @@ import {
   ShieldCheck,
   Building2,
   ExternalLink,
-  ChevronDown
+  ChevronDown,
+  ChevronUp,
+  ChevronsUpDown
 } from 'lucide-react';
 import { Lead, LeadStatus, Property } from '../../types';
 import { formatCurrency, formatDateTime } from '../../lib/utils';
@@ -133,6 +135,29 @@ export const CrmKanbanBoard: React.FC<CrmKanbanBoardProps> = ({
     viewedLeadIds
   } = useApp();
 
+  const [expandedStages, setExpandedStages] = useState<Record<string, boolean>>({});
+
+  const toggleStage = (stageId: string) => {
+    setExpandedStages(prev => ({
+      ...prev,
+      [stageId]: !prev[stageId]
+    }));
+  };
+
+  const expandAll = () => {
+    const allExpanded: Record<string, boolean> = {};
+    KANBAN_STAGES.forEach(s => {
+      allExpanded[s.id] = true;
+    });
+    setExpandedStages(allExpanded);
+  };
+
+  const collapseAll = () => {
+    setExpandedStages({});
+  };
+
+  const anyExpanded = Object.values(expandedStages).some(Boolean);
+
   const getCleanPhone = (phone?: string) => {
     if (!phone) return '';
     return phone.replace(/\D/g, '');
@@ -149,7 +174,43 @@ export const CrmKanbanBoard: React.FC<CrmKanbanBoardProps> = ({
   };
 
   return (
-    <div className="w-full pb-6">
+    <div className="w-full pb-6 space-y-4">
+      {/* Top Controls: Expand / Collapse All */}
+      <div className="flex items-center justify-between px-1">
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-bold text-slate-500 dark:text-slate-400">
+            Estágios do Funil:
+          </span>
+          <span className="text-xs font-extrabold text-slate-700 dark:text-slate-200">
+            {Object.values(expandedStages).filter(Boolean).length} de {KANBAN_STAGES.length} abertos
+          </span>
+        </div>
+
+        <div className="flex items-center gap-2">
+          {anyExpanded ? (
+            <button
+              type="button"
+              onClick={collapseAll}
+              className="px-3 py-1.5 rounded-xl bg-slate-200/80 hover:bg-slate-300/80 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
+              title="Recolher todos os cards"
+            >
+              <ChevronUp className="w-3.5 h-3.5" />
+              <span>Recolher Todos</span>
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={expandAll}
+              className="px-3 py-1.5 rounded-xl bg-slate-200/80 hover:bg-slate-300/80 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
+              title="Expandir todos os cards"
+            >
+              <ChevronDown className="w-3.5 h-3.5" />
+              <span>Expandir Todos</span>
+            </button>
+          )}
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 items-start">
         
         {KANBAN_STAGES.map((stage, stageIndex) => {
@@ -158,45 +219,75 @@ export const CrmKanbanBoard: React.FC<CrmKanbanBoardProps> = ({
             (sum, l) => sum + (l.closedValue || l.budget || l.propertyPrice || 0), 
             0
           );
+          const isExpanded = !!expandedStages[stage.id];
+          const unreadCount = stageLeads.filter(l => l.status === 'new' && !viewedLeadIds.includes(l.id)).length;
 
           return (
             <div
               key={stage.id}
-              className="w-full bg-slate-100/80 dark:bg-slate-900/60 rounded-3xl p-3.5 border border-slate-200/80 dark:border-slate-800 flex flex-col space-y-3 shadow-xs"
+              className={`w-full bg-slate-100/80 dark:bg-slate-900/60 rounded-3xl p-3.5 border transition-all duration-200 flex flex-col shadow-xs ${
+                isExpanded 
+                  ? 'border-slate-300 dark:border-slate-700 space-y-3' 
+                  : 'border-slate-200/80 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'
+              }`}
             >
-              {/* Column Header */}
-              <div className="flex items-center justify-between px-1 pb-1 border-b border-slate-200/60 dark:border-slate-800">
-                <div className="flex items-center gap-2">
-                  <span className={`w-2.5 h-2.5 rounded-full ${stage.dotColor}`} />
-                  <div>
-                    <h3 className="text-xs font-black tracking-tight text-slate-900 dark:text-white uppercase font-['Outfit']">
-                      {stage.title}
-                    </h3>
-                    <p className="text-[10px] text-slate-400 font-medium">
+              {/* Clickable Header for Collapsing / Expanding */}
+              <button
+                type="button"
+                onClick={() => toggleStage(stage.id)}
+                className={`w-full text-left flex items-center justify-between px-1 py-1 rounded-2xl transition-colors cursor-pointer select-none group ${
+                  isExpanded ? 'border-b border-slate-200/60 dark:border-slate-800 pb-2' : ''
+                }`}
+                title={isExpanded ? `Clique para recolher "${stage.title}"` : `Clique para expandir "${stage.title}"`}
+              >
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${stage.dotColor}`} />
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-1.5">
+                      <h3 className="text-xs font-black tracking-tight text-slate-900 dark:text-white uppercase font-['Outfit'] truncate group-hover:text-rose-600 dark:group-hover:text-rose-400 transition-colors">
+                        {stage.title}
+                      </h3>
+                      {unreadCount > 0 && (
+                        <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" title={`${unreadCount} novo(s) lead(s)`} />
+                      )}
+                    </div>
+                    <p className="text-[10px] text-slate-400 font-medium truncate">
                       {stage.subtitle}
                     </p>
                   </div>
                 </div>
 
-                <div className="flex flex-col items-end">
-                  <span className="text-[11px] font-black px-2 py-0.5 rounded-full bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 shadow-xs border border-slate-200 dark:border-slate-700">
-                    {stageLeads.length}
-                  </span>
-                  {stageTotalValue > 0 && (
-                    <span className="text-[9px] font-mono font-bold text-slate-500 mt-0.5">
-                      {formatCurrency(stageTotalValue)}
+                <div className="flex items-center gap-2 shrink-0 ml-2">
+                  <div className="flex flex-col items-end">
+                    {/* Fixed lead counter on the title bar */}
+                    <span className="text-[11px] font-black px-2.5 py-0.5 rounded-full bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 shadow-xs border border-slate-200 dark:border-slate-700">
+                      {stageLeads.length} {stageLeads.length === 1 ? 'lead' : 'leads'}
                     </span>
-                  )}
-                </div>
-              </div>
-
-              {/* Cards Container */}
-              <div className="space-y-3 min-h-[300px]">
-                {stageLeads.length === 0 ? (
-                  <div className="p-6 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800 text-center text-slate-400 text-xs">
-                    Nenhum lead nesta etapa
+                    {stageTotalValue > 0 && (
+                      <span className="text-[9px] font-mono font-bold text-slate-500 mt-0.5">
+                        {formatCurrency(stageTotalValue)}
+                      </span>
+                    )}
                   </div>
-                ) : (
+
+                  <div className="p-1 rounded-lg text-slate-400 group-hover:text-slate-700 dark:group-hover:text-slate-200 transition-colors">
+                    {isExpanded ? (
+                      <ChevronUp className="w-4 h-4 transition-transform" />
+                    ) : (
+                      <ChevronDown className="w-4 h-4 transition-transform" />
+                    )}
+                  </div>
+                </div>
+              </button>
+
+              {/* Cards Container - Only visible when expanded */}
+              {isExpanded && (
+                <div className="space-y-3 min-h-[120px] pt-1">
+                  {stageLeads.length === 0 ? (
+                    <div className="p-6 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800 text-center text-slate-400 text-xs">
+                      Nenhum lead nesta etapa
+                    </div>
+                  ) : (
                   stageLeads.map((lead) => {
                     // Match score with origin property or first matching property
                     const matchedProperty = properties.find(p => p.id === lead.propertyId);
@@ -411,10 +502,11 @@ export const CrmKanbanBoard: React.FC<CrmKanbanBoardProps> = ({
                   })
                 )}
               </div>
+            )}
 
-            </div>
-          );
-        })}
+          </div>
+        );
+      })}
 
       </div>
     </div>

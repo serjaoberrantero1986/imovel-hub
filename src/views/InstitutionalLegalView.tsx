@@ -10,14 +10,11 @@ import {
   CheckCircle2, 
   Lock, 
   Eye, 
-  UserCheck, 
   FileSearch, 
   Mail, 
   Phone, 
   ExternalLink,
-  HelpCircle,
-  Copy,
-  Check
+  HelpCircle
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 
@@ -30,18 +27,6 @@ interface InstitutionalLegalViewProps {
 export const InstitutionalLegalView: React.FC<InstitutionalLegalViewProps> = ({ initialTab = 'terms' }) => {
   const { setCurrentView, addToast } = useApp();
   const [activeTab, setActiveTab] = useState<LegalTab>(initialTab);
-  const [copiedEmail, setCopiedEmail] = useState(false);
-
-  const handleCopyDpoEmail = () => {
-    navigator.clipboard.writeText('privacidade@webimovel.com.br');
-    setCopiedEmail(true);
-    addToast({
-      type: 'success',
-      title: 'E-mail copiado!',
-      message: 'Endereço do DPO copiado para a área de transferência.'
-    });
-    setTimeout(() => setCopiedEmail(false), 2500);
-  };
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 transition-colors py-10 lg:py-16">
@@ -204,30 +189,6 @@ export const InstitutionalLegalView: React.FC<InstitutionalLegalViewProps> = ({ 
                 <ChevronRight className="w-4 h-4 text-slate-400" />
               </button>
 
-            </div>
-
-            {/* DPO / Legal Contact Card */}
-            <div className="p-5 rounded-3xl bg-slate-900 text-white border border-slate-800 space-y-3 shadow-md">
-              <div className="flex items-center gap-2 text-rose-400 text-xs font-bold">
-                <UserCheck className="w-4 h-4" />
-                <span>Encarregado de Dados (DPO)</span>
-              </div>
-              <p className="text-[11px] text-slate-300 leading-relaxed">
-                Para exercer seus direitos de exclusão, revogação de consentimento ou correção de dados (Art. 18 da LGPD):
-              </p>
-              <div className="p-2.5 rounded-xl bg-slate-800/80 border border-slate-700 flex items-center justify-between gap-2">
-                <span className="text-xs font-mono text-slate-200 truncate">privacidade@webimovel.com.br</span>
-                <button
-                  onClick={handleCopyDpoEmail}
-                  className="p-1.5 rounded-lg hover:bg-slate-700 text-slate-300 hover:text-white transition-colors"
-                  title="Copiar e-mail"
-                >
-                  {copiedEmail ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
-                </button>
-              </div>
-              <p className="text-[10px] text-slate-400">
-                Prazo legal de resposta: até 15 dias úteis.
-              </p>
             </div>
           </div>
 
