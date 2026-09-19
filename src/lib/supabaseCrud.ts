@@ -848,96 +848,6 @@ export async function fetchConversationsFromSupabase(userId: string): Promise<Co
       }
     }
 
-    // Auto-backfill: Check if this broker has leads in 'leads' table that do not have a conversation record yet
-    try {
-      const { data: dbLeads } = await supabase
-        .from('leads')
-        .select(`
-          *,
-          properties (id, title, price, property_images (url, is_cover))
-        `)
-        .eq('advertiser_id', userId)
-        .order('created_at', { ascending: false });
-
-      if (dbLeads && dbLeads.length > 0) {
-        for (const ld of dbLeads) {
-          // Check if this lead is already represented in conversations
-          const alreadyHasConv = conversationsList.some(
-            c => c.propertyId === ld.property_id && 
-                 (c.otherUser.name.toLowerCase().includes(ld.buyer_name.toLowerCase()) || 
-                  c.lastMessage.toLowerCase().includes(ld.buyer_name.toLowerCase()) ||
-                  c.id === ld.id)
-          );
-
-          if (!alreadyHasConv) {
-            const prop = ld.properties;
-            const coverImage = prop?.property_images?.find((img: any) => img.is_cover)?.url || prop?.property_images?.[0]?.url;
-            const msgContent = ld.message || 'Olá, tenho interesse neste imóvel e gostaria de mais informações.';
-
-            const newConv: Conversation = {
-              id: ld.id,
-              propertyId: ld.property_id || '',
-              propertyTitle: prop?.title || 'Imóvel em Destaque',
-              propertyImage: coverImage,
-              propertyPrice: prop?.price || 0,
-              otherUser: {
-                id: `lead-user-${ld.id}`,
-                name: `${ld.buyer_name} (Lead Portal)`,
-                email: ld.buyer_email || 'contato@portal.com.br',
-                role: 'buyer',
-                avatarUrl: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(ld.buyer_name)}&backgroundColor=e11d48&textColor=ffffff`,
-                verified: true,
-                phone: ld.buyer_phone
-              },
-              lastMessage: `${ld.buyer_name}: ${msgContent}`,
-              lastMessageTime: new Date(ld.created_at).toLocaleDateString('pt-BR'),
-              unreadCount: 1,
-              messages: [{
-                id: `msg-${ld.id}`,
-                conversationId: ld.id,
-                senderId: `lead-sender-${ld.id}`,
-                senderName: ld.buyer_name,
-                senderAvatar: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(ld.buyer_name)}&backgroundColor=e11d48&textColor=ffffff`,
-                text: `[Lead do Portal - ${ld.buyer_name}]\nNome: ${ld.buyer_name}\nTelefone: ${ld.buyer_phone}\nE-mail: ${ld.buyer_email}\n\nMensagem: ${msgContent}`,
-                createdAt: ld.created_at,
-                read: false
-              }]
-            };
-
-            conversationsList.unshift(newConv);
-
-            // Persist backfilled conversation to Supabase in the background
-            (async () => {
-              try {
-                await supabase.from('conversations').insert({
-                  id: ld.id,
-                  property_id: ld.property_id,
-                  buyer_id: userId,
-                  advertiser_id: userId,
-                  last_message_text: `${ld.buyer_name}: ${msgContent}`,
-                  last_message_at: ld.created_at,
-                  buyer_unread_count: 0,
-                  advertiser_unread_count: 1
-                });
-
-                await supabase.from('messages').insert({
-                  id: ensureValidUuid(),
-                  conversation_id: ld.id,
-                  sender_id: userId,
-                  text: `[Lead do Portal - ${ld.buyer_name}]\nNome: ${ld.buyer_name}\nTelefone: ${ld.buyer_phone}\nE-mail: ${ld.buyer_email}\n\nMensagem: ${msgContent}`,
-                  created_at: ld.created_at
-                });
-              } catch (bgErr) {
-                console.warn('Could not auto-backfill conversation:', bgErr);
-              }
-            })();
-          }
-        }
-      }
-    } catch (e) {
-      console.warn('Notice: Error auto-checking leads for conversations:', e);
-    }
-
     return conversationsList;
   } catch (err) {
     console.warn('Error fetching conversations from Supabase:', err);
@@ -1024,9 +934,13 @@ export async function insertMessageToSupabase(message: Message, conversationId: 
 export async function deleteConversationFromSupabase(id: string): Promise<boolean> {
   if (!supabase) return false;
   try {
-    const { error } = await supabase.from('conversations').delete().eq('id', id);
+    const validId = ensureValidUuid(id);
+    // Delete child messages first to guarantee FK constraint integrity
+    await supabase.from('messages').delete().eq('conversation_id', validId);
+    const { error } = await supabase.from('conversations').delete().eq('id', validId);
     return !error;
-  } catch {
+  } catch (err) {
+    console.warn('Error deleting conversation from Supabase:', err);
     return false;
   }
 }

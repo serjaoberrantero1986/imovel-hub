@@ -201,7 +201,7 @@ export const CrmLeadsView: React.FC = () => {
               </span>
               <span className="text-xs text-slate-400 font-medium flex items-center gap-1">
                 <ShieldCheck className="w-3.5 h-3.5 text-indigo-500" />
-                Segurança LGPD & Sincronização Supabase
+                Sincronização Supabase
               </span>
             </div>
             
@@ -239,7 +239,7 @@ export const CrmLeadsView: React.FC = () => {
         {/* CRM Nav Tabs */}
         <div className="p-1.5 rounded-2xl bg-slate-200/70 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex items-center gap-1 overflow-x-auto scrollbar-none text-xs font-bold">
           
-          {/* Tab 1: Kanban */}
+          {/* Tab 1: Cards */}
           <button
             onClick={() => setActiveTab('kanban')}
             className={`px-4 py-2 rounded-xl transition-all flex items-center gap-2 cursor-pointer ${
@@ -249,7 +249,7 @@ export const CrmLeadsView: React.FC = () => {
             }`}
           >
             <Kanban className="w-4 h-4" />
-            <span>Pipeline Kanban ({displayedLeads.length})</span>
+            <span>Cards ({displayedLeads.length})</span>
           </button>
 
           {/* Tab 2: Dashboard */}

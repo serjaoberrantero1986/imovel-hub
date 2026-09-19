@@ -139,8 +139,18 @@ export const ChatProvider: React.FC<{
     try {
       const remoteConvs = await fetchConversationsFromSupabase(currentUser.id);
       if (remoteConvs !== null) {
+        let deletedIds: string[] = [];
+        try {
+          const deletedKey = `imovelhub_deleted_convs_${currentUser.id}`;
+          deletedIds = JSON.parse(localStorage.getItem(deletedKey) || '[]');
+        } catch {
+          deletedIds = [];
+        }
+
+        const validRemoteConvs = remoteConvs.filter(c => !deletedIds.includes(c.id));
+
         // If an active conversation is open, preserve unreadCount = 0 so polling doesn't reset it
-        const sanitized = remoteConvs.map(c => {
+        const sanitized = validRemoteConvs.map(c => {
           if (c.id === activeConversationId) {
             return {
               ...c,
@@ -255,6 +265,14 @@ export const ChatProvider: React.FC<{
       setActiveConversationId(newConv.id);
       localStorage.setItem(`imovelhub_conversations_${currentUser.id}`, JSON.stringify(nextConversations));
 
+      // Remove from deleted list if starting anew
+      try {
+        const deletedKey = `imovelhub_deleted_convs_${currentUser.id}`;
+        const deletedIds: string[] = JSON.parse(localStorage.getItem(deletedKey) || '[]');
+        const updatedDeleted = deletedIds.filter(id => id !== convId);
+        localStorage.setItem(deletedKey, JSON.stringify(updatedDeleted));
+      } catch {}
+
       if (isSupabaseConfigured) {
         insertConversationToSupabase({
           id: convId,
@@ -280,6 +298,18 @@ export const ChatProvider: React.FC<{
     const remaining = conversations.filter(c => c.id !== conversationId);
     setConversations(remaining);
     localStorage.setItem(`imovelhub_conversations_${currentUser.id}`, JSON.stringify(remaining));
+
+    // Register deleted ID into localStorage
+    try {
+      const deletedKey = `imovelhub_deleted_convs_${currentUser.id}`;
+      const deletedIds: string[] = JSON.parse(localStorage.getItem(deletedKey) || '[]');
+      if (!deletedIds.includes(conversationId)) {
+        deletedIds.push(conversationId);
+        localStorage.setItem(deletedKey, JSON.stringify(deletedIds));
+      }
+    } catch (err) {
+      console.warn('Could not store deleted conv id:', err);
+    }
 
     if (activeConversationId === conversationId) {
       setActiveConversationId(remaining.length > 0 ? remaining[0].id : null);

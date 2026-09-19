@@ -6,8 +6,6 @@ import {
   MessageSquare, 
   Calendar, 
   Clock, 
-  ShieldCheck, 
-  ShieldAlert, 
   Tag, 
   Plus, 
   Trash2, 
@@ -23,15 +21,12 @@ import {
   ChevronRight, 
   Send,
   UserCheck,
-  AlertCircle,
-  Eye,
-  EyeOff
+  AlertCircle
 } from 'lucide-react';
 import { Lead, LeadStatus, LeadInteraction, LeadTask, Property } from '../../types';
-import { formatCurrency, formatDateTime } from '../../lib/utils';
+import { formatCurrency, formatDateTime, formatLeadOrigin } from '../../lib/utils';
 import { calculatePropertyMatchScore, getTopMatchingPropertiesForLead } from '../../lib/crmMatching';
 import { KANBAN_STAGES } from './CrmKanbanBoard';
-import { auditService } from '../../lib/security';
 import { CrmLeadMatchingTab } from './CrmLeadMatchingTab';
 import { CrmLeadHistoryTab } from './CrmLeadHistoryTab';
 import { CrmLeadTasksTab } from './CrmLeadTasksTab';
@@ -76,7 +71,6 @@ export const CrmLeadDetailModal: React.FC<CrmLeadDetailModalProps> = ({
   if (!isOpen || !lead) return null;
 
   const [activeTab, setActiveTab] = useState<TabType>('overview');
-  const [showSensitiveData, setShowSensitiveData] = useState(false);
 
   // New Tag Form State
   const [newTagInput, setNewTagInput] = useState('');
@@ -119,29 +113,6 @@ export const CrmLeadDetailModal: React.FC<CrmLeadDetailModalProps> = ({
     setNewTagInput('');
   };
 
-  // Masking helpers for privacy
-  const getMaskedDocument = (doc?: string) => {
-    if (!doc) return 'Não informado';
-    if (showSensitiveData || !lead.accessRestricted) return doc;
-    return doc.replace(/(\d{3})\.(\d{3})\.(\d{3})-(\d{2})/, '***.$2.***-**');
-  };
-
-  const getMaskedPhone = (phone?: string) => {
-    if (!phone) return 'Não informado';
-    if (showSensitiveData || !lead.accessRestricted) return phone;
-    return phone.replace(/(\(\d{2}\)\s*)(\d{4,5})-(\d{4})/, '$1****-$3');
-  };
-
-  const getMaskedEmail = (email?: string) => {
-    if (!email) return 'Não informado';
-    if (showSensitiveData || !lead.accessRestricted) return email;
-    const parts = email.split('@');
-    if (parts.length < 2) return '***@***';
-    const name = parts[0];
-    const maskedName = name.slice(0, 2) + '****';
-    return `${maskedName}@${parts[1]}`;
-  };
-
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/70 backdrop-blur-xs overflow-y-auto animate-fade-in">
       <div 
@@ -162,27 +133,12 @@ export const CrmLeadDetailModal: React.FC<CrmLeadDetailModalProps> = ({
                 <h2 className="text-xl font-black text-slate-900 dark:text-white font-['Outfit'] truncate">
                   {lead.buyerName}
                 </h2>
-                
-                {/* Privacy Badge */}
-                <button
-                  type="button"
-                  onClick={() => onTogglePrivacy(lead.id)}
-                  title={lead.accessRestricted ? 'Dados Protegidos por LGPD' : 'Dados Públicos para a Equipe'}
-                  className={`px-2 py-0.5 rounded-md text-[10px] font-bold flex items-center gap-1 transition-colors ${
-                    lead.accessRestricted
-                      ? 'bg-indigo-100 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800'
-                      : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
-                  }`}
-                >
-                  {lead.accessRestricted ? <ShieldCheck className="w-3 h-3 text-indigo-500" /> : <Unlock className="w-3 h-3 text-slate-400" />}
-                  <span>{lead.accessRestricted ? 'Restrito (LGPD)' : 'Equipe'}</span>
-                </button>
               </div>
 
               <div className="flex items-center gap-3 text-xs text-slate-500 mt-1">
                 <span>Criado em: {formatDateTime(lead.createdAt)}</span>
                 <span>•</span>
-                <span>Origem: <strong>{lead.origin || 'Portal Web'}</strong></span>
+                <span>Origem: <strong className="text-slate-800 dark:text-slate-200">{formatLeadOrigin(lead.origin)}</strong></span>
               </div>
             </div>
           </div>
@@ -306,47 +262,6 @@ export const CrmLeadDetailModal: React.FC<CrmLeadDetailModalProps> = ({
           {activeTab === 'overview' && (
             <div className="space-y-6">
               
-              {/* Privacy Control Notice */}
-              <div className="p-4 rounded-2xl bg-indigo-50/60 dark:bg-indigo-950/40 border border-indigo-100 dark:border-indigo-900/60 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-xl bg-indigo-100 dark:bg-indigo-900/60 text-indigo-600 dark:text-indigo-300">
-                    <ShieldCheck className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <h4 className="text-xs font-bold text-indigo-950 dark:text-indigo-200">
-                      Controle Rigoroso de Privacidade (LGPD)
-                    </h4>
-                    <p className="text-[11px] text-indigo-700 dark:text-indigo-300">
-                      {lead.accessRestricted 
-                        ? 'Os dados pessoais sensíveis estão mascarados. Clique em "Revelar" para auditoria autorizada.' 
-                        : 'Acesso total liberado para corretores credenciados.'}
-                    </p>
-                  </div>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    const nextState = !showSensitiveData;
-                    if (nextState && lead) {
-                      auditService.log({
-                        eventType: 'LGPD_DATA_UNMASKED',
-                        severity: 'MEDIUM',
-                        resourceType: 'lead',
-                        resourceId: lead.id,
-                        details: `Visualização auditada de dados sensíveis de contato do lead "${lead.buyerName}" pelo corretor.`,
-                        blocked: false
-                      });
-                    }
-                    setShowSensitiveData(nextState);
-                  }}
-                  className="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold flex items-center gap-1.5 shadow-xs transition-colors"
-                >
-                  {showSensitiveData ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                  <span>{showSensitiveData ? 'Ocultar' : 'Revelar Dados'}</span>
-                </button>
-              </div>
-
               {/* Personal & Contact Grid */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 
@@ -360,10 +275,10 @@ export const CrmLeadDetailModal: React.FC<CrmLeadDetailModalProps> = ({
                     <div className="flex items-center justify-between">
                       <span className="text-slate-500">Telefone / Celular:</span>
                       <div className="flex items-center gap-2 font-mono font-bold text-slate-800 dark:text-slate-200">
-                        <span>{getMaskedPhone(lead.buyerPhone)}</span>
+                        <span>{lead.buyerPhone || 'Não informado'}</span>
                         <button
                           onClick={() => handleWhatsAppClick()}
-                          className="text-emerald-600 hover:text-emerald-700"
+                          className="text-emerald-600 hover:text-emerald-700 cursor-pointer"
                           title="Enviar WhatsApp"
                         >
                           <MessageSquare className="w-3.5 h-3.5" />
@@ -374,14 +289,14 @@ export const CrmLeadDetailModal: React.FC<CrmLeadDetailModalProps> = ({
                     <div className="flex items-center justify-between">
                       <span className="text-slate-500">E-mail:</span>
                       <span className="font-mono font-bold text-slate-800 dark:text-slate-200">
-                        {getMaskedEmail(lead.buyerEmail)}
+                        {lead.buyerEmail || 'Não informado'}
                       </span>
                     </div>
 
                     <div className="flex items-center justify-between">
                       <span className="text-slate-500">Documento (CPF):</span>
                       <span className="font-mono font-bold text-slate-800 dark:text-slate-200">
-                        {getMaskedDocument(lead.buyerDocument)}
+                        {lead.buyerDocument || 'Não informado'}
                       </span>
                     </div>
 
@@ -418,7 +333,7 @@ export const CrmLeadDetailModal: React.FC<CrmLeadDetailModalProps> = ({
                     <div className="flex items-center justify-between">
                       <span className="text-slate-500">Canal de Origem:</span>
                       <span className="px-2 py-0.5 rounded-md bg-rose-50 dark:bg-rose-950 text-rose-700 dark:text-rose-300 font-bold text-[11px]">
-                        {lead.origin || 'Portal Web'}
+                        {formatLeadOrigin(lead.origin)}
                       </span>
                     </div>
 

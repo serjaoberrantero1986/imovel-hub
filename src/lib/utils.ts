@@ -182,3 +182,25 @@ export function getPropertyPurposeLabel(purpose: string): string {
   };
   return map[purpose.toLowerCase()] || purpose;
 }
+
+export function formatLeadOrigin(origin?: string): string {
+  if (!origin) return 'Formulário do Portal';
+  const norm = origin.toLowerCase().trim();
+  const map: Record<string, string> = {
+    portal_form: 'Formulário do Portal',
+    portal: 'Formulário do Portal',
+    portal_web: 'Formulário do Portal',
+    whatsapp: 'WhatsApp',
+    whatsapp_click: 'WhatsApp',
+    phone_call: 'Telefone',
+    phone: 'Telefone',
+    schedule_visit: 'Agendamento de Visita',
+    referral: 'Indicação',
+    social_media: 'Redes Sociais',
+    walk_in: 'Presencial / Loja',
+    campaign: 'Campanha',
+    manual_entry: 'Cadastro Manual',
+    manual: 'Cadastro Manual'
+  };
+  return map[norm] || origin.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+}
