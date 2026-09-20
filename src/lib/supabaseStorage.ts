@@ -144,6 +144,49 @@ export async function uploadImageToStorage(
 }
 
 /**
+ * Converts a base64 / dataUrl string to Blob and uploads directly to Supabase Storage
+ */
+export async function uploadBase64ToStorage(
+  propertyId: string,
+  dataUrl: string,
+  index: number = 0
+): Promise<string | null> {
+  if (!supabase || !dataUrl.startsWith('data:')) return null;
+
+  try {
+    const parts = dataUrl.split(',');
+    const mimeMatch = parts[0].match(/:(.*?);/);
+    const mimeType = mimeMatch ? mimeMatch[1] : 'image/webp';
+    const bstr = atob(parts[1]);
+    let n = bstr.length;
+    const u8arr = new Uint8Array(n);
+    while (n--) {
+      u8arr[n] = bstr.charCodeAt(n);
+    }
+    const blob = new Blob([u8arr], { type: mimeType });
+
+    const ext = mimeType.split('/')[1] || 'webp';
+    const filePath = `properties/${propertyId}/${Date.now()}_${index}.${ext}`;
+
+    const { error: uploadErr } = await supabase.storage
+      .from('property-images')
+      .upload(filePath, blob, {
+        contentType: mimeType,
+        upsert: true
+      });
+
+    if (!uploadErr) {
+      const { data } = supabase.storage.from('property-images').getPublicUrl(filePath);
+      return data?.publicUrl || null;
+    }
+    console.warn('Notice uploading base64 to property-images storage:', uploadErr.message);
+  } catch (err) {
+    console.warn('Could not convert and upload base64 image to storage:', err);
+  }
+  return null;
+}
+
+/**
  * Deletes an image from Supabase Storage bucket
  */
 export async function deleteImageFromStorage(storagePath: string): Promise<boolean> {

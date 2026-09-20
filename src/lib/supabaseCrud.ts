@@ -1,6 +1,7 @@
 import { supabase } from './supabaseClient';
 import { Property, Lead, Conversation, Message, SavedSearch, PropertyMedia, UserProfile } from '../types';
 import { getCityFallbackCoordinates, resolvePropertyCoordinates } from './geocoding';
+import { uploadBase64ToStorage } from './supabaseStorage';
 
 function ensureValidUuid(id?: string): string {
   if (id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
@@ -327,24 +328,45 @@ export async function insertPropertyToSupabase(property: Property): Promise<Inse
       console.warn('Supabase location insert notice:', locError.message);
     }
 
-    // 5. Insert Images
+    // 5. Insert Images (Shielded against base64 payload size crashes)
     if (property.media && property.media.length > 0) {
-      const imageRows = property.media.map(m => ({
-        id: ensureValidUuid(m.id),
-        property_id: propertyId,
-        url: m.url,
-        thumbnail_url: m.thumbnailUrl || m.url,
-        media_type: m.mediaType || 'image',
-        category: m.category || null,
-        caption: m.caption || null,
-        is_cover: m.isCover ?? false,
-        display_order: m.order ?? 1,
-        file_size_bytes: m.size || null,
-        mime_type: m.mimeType || null
-      }));
-      const { error: imgError } = await supabase.from('property_images').insert(imageRows);
-      if (imgError) {
-        console.warn('Supabase property_images insert notice:', imgError.message);
+      try {
+        const processedImageRows = await Promise.all(
+          property.media.map(async (m, idx) => {
+            let finalUrl = m.url;
+            let finalThumb = m.thumbnailUrl || m.url;
+
+            // If image is a raw base64 dataUrl, upload it directly to property-images bucket
+            if (finalUrl && finalUrl.startsWith('data:')) {
+              const uploadedUrl = await uploadBase64ToStorage(propertyId, finalUrl, idx);
+              if (uploadedUrl) {
+                finalUrl = uploadedUrl;
+                finalThumb = uploadedUrl;
+              }
+            }
+
+            return {
+              id: ensureValidUuid(m.id),
+              property_id: propertyId,
+              url: finalUrl,
+              thumbnail_url: finalThumb,
+              media_type: m.mediaType || 'image',
+              category: m.category || null,
+              caption: m.caption || null,
+              is_cover: m.isCover ?? false,
+              display_order: m.order ?? (idx + 1),
+              file_size_bytes: m.size || null,
+              mime_type: m.mimeType || 'image/webp'
+            };
+          })
+        );
+
+        const { error: imgError } = await supabase.from('property_images').insert(processedImageRows);
+        if (imgError) {
+          console.warn('Supabase property_images insert notice:', imgError.message);
+        }
+      } catch (imgCatchErr) {
+        console.warn('Notice handling property_images insertion:', imgCatchErr);
       }
     }
 
