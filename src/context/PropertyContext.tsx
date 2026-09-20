@@ -130,6 +130,16 @@ export const PropertyProvider: React.FC<{
     if (isSupabaseConfigured) {
       const syncResult = await insertPropertyToSupabase(newProp);
       
+      if (!syncResult.success) {
+        // Interrompe o fluxo e informa o erro sem fingir sucesso nem salvar localmente
+        addToast({
+          type: 'error',
+          title: 'Erro ao salvar o anúncio',
+          message: syncResult.error || 'Falha de comunicação ao gravar no Supabase.'
+        });
+        return null;
+      }
+
       const finalProp: Property = {
         ...newProp,
         id: syncResult.propertyId || newProp.id
@@ -138,19 +148,11 @@ export const PropertyProvider: React.FC<{
       saveToBrokerStorage(finalProp);
       setProperties(prev => [finalProp, ...prev.filter(p => p.id !== finalProp.id)]);
 
-      if (syncResult.success) {
-        addToast({
-          type: 'success',
-          title: 'Imóvel Publicado no Supabase!',
-          message: `Anúncio "${newProp.title}" gravado e confirmado com sucesso no banco de dados.`
-        });
-      } else {
-        addToast({
-          type: 'error',
-          title: 'Aviso de Sincronização com Supabase',
-          message: syncResult.error || `Não foi possível gravar no Supabase. Verifique a sessão e permissões.`
-        });
-      }
+      addToast({
+        type: 'success',
+        title: 'Imóvel Publicado no Supabase!',
+        message: `Anúncio "${newProp.title}" gravado e confirmado com sucesso no banco de dados.`
+      });
 
       return finalProp;
     } else {

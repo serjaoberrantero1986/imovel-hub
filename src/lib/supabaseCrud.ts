@@ -211,14 +211,14 @@ export async function insertPropertyToSupabase(property: Property): Promise<Inse
     // 1. Verify active Supabase session and user_id
     let sessionUser: any = null;
     try {
-      const { data: userData } = await supabase.auth.getUser();
-      sessionUser = userData?.user;
+      const { data: sessionData } = await supabase.auth.getSession();
+      sessionUser = sessionData?.session?.user;
       if (!sessionUser) {
-        const { data: sessionData } = await supabase.auth.getSession();
-        sessionUser = sessionData?.session?.user;
+        const { data: userData } = await supabase.auth.getUser();
+        sessionUser = userData?.user;
       }
     } catch {
-      // fallback
+      // session check fallback
     }
 
     // Determine targetUserId: Prefer the logged-in session user ID, then property.userId or advertiser.id
@@ -227,7 +227,7 @@ export async function insertPropertyToSupabase(property: Property): Promise<Inse
 
     // 2. Ensure user has a corresponding row in public.profiles table (Foreign Key constraint)
     try {
-      const { data: existingProfile } = await supabase
+      const { data: existingProfile, error: profileCheckErr } = await supabase
         .from('profiles')
         .select('id, role, email')
         .eq('id', targetUserId)
@@ -240,7 +240,7 @@ export async function insertPropertyToSupabase(property: Property): Promise<Inse
       const fallbackPhone = property.advertiser?.phone || meta.phone || null;
       const fallbackCreci = property.advertiser?.creci || meta.creci || null;
 
-      if (!existingProfile) {
+      if (!existingProfile || profileCheckErr) {
         const { error: profileUpsertErr } = await supabase.from('profiles').upsert({
           id: targetUserId,
           name: fallbackName,
@@ -297,7 +297,7 @@ export async function insertPropertyToSupabase(property: Property): Promise<Inse
       console.warn('Supabase property insert notice:', propError.message);
       return {
         success: false,
-        error: propError.message,
+        error: propError.message || propError.details || 'Falha ao gravar na tabela properties do Supabase',
         propertyId
       };
     }
@@ -358,7 +358,10 @@ export async function insertPropertyToSupabase(property: Property): Promise<Inse
             feature_id: featId
           }));
         if (featureRows.length > 0) {
-          await supabase.from('property_features').insert(featureRows);
+          const { error: featError } = await supabase.from('property_features').insert(featureRows);
+          if (featError) {
+            console.warn('Notice on property_features insert:', featError.message);
+          }
         }
       } catch (featErr) {
         console.warn('Notice on property_features insert:', featErr);
@@ -370,7 +373,7 @@ export async function insertPropertyToSupabase(property: Property): Promise<Inse
     console.error('Failed to sync new property to Supabase:', e);
     return { 
       success: false, 
-      error: e?.message || 'Erro inesperado na conexão com o Supabase ao publicar o imóvel.' 
+      error: e?.message || 'Falha de comunicação de rede ou permissão ao salvar no Supabase.' 
     };
   }
 }

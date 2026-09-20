@@ -54,6 +54,7 @@ export const PropertyWizardModal: React.FC = () => {
   const [currentStep, setCurrentStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [stepError, setStepError] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<{ message: string; details?: string } | null>(null);
 
   // Form State
   const [purpose, setPurpose] = useState<PropertyPurpose>('sale');
@@ -431,6 +432,9 @@ export const PropertyWizardModal: React.FC = () => {
       videoUrl: videoUrl.trim() || undefined
     };
 
+    setSaveError(null);
+    setStepError(null);
+
     try {
       if (editingProperty) {
         const success = await updateProperty(editingProperty.id, propertyData);
@@ -438,6 +442,11 @@ export const PropertyWizardModal: React.FC = () => {
           openPropertyDetail(editingProperty.id);
           setIsWizardOpen(false);
           setEditingProperty(null);
+        } else {
+          setSaveError({
+            message: 'Erro ao salvar o anúncio',
+            details: 'Não foi possível atualizar o anúncio no banco de dados Supabase. Verifique a conexão e permissões da tabela properties.'
+          });
         }
       } else {
         const created = await addProperty(propertyData);
@@ -445,8 +454,18 @@ export const PropertyWizardModal: React.FC = () => {
           openPropertyDetail(created.id);
           setIsWizardOpen(false);
           setEditingProperty(null);
+        } else {
+          setSaveError({
+            message: 'Erro ao salvar o anúncio',
+            details: 'A comunicação com o Supabase falhou ou foi rejeitada. O anúncio não foi gravado no banco de dados.'
+          });
         }
       }
+    } catch (err: any) {
+      setSaveError({
+        message: 'Erro ao salvar o anúncio',
+        details: err?.message || String(err)
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -518,6 +537,38 @@ export const PropertyWizardModal: React.FC = () => {
           <div className="mx-6 mt-4 p-3.5 rounded-2xl bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-900 text-rose-700 dark:text-rose-300 text-xs font-semibold flex items-center gap-2.5 animate-in fade-in">
             <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />
             <span>{stepError}</span>
+          </div>
+        )}
+
+        {/* Alerta de Erro ao Salvar no Supabase com Título e Detalhe Técnico */}
+        {saveError && (
+          <div className="mx-6 mt-4 p-4 rounded-2xl bg-rose-50 dark:bg-rose-950/60 border-2 border-rose-300 dark:border-rose-800 text-rose-900 dark:text-rose-100 animate-in fade-in">
+            <div className="flex items-start gap-3">
+              <div className="w-8 h-8 rounded-xl bg-rose-200/80 dark:bg-rose-900/60 flex items-center justify-center shrink-0 text-rose-700 dark:text-rose-300 mt-0.5">
+                <AlertCircle className="w-5 h-5" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <h4 className="text-sm font-extrabold text-rose-900 dark:text-rose-100">
+                  {saveError.message}
+                </h4>
+                {saveError.details && (
+                  <div className="mt-1 text-xs text-rose-700 dark:text-rose-300 font-mono bg-white/70 dark:bg-black/30 p-2.5 rounded-xl border border-rose-200 dark:border-rose-900/60 break-words leading-relaxed">
+                    <span className="font-sans font-bold text-rose-800 dark:text-rose-200 block text-[11px] mb-0.5">
+                      Detalhe técnico:
+                    </span>
+                    {saveError.details}
+                  </div>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={() => setSaveError(null)}
+                className="p-1 rounded-lg text-rose-500 hover:bg-rose-200/50 dark:hover:bg-rose-900/40 cursor-pointer shrink-0"
+                title="Fechar aviso"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
           </div>
         )}
 
@@ -1030,6 +1081,32 @@ export const PropertyWizardModal: React.FC = () => {
                   {mediaList.length} foto(s) anexada(s) • {selectedAmenities.length} comodidade(s) selecionada(s)
                 </div>
               </div>
+
+              {saveError && (
+                <div className="p-4 rounded-2xl bg-rose-50 dark:bg-rose-950/60 border-2 border-rose-400 dark:border-rose-800 text-rose-900 dark:text-rose-100 animate-in fade-in">
+                  <div className="flex items-start gap-3">
+                    <div className="w-8 h-8 rounded-xl bg-rose-200 dark:bg-rose-900 flex items-center justify-center shrink-0 text-rose-700 dark:text-rose-300 mt-0.5">
+                      <AlertCircle className="w-5 h-5" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h4 className="text-sm font-extrabold text-rose-900 dark:text-rose-100">
+                        {saveError.message}
+                      </h4>
+                      {saveError.details && (
+                        <div className="mt-1 text-xs text-rose-700 dark:text-rose-300 font-mono bg-white/70 dark:bg-black/30 p-2.5 rounded-xl border border-rose-200 dark:border-rose-900/60 break-words leading-relaxed">
+                          <span className="font-sans font-bold text-rose-800 dark:text-rose-200 block text-[11px] mb-0.5">
+                            Detalhe técnico:
+                          </span>
+                          {saveError.details}
+                        </div>
+                      )}
+                      <p className="mt-2 text-xs text-rose-700 dark:text-rose-300">
+                        O anúncio permaneceu nesta tela para que você não perca nenhuma informação digitada. Você pode tentar clicar em <strong>"Publicar Anúncio Agora"</strong> novamente.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
