@@ -25,7 +25,9 @@ const toProfile = (user: any, row: any): UserProfile => ({
   role: row.role, creci: row.creci, creciUf: row.creci_uf, agencyName: row.agency_name,
   agencyLogo: row.agency_logo, verified: row.verified, avatarUrl: row.avatar_url, bio: row.bio,
   city: row.city, state: row.state, website: row.website, instagram: row.instagram, linkedin: row.linkedin,
-  creciStatus: row.verified ? 'verified' : (row.creci ? 'pending' : 'unverified'), authProvider: 'email'
+  creciType: row.creci_type, creciStatus: row.creci_status || (row.creci ? 'pending' : 'unverified'),
+  creciVerifiedAt: row.creci_verified_at, creciProtocol: row.creci_protocol,
+  availableWeekendVisits: row.available_weekend_visits ?? false, authProvider: 'email'
 });
 
 export const AuthProvider: React.FC<{ children: React.ReactNode; addToast: (toast: Omit<Toast, 'id'>) => void }> = ({ children, addToast }) => {
@@ -71,7 +73,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode; addToast: (toas
   const logout = async () => { if (supabase) await supabase.auth.signOut(); setIsAuthenticated(false); setCurrentUser(GUEST_USER); };
   const updateUserProfile = async (updates: Partial<UserProfile>) => {
     if (!isAuthenticated) throw new Error('Faça login para editar o perfil.');
-    const payload: any = { name: updates.name, phone: updates.phone ?? null, whatsapp: updates.whatsapp ?? null, avatar_url: updates.avatarUrl ?? null, creci: updates.creci ?? null, creci_uf: updates.creciUf ?? null, agency_name: updates.agencyName ?? null, agency_logo: updates.agencyLogo ?? null, city: updates.city ?? null, state: updates.state ?? null, bio: updates.bio ?? null, website: updates.website ?? null, instagram: updates.instagram ?? null, linkedin: updates.linkedin ?? null };
+    const payload: any = { name: updates.name, phone: updates.phone ?? null, whatsapp: updates.whatsapp ?? null, avatar_url: updates.avatarUrl ?? null, creci: updates.creci ?? null, creci_uf: updates.creciUf ?? null, creci_type: updates.creciType ?? null, creci_status: updates.creciStatus ?? 'unverified', creci_verified_at: updates.creciVerifiedAt ?? null, creci_protocol: updates.creciProtocol ?? null, agency_name: updates.agencyName ?? null, agency_logo: updates.agencyLogo ?? null, city: updates.city ?? null, state: updates.state ?? null, bio: updates.bio ?? null, website: updates.website ?? null, instagram: updates.instagram ?? null, linkedin: updates.linkedin ?? null, available_weekend_visits: updates.availableWeekendVisits ?? false };
     const { data, error } = await client().from('profiles').update(payload).eq('id', currentUser.id).select().single();
     if (error) throw error; setCurrentUser(toProfile({ id: currentUser.id, email: currentUser.email }, data));
   };

@@ -122,7 +122,8 @@ export const ProfileView: React.FC = () => {
     setIsVerifyingCreci(true);
     try {
       const result = await verifyCreciNational(creciToVerify, ufToVerify, formData.name);
-      setCreciResult(result);
+      // Do not render simulated protocol/council data as an official result.
+      setCreciResult(null);
 
       if (result.isValid && result.isAccredited) {
         setFormData(prev => ({
@@ -130,15 +131,18 @@ export const ProfileView: React.FC = () => {
           creci: result.creciNumber,
           creciUf: result.creciUf,
           creciType: result.category,
-          creciStatus: 'verified',
-          creciVerifiedAt: result.verifiedAt,
-          creciProtocol: result.protocol,
-          verified: true
+          // This browser check only validates formatting and regional mapping.
+          // It is not an official COFECI/CRECI integration and must never grant
+          // a verified badge or persist a fabricated protocol.
+          creciStatus: 'pending',
+          creciVerifiedAt: undefined,
+          creciProtocol: undefined,
+          verified: false
         }));
         addToast({
           type: 'success',
-          title: 'CRECI Verificado com Sucesso!',
-          message: `${result.councilName} - Registro Ativo e Regular.`
+          title: 'Dados do CRECI preparados',
+          message: 'O registro ficará pendente de análise oficial antes de receber o selo de verificação.'
         });
       } else {
         setFormData(prev => ({
