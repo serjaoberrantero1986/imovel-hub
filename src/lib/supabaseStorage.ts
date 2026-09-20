@@ -3,7 +3,7 @@
  * Handles uploading property media to Supabase Storage buckets, with content deduplication and offline fallback.
  */
 
-import { sanitizeSupabaseUrl } from './supabaseClient';
+import { sanitizeSupabaseUrl, supabase } from './supabaseClient';
 
 export interface StorageConfig {
   supabaseUrl: string;
@@ -65,8 +65,37 @@ export async function uploadImageToStorage(
 
   if (isConfigured) {
     try {
-      const uploadUrl = `${config.supabaseUrl}/storage/v1/object/${config.bucketName}/${storagePath}`;
+      // 1. Try official supabase.storage client first (uses user session token automatically)
+      if (supabase) {
+        const { error: uploadError } = await supabase.storage
+          .from(config.bucketName)
+          .upload(storagePath, imageBlob, {
+            contentType: imageBlob.type || 'image/webp',
+            upsert: true
+          });
 
+        if (!uploadError) {
+          const { data: publicData } = supabase.storage
+            .from(config.bucketName)
+            .getPublicUrl(storagePath);
+
+          if (publicData?.publicUrl) {
+            return {
+              success: true,
+              publicUrl: publicData.publicUrl,
+              storagePath,
+              size: imageBlob.size,
+              hash: fileHash,
+              provider: 'supabase'
+            };
+          }
+        } else {
+          console.warn('supabase.storage.upload notice:', uploadError.message);
+        }
+      }
+
+      // 2. Direct REST upload fallback
+      const uploadUrl = `${config.supabaseUrl}/storage/v1/object/${config.bucketName}/${storagePath}`;
       const response = await fetch(uploadUrl, {
         method: 'POST',
         headers: {
@@ -90,7 +119,7 @@ export async function uploadImageToStorage(
         };
       } else {
         const errText = await response.text();
-        console.warn('Supabase Storage Upload returned error, using optimized local storage fallback:', errText);
+        console.warn('Supabase Storage Upload returned error, using fallback:', errText);
       }
     } catch (error) {
       console.warn('Network error reaching Supabase Storage, using fallback:', error);

@@ -29,6 +29,10 @@ export const PropertyProvider: React.FC<{
   addToast: (toast: Omit<Toast, 'id'>) => void;
 }> = ({ children, currentUser, addToast }) => {
   const [properties, setProperties] = useState<Property[]>(() => {
+    // If Supabase is configured, start with empty array so only real remote listings are rendered
+    if (isSupabaseConfigured) {
+      return [];
+    }
     try {
       return JSON.parse(localStorage.getItem('imovelhub_broker_properties') || '[]');
     } catch {
@@ -47,32 +51,29 @@ export const PropertyProvider: React.FC<{
   }, []);
 
   const refreshProperties = useCallback(async () => {
-    let localBrokerProps: Property[] = [];
-    try {
-      localBrokerProps = JSON.parse(localStorage.getItem('imovelhub_broker_properties') || '[]');
-    } catch {
-      localBrokerProps = [];
-    }
-
     if (!isSupabaseConfigured) {
-      setProperties(localBrokerProps);
+      try {
+        const localBrokerProps = JSON.parse(localStorage.getItem('imovelhub_broker_properties') || '[]');
+        setProperties(localBrokerProps);
+      } catch {
+        setProperties([]);
+      }
       return;
     }
 
     try {
       const remoteProps = await fetchPropertiesFromSupabase();
       if (remoteProps !== null) {
-        const remoteIds = new Set(remoteProps.map(p => p.id));
-        const nonDuplicateLocal = localBrokerProps.filter(p => !remoteIds.has(p.id));
-        setProperties([...nonDuplicateLocal, ...remoteProps]);
-      } else if (localBrokerProps.length > 0) {
-        setProperties(localBrokerProps);
+        // Fonte única da verdade: apenas o que existe no banco Supabase
+        setProperties(remoteProps);
+        try {
+          localStorage.setItem('imovelhub_broker_properties', JSON.stringify(remoteProps));
+        } catch {
+          // Ignore cache write error
+        }
       }
     } catch (e) {
       console.warn('Error fetching properties from Supabase:', e);
-      if (localBrokerProps.length > 0) {
-        setProperties(localBrokerProps);
-      }
     }
   }, []);
 

@@ -209,7 +209,7 @@ export const PropertyImageManager: React.FC<PropertyImageManagerProps> = ({
       addToast({
         type: 'success',
         title: `${processedCount} Foto${processedCount > 1 ? 's' : ''} Adicionada${processedCount > 1 ? 's' : ''}!`,
-        message: `Imagens comprimidas em formato WebP com alta fidelidade visual.`
+        message: processedCount > 1 ? 'Fotos adicionadas com sucesso ao seu anúncio.' : 'Foto adicionada com sucesso ao seu anúncio.'
       });
     }
 
