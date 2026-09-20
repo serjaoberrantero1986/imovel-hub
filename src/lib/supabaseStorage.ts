@@ -21,20 +21,16 @@ export interface StorageUploadResult {
   error?: string;
 }
 
-// Read from Environment or Local Storage
+// Read only deployment configuration. Storage must use the same project as Auth.
 export function getStorageConfig(): StorageConfig {
   const envUrl = import.meta.env.VITE_SUPABASE_URL || '';
   const envKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
   const envBucket = import.meta.env.VITE_SUPABASE_STORAGE_BUCKET || 'property-images';
 
-  const localUrl = localStorage.getItem('imovelhub_supabase_url') || envUrl;
-  const localKey = localStorage.getItem('imovelhub_supabase_anon_key') || envKey;
-  const localBucket = localStorage.getItem('imovelhub_supabase_bucket') || envBucket;
-
   return {
-    supabaseUrl: sanitizeSupabaseUrl(localUrl),
-    supabaseAnonKey: localKey.trim(),
-    bucketName: localBucket.trim()
+    supabaseUrl: sanitizeSupabaseUrl(envUrl),
+    supabaseAnonKey: envKey.trim(),
+    bucketName: envBucket.trim()
   };
 }
 
@@ -169,7 +165,7 @@ export async function uploadBase64ToStorage(
     const filePath = `properties/${propertyId}/${Date.now()}_${index}.${ext}`;
 
     const { error: uploadErr } = await supabase.storage
-      .from('property-images')
+      .from(getStorageConfig().bucketName)
       .upload(filePath, blob, {
         contentType: mimeType,
         upsert: true
