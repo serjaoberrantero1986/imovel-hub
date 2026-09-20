@@ -25,14 +25,10 @@ export function sanitizeSupabaseUrl(rawUrl: string): string {
   return url;
 }
 
-// Retrieve credentials from environment variables (or localStorage override)
-const rawUrl = (typeof window !== 'undefined' && localStorage.getItem('imovelhub_supabase_url')) 
-  || import.meta.env.VITE_SUPABASE_URL 
-  || '';
-
-const rawKey = (typeof window !== 'undefined' && localStorage.getItem('imovelhub_supabase_anon_key')) 
-  || import.meta.env.VITE_SUPABASE_ANON_KEY 
-  || '';
+// Credentials come exclusively from the deployment environment. A browser must
+// never be able to redirect the portal to a different Supabase project.
+const rawUrl = import.meta.env.VITE_SUPABASE_URL || '';
+const rawKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
 
 export let supabaseUrl = sanitizeSupabaseUrl(rawUrl);
 export let supabaseAnonKey = (rawKey || '').trim().replace(/^["']+|["']+$/g, '');
@@ -56,51 +52,9 @@ export let supabase: SupabaseClient | null = isSupabaseConfigured
     })
   : null;
 
-/**
- * Updates Supabase credentials dynamically at runtime and reinitializes client
- */
+/** Runtime credential changes are intentionally disabled. */
 export function updateSupabaseCredentials(newUrl: string, newKey: string): { success: boolean; configured: boolean } {
-  const cleanUrl = sanitizeSupabaseUrl(newUrl);
-  const cleanKey = (newKey || '').trim().replace(/^["']+|["']+$/g, '');
-
-  if (typeof window !== 'undefined') {
-    if (cleanUrl) {
-      localStorage.setItem('imovelhub_supabase_url', cleanUrl);
-    } else {
-      localStorage.removeItem('imovelhub_supabase_url');
-    }
-    if (cleanKey) {
-      localStorage.setItem('imovelhub_supabase_anon_key', cleanKey);
-    } else {
-      localStorage.removeItem('imovelhub_supabase_anon_key');
-    }
-  }
-
-  supabaseUrl = cleanUrl;
-  supabaseAnonKey = cleanKey;
-  isSupabaseConfigured = Boolean(
-    cleanUrl && 
-    cleanKey && 
-    cleanUrl.startsWith('http') && 
-    cleanKey.length > 20
-  );
-
-  if (isSupabaseConfigured) {
-    try {
-      supabase = createClient(cleanUrl, cleanKey, {
-        auth: {
-          persistSession: true,
-          autoRefreshToken: true,
-        },
-      });
-      return { success: true, configured: true };
-    } catch (e) {
-      console.error('Error instantiating Supabase client:', e);
-      supabase = null;
-      return { success: false, configured: false };
-    }
-  } else {
-    supabase = null;
-    return { success: true, configured: false };
-  }
+  void newUrl;
+  void newKey;
+  return { success: false, configured: isSupabaseConfigured };
 }
