@@ -614,7 +614,8 @@ export async function fetchLeadsFromSupabase(): Promise<Lead[] | null> {
       .from('leads')
       .select(`
         *,
-        properties (id, title, code, price, property_images (url, is_cover))
+        properties (id, title, code, price, property_images (url, is_cover)),
+        lead_crm (meta)
       `)
       .order('created_at', { ascending: false });
 
@@ -627,9 +628,11 @@ export async function fetchLeadsFromSupabase(): Promise<Lead[] | null> {
 
     return dbLeads.map((l: any) => {
       const prop = l.properties;
-      const crmMeta = l.meta && typeof l.meta === 'object' ? l.meta : {};
+      const crm = Array.isArray(l.lead_crm) ? l.lead_crm[0] : l.lead_crm;
+      const crmMeta = crm?.meta || {};
       const coverImage = prop?.property_images?.find((img: any) => img.is_cover)?.url || prop?.property_images?.[0]?.url;
       return {
+        ...crmMeta,
         id: l.id,
         propertyId: l.property_id || '',
         propertyTitle: prop?.title || 'Imóvel sob consulta',
@@ -637,21 +640,21 @@ export async function fetchLeadsFromSupabase(): Promise<Lead[] | null> {
         propertyPrice: prop?.price || 0,
         propertyImage: coverImage,
         advertiserId: l.advertiser_id,
-        buyerName: l.buyer_name,
-        buyerEmail: l.buyer_email,
-        buyerPhone: l.buyer_phone,
+        buyerName: l.name,
+        buyerEmail: l.email || '',
+        buyerPhone: l.phone || '',
         message: l.message || '',
         origin: l.origin,
         status: l.status,
-        notes: l.notes || undefined,
+        notes: crmMeta.notes || undefined,
         privateNotes: crmMeta.privateNotes || undefined,
         tasks: Array.isArray(crmMeta.tasks) ? crmMeta.tasks : [],
         interactions: Array.isArray(crmMeta.interactions) ? crmMeta.interactions : [],
         tags: Array.isArray(crmMeta.tags) ? crmMeta.tags : [],
         interestedPropertyIds: Array.isArray(crmMeta.interestedPropertyIds) ? crmMeta.interestedPropertyIds : [],
         accessRestricted: Boolean(crmMeta.accessRestricted),
-        budget: l.budget || undefined,
-        scheduledVisitDate: l.scheduled_visit_date || undefined,
+        budget: crmMeta.budget ?? undefined,
+        scheduledVisitDate: crmMeta.scheduledVisitDate || undefined,
         createdAt: l.created_at,
         updatedAt: l.updated_at
       };
@@ -685,17 +688,6 @@ export async function insertLeadToSupabase(lead: Lead): Promise<{ success: boole
       }
     }
 
-    // If still null, query first broker/profile in profiles table to satisfy NOT NULL constraint
-    if (!targetAdvId) {
-      const { data: fallbackProfile } = await supabase
-        .from('profiles')
-        .select('id')
-        .limit(1)
-        .maybeSingle();
-      if (fallbackProfile?.id) {
-        targetAdvId = fallbackProfile.id;
-      }
-    }
 
     if (!targetAdvId) {
       return { 
@@ -708,15 +700,12 @@ export async function insertLeadToSupabase(lead: Lead): Promise<{ success: boole
       id: validId,
       property_id: validPropId,
       advertiser_id: targetAdvId,
-      buyer_name: lead.buyerName,
-      buyer_email: lead.buyerEmail,
-      buyer_phone: lead.buyerPhone,
+      name: lead.buyerName,
+      email: lead.buyerEmail || null,
+      phone: lead.buyerPhone || null,
       message: lead.message,
       origin: lead.origin || 'portal_form',
-      status: lead.status || 'new',
-      notes: lead.notes || null,
-      budget: lead.budget || null,
-      scheduled_visit_date: lead.scheduledVisitDate || null
+      status: 'new'
     });
 
     if (error) {
@@ -724,38 +713,7 @@ export async function insertLeadToSupabase(lead: Lead): Promise<{ success: boole
       return { success: false, error: `Erro no banco de dados ao salvar lead: ${error.message}` };
     }
 
-    // Also initiate or record a conversation in conversations & messages table
-    // so that it also appears in the broker's "Mensagens" inbox!
-    try {
-      const convId = ensureValidUuid();
-      const msgId = ensureValidUuid();
-      const cleanMsg = (lead.message && lead.message.trim()) || 'Olá! Tenho interesse neste anúncio e gostaria de agendar uma visita e obter mais informações.';
-      
-      const { error: convErr } = await supabase.from('conversations').insert({
-        id: convId,
-        property_id: validPropId,
-        buyer_id: targetAdvId,
-        advertiser_id: targetAdvId,
-        last_message_text: `${lead.buyerName}: ${cleanMsg}`,
-        last_message_at: new Date().toISOString(),
-        buyer_unread_count: 0,
-        advertiser_unread_count: 1
-      });
-
-      if (!convErr) {
-        await supabase.from('messages').insert({
-          id: msgId,
-          conversation_id: convId,
-          sender_id: targetAdvId,
-          text: `[Lead do Portal - ${lead.buyerName}]\nNome: ${lead.buyerName}\nTelefone: ${lead.buyerPhone}\nE-mail: ${lead.buyerEmail}\n\nMensagem: ${cleanMsg}`,
-          created_at: new Date().toISOString()
-        });
-      } else {
-        console.warn('Notice: Error creating conversation for lead:', convErr.message);
-      }
-    } catch (chatSyncErr) {
-      console.warn('Notice: Could not sync lead to chat conversations:', chatSyncErr);
-    }
+    // Visitor contacts are stored as leads, without impersonating a chat participant.
 
     return { success: true };
   } catch (e: any) {
@@ -769,9 +727,13 @@ export async function updateLeadInSupabase(id: string, updates: Partial<Lead>): 
   try {
     const dbUpdates: any = {};
     if (updates.status !== undefined) dbUpdates.status = updates.status;
-    if (updates.notes !== undefined) dbUpdates.notes = updates.notes;
-    if (updates.budget !== undefined) dbUpdates.budget = updates.budget;
-    if (updates.scheduledVisitDate !== undefined) dbUpdates.scheduled_visit_date = updates.scheduledVisitDate;
+    if (updates.buyerName !== undefined) dbUpdates.name = updates.buyerName;
+    if (updates.buyerEmail !== undefined) dbUpdates.email = updates.buyerEmail;
+    if (updates.buyerPhone !== undefined) dbUpdates.phone = updates.buyerPhone;
+    const { id: _id, advertiserId: _owner, propertyId: _property, status: _status,
+      buyerName: _name, buyerEmail: _email, buyerPhone: _phone,
+      createdAt: _created, updatedAt: _updated, ...metadata } = updates;
+    if (Object.keys(metadata).length && !await updateLeadMetadataInSupabase(id, metadata)) return false;
     dbUpdates.updated_at = new Date().toISOString();
 
     const { data, error } = await supabase.from('leads').update(dbUpdates).eq('id', id).select('id');
@@ -785,20 +747,10 @@ export async function updateLeadInSupabase(id: string, updates: Partial<Lead>): 
 export async function updateLeadMetadataInSupabase(id: string, metadata: Record<string, unknown>): Promise<boolean> {
   if (!supabase) return false;
   try {
-    const { data: current, error: readError } = await supabase
-      .from('leads')
-      .select('meta')
-      .eq('id', id)
-      .maybeSingle();
-    if (readError || !current) return false;
-
-    const currentMeta = current.meta && typeof current.meta === 'object' ? current.meta : {};
-    const { data, error } = await supabase
-      .from('leads')
-      .update({ meta: { ...currentMeta, ...metadata }, updated_at: new Date().toISOString() })
-      .eq('id', id)
-      .select('id');
-    return !error && Boolean(data?.length);
+    const { error } = await supabase.rpc('update_private_lead_crm', {
+      p_lead_id: id, p_patch: metadata
+    });
+    return !error;
   } catch (e) {
     console.error('Error updating lead metadata in Supabase:', e);
     return false;
@@ -808,8 +760,8 @@ export async function updateLeadMetadataInSupabase(id: string, metadata: Record<
 export async function deleteLeadFromSupabase(id: string): Promise<boolean> {
   if (!supabase) return false;
   try {
-    const { error } = await supabase.from('leads').delete().eq('id', id);
-    return !error;
+    const { data, error } = await supabase.from('leads').delete().eq('id', id).select('id');
+    return !error && Boolean(data?.length);
   } catch (e) {
     console.error('Error deleting lead from Supabase:', e);
     return false;
