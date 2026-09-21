@@ -506,13 +506,19 @@ export async function updatePropertyInSupabase(
 
     // Sync amenities / features if updated
     if (updates.amenities) {
-      await supabase.from('property_features').delete().eq('property_id', validId);
+      const { error: deleteFeaturesError } = await supabase.from('property_features').delete().eq('property_id', validId);
+      if (deleteFeaturesError) {
+        return { success: false, error: `Erro ao remover comodidades anteriores: ${deleteFeaturesError.message}` };
+      }
       if (updates.amenities.length > 0) {
         const featureRows = updates.amenities.map(featureId => ({
           property_id: validId,
           feature_id: featureId
         }));
-        await supabase.from('property_features').insert(featureRows);
+        const { error: insertFeaturesError } = await supabase.from('property_features').insert(featureRows);
+        if (insertFeaturesError) {
+          return { success: false, error: `Erro ao salvar comodidades: ${insertFeaturesError.message}` };
+        }
       }
     }
 
