@@ -1,6 +1,6 @@
 import { supabase } from './supabaseClient';
 import { Property, Lead, Conversation, Message, SavedSearch, PropertyMedia, UserProfile } from '../types';
-import { getCityFallbackCoordinates, resolvePropertyCoordinates } from './geocoding';
+import { geocodeAddress, getCityFallbackCoordinates, resolvePropertyCoordinates } from './geocoding';
 import { uploadBase64ToStorage } from './supabaseStorage';
 
 function ensureValidUuid(id?: string): string {
@@ -155,6 +155,7 @@ export async function fetchPropertiesFromSupabase(): Promise<Property[] | null> 
       .select(`
         *,
         property_locations (*),
+        property_public_locations (*),
         property_images (*),
         property_features (*)
       `)
@@ -188,7 +189,9 @@ export async function fetchPropertiesFromSupabase(): Promise<Property[] | null> 
     }
 
     return dbProperties.map((p: any) => {
-      const location = Array.isArray(p.property_locations) ? p.property_locations[0] : p.property_locations;
+      const privateLocation = Array.isArray(p.property_locations) ? p.property_locations[0] : p.property_locations;
+      const publicLocation = Array.isArray(p.property_public_locations) ? p.property_public_locations[0] : p.property_public_locations;
+      const location = privateLocation || publicLocation;
       const images = p.property_images || [];
       const features = (p.property_features || []).map((f: any) => f.feature_id || f);
       const profile = profilesMap[p.user_id];
@@ -327,6 +330,26 @@ export async function insertPropertyToSupabase(property: Property): Promise<Inse
     if (locError) {
       console.warn('Supabase location insert notice:', locError.message);
     }
+
+    // Public map position intentionally uses the neighbourhood/city centre,
+    // never the precise address coordinates stored above.
+    const publicGeo = await geocodeAddress({
+      neighborhood: property.neighborhood,
+      city: property.city,
+      state: property.state
+    });
+    const [fallbackPublicLat, fallbackPublicLng] = getCityFallbackCoordinates(property.city, property.state, property.neighborhood);
+    const publicLat = publicGeo?.latitude ?? fallbackPublicLat;
+    const publicLng = publicGeo?.longitude ?? fallbackPublicLng;
+    const { error: publicLocError } = await supabase.from('property_public_locations').upsert({
+      property_id: propertyId,
+      neighborhood: property.neighborhood || 'Centro',
+      city: property.city || '',
+      state: property.state || '',
+      latitude: publicLat,
+      longitude: publicLng
+    }, { onConflict: 'property_id' });
+    if (publicLocError) console.warn('Supabase public location insert notice:', publicLocError.message);
 
     // 5. Insert Images (Shielded against base64 payload size crashes)
     if (property.media && property.media.length > 0) {
@@ -1159,4 +1182,3 @@ export async function deleteUserAccountFromSupabase(userId: string, email: strin
     return false;
   }
 }
-

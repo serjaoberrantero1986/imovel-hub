@@ -56,6 +56,11 @@ export const PropertyDetailView: React.FC = () => {
   } = useApp();
 
   const property = properties.find(p => p.id === selectedPropertyId) || properties[0];
+  const canSeeExactLocation = isAuthenticated && currentUser?.id === property.userId;
+  const publicLocationLabel = `${property.neighborhood}, ${property.city}/${property.state}`;
+  const locationLabel = canSeeExactLocation
+    ? `${property.addressStreet}${property.addressNumber ? `, ${property.addressNumber}` : ''} - ${publicLocationLabel}${property.zipCode ? `, CEP ${property.zipCode}` : ''}`
+    : `${publicLocationLabel} — localização aproximada; agende uma visita com o corretor.`;
 
   // Gallery modal / lightbox state
   const [galleryModalOpen, setGalleryModalOpen] = useState(false);
@@ -304,7 +309,7 @@ export const PropertyDetailView: React.FC = () => {
 
           <div className="flex items-center gap-1 text-sm text-slate-500 dark:text-slate-400">
             <MapPin className="w-4 h-4 text-rose-500 shrink-0" />
-            <span>{property.addressStreet}{property.addressNumber ? `, ${property.addressNumber}` : ''} - {property.neighborhood}, {property.city} - {property.state}, CEP {property.zipCode}</span>
+            <span>{locationLabel}</span>
           </div>
         </div>
 
@@ -495,16 +500,16 @@ export const PropertyDetailView: React.FC = () => {
               <div className="flex items-center justify-between text-xs text-slate-500 pt-1">
                 <span className="flex items-center gap-1.5">
                   <MapPin className="w-3.5 h-3.5 text-rose-500 shrink-0" />
-                  <span>{property.addressStreet}{property.addressNumber ? `, ${property.addressNumber}` : ''} • {property.neighborhood}, {property.city}/{property.state}</span>
+                  <span>{locationLabel}</span>
                 </span>
-                <a
+                {canSeeExactLocation && <a
                   href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${property.addressStreet || ''} ${property.addressNumber || ''}, ${property.neighborhood || ''}, ${property.city || ''} - ${property.state || ''}`)}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-rose-600 dark:text-rose-400 hover:underline font-semibold"
                 >
                   Ver no Google Maps ↗
-                </a>
+                </a>}
               </div>
             </div>
 
