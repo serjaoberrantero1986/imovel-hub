@@ -5,6 +5,7 @@ import {
   insertLeadToSupabase,
   updateLeadInSupabase,
   deleteLeadFromSupabase,
+  updateLeadMetadataInSupabase,
   updatePropertyInSupabase
 } from '../lib/supabaseCrud';
 import { isSupabaseConfigured } from '../lib/supabaseClient';
@@ -178,6 +179,10 @@ export const CrmProvider: React.FC<{
   };
 
   const updateLead = async (leadId: string, updates: Partial<Lead>) => {
+    if (isSupabaseConfigured && !await updateLeadInSupabase(leadId, updates)) {
+      addToast({ type: 'error', title: 'Não foi possível atualizar o lead', message: 'O banco de dados não confirmou a alteração.' });
+      return;
+    }
     setLeads(prev => prev.map(l => {
       if (l.id === leadId) {
         return {
@@ -189,9 +194,6 @@ export const CrmProvider: React.FC<{
       return l;
     }));
 
-    if (isSupabaseConfigured) {
-      await updateLeadInSupabase(leadId, updates);
-    }
   };
 
   const updateLeadStatus = async (leadId: string, status: Lead['status'], notes?: string) => {
@@ -217,6 +219,13 @@ export const CrmProvider: React.FC<{
       createdBy: currentUser.name
     };
 
+    const savedStatus = !isSupabaseConfigured || await updateLeadInSupabase(leadId, { status, notes });
+    const savedTimeline = !isSupabaseConfigured || await updateLeadMetadataInSupabase(leadId, { interactions: [newInteraction, ...(leads.find(l => l.id === leadId)?.interactions || [])] });
+    if (!savedStatus || !savedTimeline) {
+      addToast({ type: 'error', title: 'Não foi possível atualizar o funil', message: 'O banco de dados não confirmou todas as alterações.' });
+      return;
+    }
+
     setLeads(prev => prev.map(l => {
       if (l.id === leadId) {
         const interactions = l.interactions ? [newInteraction, ...l.interactions] : [newInteraction];
@@ -231,10 +240,6 @@ export const CrmProvider: React.FC<{
       return l;
     }));
 
-    if (isSupabaseConfigured) {
-      await updateLeadInSupabase(leadId, { status, notes });
-    }
-
     addToast({
       type: 'info',
       title: 'Funil CRM Atualizado',
@@ -243,6 +248,12 @@ export const CrmProvider: React.FC<{
   };
 
   const updateLeadNotes = async (leadId: string, notes: string, privateNotes?: string) => {
+    const savedNotes = !isSupabaseConfigured || await updateLeadInSupabase(leadId, { notes });
+    const savedPrivateNotes = privateNotes === undefined || !isSupabaseConfigured || await updateLeadMetadataInSupabase(leadId, { privateNotes });
+    if (!savedNotes || !savedPrivateNotes) {
+      addToast({ type: 'error', title: 'Não foi possível salvar as anotações' });
+      return;
+    }
     setLeads(prev => prev.map(l => {
       if (l.id === leadId) {
         return {
@@ -254,9 +265,6 @@ export const CrmProvider: React.FC<{
       }
       return l;
     }));
-    if (isSupabaseConfigured) {
-      await updateLeadInSupabase(leadId, { notes });
-    }
   };
 
   const addLeadTask = async (leadId: string, taskData: Omit<LeadTask, 'id'>) => {
@@ -265,6 +273,11 @@ export const CrmProvider: React.FC<{
       id: `task-${Date.now()}`
     };
 
+    const currentTasks = leads.find(l => l.id === leadId)?.tasks || [];
+    if (isSupabaseConfigured && !await updateLeadMetadataInSupabase(leadId, { tasks: [...currentTasks, newTask] })) {
+      addToast({ type: 'error', title: 'Não foi possível criar a tarefa' });
+      return;
+    }
     setLeads(prev => prev.map(l => {
       if (l.id === leadId) {
         const tasks = l.tasks ? [...l.tasks, newTask] : [newTask];
@@ -281,6 +294,12 @@ export const CrmProvider: React.FC<{
   };
 
   const toggleLeadTask = async (leadId: string, taskId: string) => {
+    const lead = leads.find(l => l.id === leadId);
+    const nextTasks = (lead?.tasks || []).map(t => t.id === taskId ? { ...t, completed: !t.completed, completedAt: !t.completed ? new Date().toISOString() : undefined } : t);
+    if (isSupabaseConfigured && !await updateLeadMetadataInSupabase(leadId, { tasks: nextTasks })) {
+      addToast({ type: 'error', title: 'Não foi possível atualizar a tarefa' });
+      return;
+    }
     setLeads(prev => prev.map(l => {
       if (l.id === leadId && l.tasks) {
         const tasks = l.tasks.map(t => {
@@ -301,6 +320,11 @@ export const CrmProvider: React.FC<{
   };
 
   const deleteLeadTask = async (leadId: string, taskId: string) => {
+    const nextTasks = (leads.find(l => l.id === leadId)?.tasks || []).filter(t => t.id !== taskId);
+    if (isSupabaseConfigured && !await updateLeadMetadataInSupabase(leadId, { tasks: nextTasks })) {
+      addToast({ type: 'error', title: 'Não foi possível remover a tarefa' });
+      return;
+    }
     setLeads(prev => prev.map(l => {
       if (l.id === leadId && l.tasks) {
         return { ...l, tasks: l.tasks.filter(t => t.id !== taskId), updatedAt: new Date().toISOString() };
@@ -317,6 +341,11 @@ export const CrmProvider: React.FC<{
       createdAt: new Date().toISOString()
     };
 
+    const currentInteractions = leads.find(l => l.id === leadId)?.interactions || [];
+    if (isSupabaseConfigured && !await updateLeadMetadataInSupabase(leadId, { interactions: [newInt, ...currentInteractions] })) {
+      addToast({ type: 'error', title: 'Não foi possível registrar o histórico' });
+      return;
+    }
     setLeads(prev => prev.map(l => {
       if (l.id === leadId) {
         const interactions = l.interactions ? [newInt, ...l.interactions] : [newInt];
@@ -340,6 +369,12 @@ export const CrmProvider: React.FC<{
   const addLeadTag = async (leadId: string, tag: string) => {
     const cleanTag = tag.trim();
     if (!cleanTag) return;
+    const currentTags = leads.find(l => l.id === leadId)?.tags || [];
+    if (currentTags.includes(cleanTag)) return;
+    if (isSupabaseConfigured && !await updateLeadMetadataInSupabase(leadId, { tags: [...currentTags, cleanTag] })) {
+      addToast({ type: 'error', title: 'Não foi possível adicionar a etiqueta' });
+      return;
+    }
     setLeads(prev => prev.map(l => {
       if (l.id === leadId) {
         const currentTags = l.tags || [];
@@ -352,6 +387,11 @@ export const CrmProvider: React.FC<{
   };
 
   const removeLeadTag = async (leadId: string, tag: string) => {
+    const nextTags = (leads.find(l => l.id === leadId)?.tags || []).filter(t => t !== tag);
+    if (isSupabaseConfigured && !await updateLeadMetadataInSupabase(leadId, { tags: nextTags })) {
+      addToast({ type: 'error', title: 'Não foi possível remover a etiqueta' });
+      return;
+    }
     setLeads(prev => prev.map(l => {
       if (l.id === leadId && l.tags) {
         return { ...l, tags: l.tags.filter(t => t !== tag), updatedAt: new Date().toISOString() };
@@ -361,6 +401,12 @@ export const CrmProvider: React.FC<{
   };
 
   const toggleLeadInterestProperty = async (leadId: string, propertyId: string) => {
+    const current = leads.find(l => l.id === leadId)?.interestedPropertyIds || [];
+    const nextIds = current.includes(propertyId) ? current.filter(id => id !== propertyId) : [...current, propertyId];
+    if (isSupabaseConfigured && !await updateLeadMetadataInSupabase(leadId, { interestedPropertyIds: nextIds })) {
+      addToast({ type: 'error', title: 'Não foi possível atualizar imóveis de interesse' });
+      return;
+    }
     setLeads(prev => prev.map(l => {
       if (l.id === leadId) {
         const current = l.interestedPropertyIds || [];
@@ -378,6 +424,11 @@ export const CrmProvider: React.FC<{
   };
 
   const toggleLeadPrivacy = async (leadId: string) => {
+    const nextRestricted = !(leads.find(l => l.id === leadId)?.accessRestricted);
+    if (isSupabaseConfigured && !await updateLeadMetadataInSupabase(leadId, { accessRestricted: nextRestricted })) {
+      addToast({ type: 'error', title: 'Não foi possível atualizar a privacidade' });
+      return;
+    }
     setLeads(prev => prev.map(l => {
       if (l.id === leadId) {
         const nextRestricted = !l.accessRestricted;
@@ -393,10 +444,14 @@ export const CrmProvider: React.FC<{
   };
 
   const deleteLead = async (leadId: string) => {
-    setLeads(prev => prev.filter(l => l.id !== leadId));
     if (isSupabaseConfigured) {
-      await deleteLeadFromSupabase(leadId);
+      const deleted = await deleteLeadFromSupabase(leadId);
+      if (!deleted) {
+        addToast({ type: 'error', title: 'Não foi possível excluir o lead', message: 'O banco de dados não confirmou a exclusão.' });
+        return;
+      }
     }
+    setLeads(prev => prev.filter(l => l.id !== leadId));
     addToast({
       type: 'info',
       title: 'Lead Excluído',

@@ -210,6 +210,13 @@ export const PropertyProvider: React.FC<{
   };
 
   const deleteProperty = async (id: string) => {
+    if (isSupabaseConfigured) {
+      const deleted = await deletePropertyFromSupabase(id);
+      if (!deleted) {
+        addToast({ type: 'error', title: 'Não foi possível excluir o anúncio', message: 'O banco de dados não confirmou a exclusão.' });
+        return;
+      }
+    }
     setProperties(prev => prev.filter(p => p.id !== id));
 
     try {
@@ -218,10 +225,6 @@ export const PropertyProvider: React.FC<{
       localStorage.setItem('imovelhub_broker_properties', JSON.stringify(filtered));
     } catch (e) {
       console.warn('Error updating broker storage on delete:', e);
-    }
-
-    if (isSupabaseConfigured) {
-      await deletePropertyFromSupabase(id);
     }
 
     addToast({

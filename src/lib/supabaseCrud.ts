@@ -627,6 +627,7 @@ export async function fetchLeadsFromSupabase(): Promise<Lead[] | null> {
 
     return dbLeads.map((l: any) => {
       const prop = l.properties;
+      const crmMeta = l.meta && typeof l.meta === 'object' ? l.meta : {};
       const coverImage = prop?.property_images?.find((img: any) => img.is_cover)?.url || prop?.property_images?.[0]?.url;
       return {
         id: l.id,
@@ -643,6 +644,12 @@ export async function fetchLeadsFromSupabase(): Promise<Lead[] | null> {
         origin: l.origin,
         status: l.status,
         notes: l.notes || undefined,
+        privateNotes: crmMeta.privateNotes || undefined,
+        tasks: Array.isArray(crmMeta.tasks) ? crmMeta.tasks : [],
+        interactions: Array.isArray(crmMeta.interactions) ? crmMeta.interactions : [],
+        tags: Array.isArray(crmMeta.tags) ? crmMeta.tags : [],
+        interestedPropertyIds: Array.isArray(crmMeta.interestedPropertyIds) ? crmMeta.interestedPropertyIds : [],
+        accessRestricted: Boolean(crmMeta.accessRestricted),
         budget: l.budget || undefined,
         scheduledVisitDate: l.scheduled_visit_date || undefined,
         createdAt: l.created_at,
@@ -767,10 +774,33 @@ export async function updateLeadInSupabase(id: string, updates: Partial<Lead>): 
     if (updates.scheduledVisitDate !== undefined) dbUpdates.scheduled_visit_date = updates.scheduledVisitDate;
     dbUpdates.updated_at = new Date().toISOString();
 
-    const { error } = await supabase.from('leads').update(dbUpdates).eq('id', id);
-    return !error;
+    const { data, error } = await supabase.from('leads').update(dbUpdates).eq('id', id).select('id');
+    return !error && Boolean(data?.length);
   } catch (e) {
     console.error('Error updating lead in Supabase:', e);
+    return false;
+  }
+}
+
+export async function updateLeadMetadataInSupabase(id: string, metadata: Record<string, unknown>): Promise<boolean> {
+  if (!supabase) return false;
+  try {
+    const { data: current, error: readError } = await supabase
+      .from('leads')
+      .select('meta')
+      .eq('id', id)
+      .maybeSingle();
+    if (readError || !current) return false;
+
+    const currentMeta = current.meta && typeof current.meta === 'object' ? current.meta : {};
+    const { data, error } = await supabase
+      .from('leads')
+      .update({ meta: { ...currentMeta, ...metadata }, updated_at: new Date().toISOString() })
+      .eq('id', id)
+      .select('id');
+    return !error && Boolean(data?.length);
+  } catch (e) {
+    console.error('Error updating lead metadata in Supabase:', e);
     return false;
   }
 }
@@ -1034,14 +1064,16 @@ export async function toggleFavoriteInSupabase(userId: string, propertyId: strin
   if (!supabase) return false;
   try {
     if (isFavNow) {
-      await supabase.from('favorites').insert({
+      const { error } = await supabase.from('favorites').insert({
         user_id: userId,
         property_id: propertyId
       });
+      if (error) return false;
     } else {
-      await supabase.from('favorites').delete()
+      const { error } = await supabase.from('favorites').delete()
         .eq('user_id', userId)
         .eq('property_id', propertyId);
+      if (error) return false;
     }
     return true;
   } catch {

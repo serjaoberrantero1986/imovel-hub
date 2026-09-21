@@ -158,18 +158,16 @@ export const SearchPreferencesProvider: React.FC<{
     const newFavStatus = !exists;
     const nextFavs = exists ? favoriteIds.filter(id => id !== propertyId) : [...favoriteIds, propertyId];
 
+    if (isSupabaseConfigured) {
+      const saved = await toggleFavoriteInSupabase(currentUser.id, propertyId, newFavStatus);
+      if (!saved) {
+        addToast({ type: 'error', title: 'Não foi possível atualizar favoritos', message: 'O banco de dados não confirmou a alteração.' });
+        return;
+      }
+    }
     setFavoriteIds(nextFavs);
     localStorage.setItem(key, JSON.stringify(nextFavs));
-
-    if (exists) {
-      addToast({ type: 'info', title: 'Removido dos Favoritos' });
-    } else {
-      addToast({ type: 'success', title: 'Adicionado aos Favoritos!' });
-    }
-
-    if (isSupabaseConfigured) {
-      await toggleFavoriteInSupabase(currentUser.id, propertyId, newFavStatus);
-    }
+    addToast(exists ? { type: 'info', title: 'Removido dos Favoritos' } : { type: 'success', title: 'Adicionado aos Favoritos!' });
   };
 
   const isFavorite = (propertyId: string) => favoriteIds.includes(propertyId);
@@ -223,13 +221,16 @@ export const SearchPreferencesProvider: React.FC<{
       createdAt: new Date().toISOString()
     };
 
+    if (isSupabaseConfigured) {
+      const saved = await insertSavedSearchToSupabase(newSearch);
+      if (!saved) {
+        addToast({ type: 'error', title: 'Não foi possível salvar a busca', message: 'O banco de dados não confirmou a alteração.' });
+        return;
+      }
+    }
     const nextSearches = [newSearch, ...savedSearches];
     setSavedSearches(nextSearches);
     localStorage.setItem(`imovelhub_saved_searches_${currentUser.id}`, JSON.stringify(nextSearches));
-
-    if (isSupabaseConfigured) {
-      await insertSavedSearchToSupabase(newSearch);
-    }
 
     addToast({
       type: 'success',
@@ -240,23 +241,25 @@ export const SearchPreferencesProvider: React.FC<{
 
   const deleteSavedSearch = async (id: string) => {
     if (!isAuthenticated || currentUser.id === 'guest_buyer') return;
+    if (isSupabaseConfigured) {
+      const deleted = await deleteSavedSearchFromSupabase(id);
+      if (!deleted) { addToast({ type: 'error', title: 'Não foi possível remover o alerta' }); return; }
+    }
     const nextSearches = savedSearches.filter(s => s.id !== id);
     setSavedSearches(nextSearches);
     localStorage.setItem(`imovelhub_saved_searches_${currentUser.id}`, JSON.stringify(nextSearches));
-    if (isSupabaseConfigured) {
-      await deleteSavedSearchFromSupabase(id);
-    }
     addToast({ type: 'info', title: 'Alerta de busca removido' });
   };
 
   const updateSavedSearchAlert = async (id: string, alertFrequency: SavedSearch['alertFrequency']) => {
     if (!isAuthenticated || currentUser.id === 'guest_buyer') return;
+    if (isSupabaseConfigured) {
+      const saved = await updateSavedSearchAlertInSupabase(id, alertFrequency);
+      if (!saved) { addToast({ type: 'error', title: 'Não foi possível atualizar o alerta' }); return; }
+    }
     const nextSearches = savedSearches.map(s => s.id === id ? { ...s, alertFrequency } : s);
     setSavedSearches(nextSearches);
     localStorage.setItem(`imovelhub_saved_searches_${currentUser.id}`, JSON.stringify(nextSearches));
-    if (isSupabaseConfigured) {
-      await updateSavedSearchAlertInSupabase(id, alertFrequency);
-    }
     addToast({
       type: 'success',
       title: 'Frequência de Alerta Atualizada',
