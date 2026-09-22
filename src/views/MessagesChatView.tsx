@@ -38,7 +38,7 @@ export const MessagesChatView: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [mobileThreadOpen, setMobileThreadOpen] = useState(false);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesScrollRef = useRef<HTMLDivElement>(null);
 
   const activeConversation = conversations.find(c => c.id === activeConversationId) || conversations[0];
 
@@ -51,7 +51,8 @@ export const MessagesChatView: React.FC = () => {
 
   // Scroll to bottom of message list on updates
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    const panel = messagesScrollRef.current;
+    if (panel) panel.scrollTo({ top: panel.scrollHeight, behavior: 'smooth' });
   }, [activeConversation?.messages?.length]);
 
   const filteredConversations = conversations.filter(c => 
@@ -310,7 +311,7 @@ export const MessagesChatView: React.FC = () => {
               </div>
 
               {/* Chat Messages History */}
-              <div className="flex-1 min-h-0 overflow-y-auto p-3 sm:p-6 space-y-3 sm:space-y-4">
+              <div ref={messagesScrollRef} className="flex-1 min-h-0 overflow-y-auto p-3 sm:p-6 space-y-3 sm:space-y-4">
                 {activeConversation.messages.map(msg => {
                   const isMine = msg.senderId === currentUser.id;
                   return (
@@ -344,7 +345,6 @@ export const MessagesChatView: React.FC = () => {
                     </div>
                   );
                 })}
-                <div ref={messagesEndRef} />
               </div>
 
               {/* Chat Input Bar */}
