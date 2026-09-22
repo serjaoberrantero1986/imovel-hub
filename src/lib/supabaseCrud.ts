@@ -964,7 +964,7 @@ export async function insertMessageToSupabase(message: Message, conversationId: 
       conversation_id: ensureValidUuid(conversationId),
       sender_id: message.senderId,
       content: message.text,
-      read_at: message.read ? new Date().toISOString() : null
+      read_at: null
     });
 
     if (msgErr) return false;

@@ -38,6 +38,9 @@ export const ChatProvider: React.FC<{
 
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
   const previousUnreadCount = useRef<number | null>(null);
+  const refreshVersion = useRef(0);
+  const sessionUserId = useRef(currentUser.id);
+  sessionUserId.current = currentUser.id;
 
   const playNotificationSound = () => {
     try {
@@ -75,6 +78,9 @@ export const ChatProvider: React.FC<{
 
   const markAsRead = async (conversationId: string) => {
     if (!conversationId || !isAuthenticated || currentUser.id === 'guest_buyer') return;
+    if (!await markConversationAsReadInSupabase(conversationId, currentUser.id)) return;
+    if (sessionUserId.current !== currentUser.id) return;
+    refreshVersion.current++;
 
     setConversations(prev => {
       let hasChanges = false;
@@ -84,7 +90,7 @@ export const ChatProvider: React.FC<{
           return {
             ...c,
             unreadCount: 0,
-            messages: c.messages.map(m => ({ ...m, read: true }))
+            messages: c.messages.map(m => m.senderId !== currentUser.id ? { ...m, read: true } : m)
           };
         }
         return c;
@@ -94,16 +100,7 @@ export const ChatProvider: React.FC<{
       return prev;
     });
 
-    if (isSupabaseConfigured) {
-      await markConversationAsReadInSupabase(conversationId, currentUser.id);
-    }
   };
-
-  // Mark active conversation as read when selected or loaded
-  useEffect(() => {
-    if (!activeConversationId || !isAuthenticated || currentUser.id === 'guest_buyer') return;
-    markAsRead(activeConversationId);
-  }, [activeConversationId, isAuthenticated, currentUser.id]);
 
   // Sync state when user switches or logs in/out, and listen to lead events & periodic polling
   useEffect(() => {
@@ -138,9 +135,11 @@ export const ChatProvider: React.FC<{
 
   const refreshConversations = async () => {
     if (!isSupabaseConfigured || !isAuthenticated || currentUser.id === 'guest_buyer') return;
+    if (sessionUserId.current !== currentUser.id) return;
+    const version = ++refreshVersion.current;
     try {
       const remoteConvs = await fetchConversationsFromSupabase(currentUser.id);
-      if (remoteConvs !== null) {
+      if (remoteConvs !== null && version === refreshVersion.current && sessionUserId.current === currentUser.id) {
         setConversations(remoteConvs);
       }
     } catch (e) {
@@ -172,7 +171,7 @@ export const ChatProvider: React.FC<{
       senderAvatar: currentUser.avatarUrl,
       text,
       createdAt: now,
-      read: true
+      read: false
     };
 
     const nextConversations = conversations.map(conv => {
@@ -194,7 +193,16 @@ export const ChatProvider: React.FC<{
         return;
       }
     }
-    setConversations(nextConversations);
+    if (sessionUserId.current !== currentUser.id) return;
+    refreshVersion.current++;
+    setConversations(previous => previous.map(conversation =>
+      conversation.id === conversationId ? {
+        ...conversation, lastMessage: text, lastMessageTime: 'Agora',
+        messages: conversation.messages.some(message => message.id === newMsg.id)
+          ? conversation.messages : [...conversation.messages, newMsg]
+      } : conversation
+    ));
+    await refreshConversations();
   };
 
   const startOrOpenConversation = (propertyId: string) => {

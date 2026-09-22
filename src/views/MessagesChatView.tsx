@@ -44,10 +44,11 @@ export const MessagesChatView: React.FC = () => {
 
   // When active conversation changes, mark as read immediately
   useEffect(() => {
-    if (activeConversation?.id) {
+    if (activeConversation?.id && activeConversation.unreadCount > 0 && document.visibilityState === 'visible' &&
+        (mobileThreadOpen || window.matchMedia('(min-width: 768px)').matches)) {
       markAsRead(activeConversation.id);
     }
-  }, [activeConversation?.id]);
+  }, [activeConversation?.id, activeConversation?.unreadCount, mobileThreadOpen]);
 
   // Scroll to bottom of message list on updates
   useEffect(() => {
