@@ -589,11 +589,7 @@ export const CrmLeadDetailModal: React.FC<CrmLeadDetailModalProps> = ({
         </div>
 
         {/* MODAL FOOTER */}
-        <div className="px-6 py-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-900/80 flex items-center justify-between text-xs">
-          <span className="text-slate-500">
-            ID do Lead: <strong className="font-mono">{lead.id}</strong>
-          </span>
-
+        <div className="px-6 py-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-900/80 flex items-center justify-end text-xs">
           <button
             onClick={onClose}
             className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white dark:bg-slate-700 dark:hover:bg-slate-600 font-bold transition-colors"

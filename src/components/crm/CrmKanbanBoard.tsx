@@ -7,7 +7,6 @@ import {
   Clock, 
   Tag, 
   Sparkles, 
-  CheckCircle2, 
   XCircle, 
   FileText, 
   DollarSign, 
@@ -130,12 +129,16 @@ export const CrmKanbanBoard: React.FC<CrmKanbanBoardProps> = ({
     setActiveConversationId, 
     conversations, 
     markAsRead, 
-    startOrOpenConversation,
+    addToast,
     markLeadAsViewed,
     viewedLeadIds
   } = useApp();
 
   const [expandedStages, setExpandedStages] = useState<Record<string, boolean>>({});
+  const [draggedLeadId, setDraggedLeadId] = useState<string | null>(null);
+  const priorityLabel: Record<string, string> = {
+    low: 'Baixa', medium: 'Média', high: 'Alta', vip: 'Especial', urgent: 'Urgente'
+  };
 
   const toggleStage = (stageId: string) => {
     setExpandedStages(prev => ({
@@ -225,6 +228,14 @@ export const CrmKanbanBoard: React.FC<CrmKanbanBoardProps> = ({
           return (
             <div
               key={stage.id}
+              onDragOver={(event) => event.preventDefault()}
+              onDrop={(event) => {
+                event.preventDefault();
+                const leadId = event.dataTransfer.getData('text/plain') || draggedLeadId;
+                const lead = leads.find(item => item.id === leadId);
+                if (lead && lead.status !== stage.id) onChangeStage(lead, stage.id);
+                setDraggedLeadId(null);
+              }}
               className={`w-full bg-slate-100/80 dark:bg-slate-900/60 rounded-3xl p-3.5 border transition-all duration-200 flex flex-col shadow-xs ${
                 isExpanded 
                   ? 'border-slate-300 dark:border-slate-700 space-y-3' 
@@ -302,13 +313,20 @@ export const CrmKanbanBoard: React.FC<CrmKanbanBoardProps> = ({
                     return (
                       <div
                         key={lead.id}
+                        draggable
+                        onDragStart={(event) => {
+                          event.dataTransfer.setData('text/plain', lead.id);
+                          event.dataTransfer.effectAllowed = 'move';
+                          setDraggedLeadId(lead.id);
+                        }}
+                        onDragEnd={() => setDraggedLeadId(null)}
                         onClick={() => {
                           markLeadAsViewed(lead.id);
                           onOpenLead(lead);
                         }}
                         className={`group p-3.5 rounded-2xl bg-white dark:bg-slate-900 border ${
                           isUnread ? 'border-rose-400 dark:border-rose-700 shadow-md shadow-rose-500/5 ring-1 ring-rose-400/30' : 'border-slate-200 dark:border-slate-800'
-                        } hover:shadow-lg transition-all duration-200 cursor-pointer space-y-3 ${stage.borderHover}`}
+                        } ${draggedLeadId === lead.id ? 'opacity-50' : ''} hover:shadow-lg transition-all duration-200 cursor-grab active:cursor-grabbing space-y-3 ${stage.borderHover}`}
                       >
                         {/* Top: Name & Priority / Privacy Badges */}
                         <div className="flex items-start justify-between gap-2">
@@ -341,7 +359,7 @@ export const CrmKanbanBoard: React.FC<CrmKanbanBoardProps> = ({
                               lead.priority === 'high' ? 'bg-orange-100 dark:bg-orange-950/80 text-orange-700 dark:text-orange-300' :
                               'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
                             }`}>
-                              {lead.priority}
+                              {priorityLabel[lead.priority] || lead.priority}
                             </span>
                           )}
                         </div>
@@ -438,20 +456,18 @@ export const CrmKanbanBoard: React.FC<CrmKanbanBoardProps> = ({
                               onClick={(e) => {
                                 e.stopPropagation();
                                 markLeadAsViewed(lead.id);
-                                const matchingConv = conversations.find(c => 
-                                  c.id === lead.id || 
-                                  (lead.propertyId && c.propertyId === lead.propertyId && (
-                                    c.messages.some(m => m.text.includes(lead.buyerName) || (lead.buyerPhone && m.text.includes(lead.buyerPhone)))
-                                  ))
-                                ) || conversations.find(c => lead.propertyId && c.propertyId === lead.propertyId);
+                                const matchingConv = conversations.find(c =>
+                                  c.propertyId === lead.propertyId &&
+                                  c.otherUser.email?.toLowerCase() === lead.buyerEmail?.toLowerCase()
+                                );
 
                                 if (matchingConv) {
                                   setActiveConversationId(matchingConv.id);
                                   markAsRead(matchingConv.id);
-                                } else if (lead.propertyId) {
-                                  startOrOpenConversation(lead.propertyId);
+                                  setCurrentView('messages');
+                                } else {
+                                  addToast({ type: 'info', title: 'Conversa ainda indisponível', message: 'O contato aparecerá aqui quando o interessado criar ou acessar sua conta.' });
                                 }
-                                setCurrentView('messages');
                               }}
                               title="Ver histórico de mensagens no Chat"
                               className="p-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/50 dark:hover:bg-rose-900 text-rose-600 dark:text-rose-400 transition-colors flex items-center gap-1 text-[11px] font-bold cursor-pointer"
@@ -479,20 +495,6 @@ export const CrmKanbanBoard: React.FC<CrmKanbanBoardProps> = ({
                               </button>
                             )}
 
-                            {stage.id !== 'closed_won' && (
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  markLeadAsViewed(lead.id);
-                                  onChangeStage(lead, 'closed_won');
-                                }}
-                                title="Fechar Negócio"
-                                className="p-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/50 text-emerald-600 transition-colors"
-                              >
-                                <CheckCircle2 className="w-3.5 h-3.5" />
-                              </button>
-                            )}
                           </div>
 
                         </div>

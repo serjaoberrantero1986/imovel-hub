@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { Conversation, Property } from '../types';
 import { 
   fetchConversationsFromSupabase,
@@ -7,7 +7,7 @@ import {
   deleteConversationFromSupabase,
   markConversationAsReadInSupabase
 } from '../lib/supabaseCrud';
-import { isSupabaseConfigured } from '../lib/supabaseClient';
+import { isSupabaseConfigured, supabase } from '../lib/supabaseClient';
 import { Toast, AppView } from './appTypes';
 import { UserProfile } from '../types';
 
@@ -34,22 +34,33 @@ export const ChatProvider: React.FC<{
   setCurrentView: (view: AppView) => void;
   addToast: (toast: Omit<Toast, 'id'>) => void;
 }> = ({ children, currentUser, isAuthenticated = false, openAuthModal, properties, setCurrentView, addToast }) => {
-  const [conversations, setConversations] = useState<Conversation[]>(() => {
-    if (!isAuthenticated || currentUser.id === 'guest_buyer') {
-      return [];
-    }
-    const storageKey = `imovelhub_conversations_${currentUser.id}`;
-    const saved = localStorage.getItem(storageKey);
-    if (saved !== null) {
-      try {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) return parsed;
-      } catch {}
-    }
-    return [];
-  });
+  const [conversations, setConversations] = useState<Conversation[]>([]);
 
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
+  const previousUnreadCount = useRef<number | null>(null);
+
+  const playNotificationSound = () => {
+    try {
+      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioCtx) return;
+      const context = new AudioCtx();
+      const oscillator = context.createOscillator();
+      const gain = context.createGain();
+      oscillator.frequency.setValueAtTime(880, context.currentTime);
+      gain.gain.setValueAtTime(0.0001, context.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.12, context.currentTime + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, context.currentTime + 0.22);
+      oscillator.connect(gain).connect(context.destination);
+      oscillator.start();
+      oscillator.stop(context.currentTime + 0.24);
+    } catch {}
+  };
+
+  useEffect(() => {
+    const unread = conversations.reduce((total, conversation) => total + conversation.unreadCount, 0);
+    if (previousUnreadCount.current !== null && unread > previousUnreadCount.current) playNotificationSound();
+    previousUnreadCount.current = unread;
+  }, [conversations]);
 
   // Keep active conversation aligned
   useEffect(() => {
@@ -79,10 +90,7 @@ export const ChatProvider: React.FC<{
         return c;
       });
 
-      if (hasChanges) {
-        localStorage.setItem(`imovelhub_conversations_${currentUser.id}`, JSON.stringify(updated));
-        return updated;
-      }
+      if (hasChanges) return updated;
       return prev;
     });
 
@@ -100,24 +108,17 @@ export const ChatProvider: React.FC<{
   // Sync state when user switches or logs in/out, and listen to lead events & periodic polling
   useEffect(() => {
     if (isAuthenticated && currentUser.id !== 'guest_buyer') {
-      const storageKey = `imovelhub_conversations_${currentUser.id}`;
-      const saved = localStorage.getItem(storageKey);
-      if (saved !== null) {
-        try {
-          const parsed = JSON.parse(saved);
-          setConversations(Array.isArray(parsed) ? parsed : []);
-        } catch {
-          setConversations([]);
-        }
-      } else {
-        setConversations([]);
-      }
+      setConversations([]);
       refreshConversations();
 
-      // Poll periodically (every 12 seconds) so badges refresh automatically if a lead arrives
+      // Keep a short polling fallback for browsers that do not receive Realtime events.
       const pollTimer = setInterval(() => {
         refreshConversations();
-      }, 12000);
+      }, 5000);
+      const channel = supabase?.channel(`messages-${currentUser.id}`)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'messages' }, refreshConversations)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'conversations' }, refreshConversations)
+        .subscribe();
 
       const handleLeadEvent = () => {
         refreshConversations();
@@ -126,6 +127,7 @@ export const ChatProvider: React.FC<{
 
       return () => {
         clearInterval(pollTimer);
+        if (channel) void supabase?.removeChannel(channel);
         window.removeEventListener('imovelhub_lead_submitted', handleLeadEvent);
       };
     } else {
@@ -139,30 +141,7 @@ export const ChatProvider: React.FC<{
     try {
       const remoteConvs = await fetchConversationsFromSupabase(currentUser.id);
       if (remoteConvs !== null) {
-        let deletedIds: string[] = [];
-        try {
-          const deletedKey = `imovelhub_deleted_convs_${currentUser.id}`;
-          deletedIds = JSON.parse(localStorage.getItem(deletedKey) || '[]');
-        } catch {
-          deletedIds = [];
-        }
-
-        const validRemoteConvs = remoteConvs.filter(c => !deletedIds.includes(c.id));
-
-        // If an active conversation is open, preserve unreadCount = 0 so polling doesn't reset it
-        const sanitized = validRemoteConvs.map(c => {
-          if (c.id === activeConversationId) {
-            return {
-              ...c,
-              unreadCount: 0,
-              messages: c.messages.map(m => ({ ...m, read: true }))
-            };
-          }
-          return c;
-        });
-
-        setConversations(sanitized);
-        localStorage.setItem(`imovelhub_conversations_${currentUser.id}`, JSON.stringify(sanitized));
+        setConversations(remoteConvs);
       }
     } catch (e) {
       console.warn('Error fetching conversations from Supabase:', e);
@@ -208,12 +187,14 @@ export const ChatProvider: React.FC<{
       return conv;
     });
 
-    setConversations(nextConversations);
-    localStorage.setItem(`imovelhub_conversations_${currentUser.id}`, JSON.stringify(nextConversations));
-
     if (isSupabaseConfigured) {
-      await insertMessageToSupabase(newMsg, conversationId);
+      const sent = await insertMessageToSupabase(newMsg, conversationId);
+      if (!sent) {
+        addToast({ type: 'error', title: 'Mensagem não enviada', message: 'O banco de dados não confirmou o envio.' });
+        return;
+      }
     }
+    setConversations(nextConversations);
   };
 
   const startOrOpenConversation = (propertyId: string) => {
@@ -263,16 +244,6 @@ export const ChatProvider: React.FC<{
       const nextConversations = [newConv, ...conversations];
       setConversations(nextConversations);
       setActiveConversationId(newConv.id);
-      localStorage.setItem(`imovelhub_conversations_${currentUser.id}`, JSON.stringify(nextConversations));
-
-      // Remove from deleted list if starting anew
-      try {
-        const deletedKey = `imovelhub_deleted_convs_${currentUser.id}`;
-        const deletedIds: string[] = JSON.parse(localStorage.getItem(deletedKey) || '[]');
-        const updatedDeleted = deletedIds.filter(id => id !== convId);
-        localStorage.setItem(deletedKey, JSON.stringify(updatedDeleted));
-      } catch {}
-
       if (isSupabaseConfigured) {
         insertConversationToSupabase({
           id: convId,
@@ -297,20 +268,6 @@ export const ChatProvider: React.FC<{
 
     const remaining = conversations.filter(c => c.id !== conversationId);
     setConversations(remaining);
-    localStorage.setItem(`imovelhub_conversations_${currentUser.id}`, JSON.stringify(remaining));
-
-    // Register deleted ID into localStorage
-    try {
-      const deletedKey = `imovelhub_deleted_convs_${currentUser.id}`;
-      const deletedIds: string[] = JSON.parse(localStorage.getItem(deletedKey) || '[]');
-      if (!deletedIds.includes(conversationId)) {
-        deletedIds.push(conversationId);
-        localStorage.setItem(deletedKey, JSON.stringify(deletedIds));
-      }
-    } catch (err) {
-      console.warn('Could not store deleted conv id:', err);
-    }
-
     if (activeConversationId === conversationId) {
       setActiveConversationId(remaining.length > 0 ? remaining[0].id : null);
     }

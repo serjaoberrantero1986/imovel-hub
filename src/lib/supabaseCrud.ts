@@ -696,10 +696,17 @@ export async function insertLeadToSupabase(lead: Lead): Promise<{ success: boole
       };
     }
 
+    const { data: authData } = await supabase.auth.getUser();
+    const loggedBuyer = authData.user && lead.buyerEmail &&
+      authData.user.email?.trim().toLowerCase() === lead.buyerEmail.trim().toLowerCase()
+      ? authData.user.id
+      : null;
+
     const { error } = await supabase.from('leads').insert({
       id: validId,
       property_id: validPropId,
       advertiser_id: targetAdvId,
+      buyer_id: loggedBuyer,
       name: lead.buyerName,
       email: lead.buyerEmail || null,
       phone: lead.buyerPhone || null,
@@ -713,7 +720,15 @@ export async function insertLeadToSupabase(lead: Lead): Promise<{ success: boole
       return { success: false, error: `Erro no banco de dados ao salvar lead: ${error.message}` };
     }
 
-    // Visitor contacts are stored as leads, without impersonating a chat participant.
+    if (loggedBuyer) {
+      const { error: conversationError } = await supabase.rpc('create_lead_conversation', {
+        p_lead_id: validId,
+        p_buyer_id: loggedBuyer
+      });
+      if (conversationError) {
+        console.warn('Lead saved but conversation could not be created:', conversationError.message);
+      }
+    }
 
     return { success: true };
   } catch (e: any) {
@@ -787,6 +802,7 @@ export async function fetchConversationsFromSupabase(userId: string): Promise<Co
 
     if (error) {
       console.warn('Notice: Error fetching conversations from Supabase:', error.message);
+      return null;
     }
 
     const conversationsList: Conversation[] = [];
@@ -827,7 +843,7 @@ export async function fetchConversationsFromSupabase(userId: string): Promise<Co
         let leadEmail = '';
 
         if (isLeadPortalConv) {
-          const rawText = c.messages?.[0]?.text || c.last_message_text || '';
+          const rawText = c.messages?.[0]?.content || c.last_message_text || '';
           const nameMatch = rawText.match(/Nome:\s*([^\n]+)/) || rawText.match(/\[(?:Novo )?Lead(?: do Portal)?\s*-\s*([^\]\n]+)\]/);
           const phoneMatch = rawText.match(/Telefone:\s*([^\n]+)/);
           const emailMatch = rawText.match(/E-mail:\s*([^\n]+)/);
@@ -843,7 +859,7 @@ export async function fetchConversationsFromSupabase(userId: string): Promise<Co
         const msgs: Message[] = (c.messages || [])
           .sort((a: any, b: any) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
           .map((m: any) => {
-            const isLeadOrigin = m.text?.startsWith('[Lead') || m.text?.startsWith('[Novo Lead');
+            const isLeadOrigin = m.content?.startsWith('[Lead') || m.content?.startsWith('[Novo Lead');
             const isMine = isLeadOrigin ? false : (m.sender_id === userId && !isLeadPortalConv);
 
             return {
@@ -856,7 +872,7 @@ export async function fetchConversationsFromSupabase(userId: string): Promise<Co
                 : (isLeadOrigin 
                     ? `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(leadName)}&backgroundColor=e11d48&textColor=ffffff` 
                     : otherProfile?.avatar_url),
-              text: m.text,
+              text: m.content,
               createdAt: m.created_at,
               read: Boolean(m.read_at)
             };
@@ -906,22 +922,10 @@ export async function fetchConversationsFromSupabase(userId: string): Promise<Co
 export async function markConversationAsReadInSupabase(conversationId: string, userId: string): Promise<boolean> {
   if (!supabase) return false;
   try {
-    const validConvId = ensureValidUuid(conversationId);
-    
-    // Update unread count for advertiser and buyer
-    await supabase.from('conversations').update({
-      advertiser_unread_count: 0,
-      buyer_unread_count: 0,
-      updated_at: new Date().toISOString()
-    }).eq('id', validConvId);
-
-    // Mark messages in this conversation as read
-    await supabase.from('messages')
-      .update({ read_at: new Date().toISOString() })
-      .eq('conversation_id', validConvId)
-      .is('read_at', null);
-
-    return true;
+    const { error } = await supabase.rpc('mark_conversation_read', {
+      p_conversation_id: ensureValidUuid(conversationId)
+    });
+    return !error;
   } catch (e) {
     console.warn('Error marking conversation as read in Supabase:', e);
     return false;
@@ -959,7 +963,7 @@ export async function insertMessageToSupabase(message: Message, conversationId: 
       id: ensureValidUuid(message.id),
       conversation_id: ensureValidUuid(conversationId),
       sender_id: message.senderId,
-      text: message.text,
+      content: message.text,
       read_at: message.read ? new Date().toISOString() : null
     });
 
