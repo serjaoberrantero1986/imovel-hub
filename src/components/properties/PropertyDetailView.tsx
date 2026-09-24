@@ -84,7 +84,11 @@ export const PropertyDetailView: React.FC = () => {
 
   // Visit Scheduling state
   const [scheduleModalOpen, setScheduleModalOpen] = useState(false);
-  const [visitDate, setVisitDate] = useState('2026-09-05');
+  const [visitDate, setVisitDate] = useState(() => {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    return tomorrow.toISOString().slice(0, 10);
+  });
   const [visitTime, setVisitTime] = useState('10:00');
 
   if (!property) {

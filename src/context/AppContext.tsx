@@ -207,6 +207,7 @@ const AppCompositeProvider: React.FC<{
     sendMessage: chat.sendMessage,
     startOrOpenConversation: chat.startOrOpenConversation,
     setConversationArchived: chat.setConversationArchived,
+    deleteConversationForCurrentUser: chat.deleteConversationForCurrentUser,
     // Search & Preferences slice
     favoriteIds: searchPref.favoriteIds,
     toggleFavorite: searchPref.toggleFavorite,

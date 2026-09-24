@@ -316,6 +316,7 @@ export interface Message {
 export interface Conversation {
   id: string;
   isArchived?: boolean;
+  isDeleted?: boolean;
   propertyId: string;
   propertyTitle: string;
   propertyImage?: string;

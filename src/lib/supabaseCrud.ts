@@ -627,7 +627,7 @@ export async function fetchLeadsFromSupabase(): Promise<Lead[] | null> {
 
     if (!dbLeads || dbLeads.length === 0) return [];
 
-    return dbLeads.map((l: any) => {
+    const mappedLeads = dbLeads.map((l: any) => {
       const prop = l.properties;
       const crm = Array.isArray(l.lead_crm) ? l.lead_crm[0] : l.lead_crm;
       const crmMeta = crm?.meta || {};
@@ -652,6 +652,7 @@ export async function fetchLeadsFromSupabase(): Promise<Lead[] | null> {
         propertyPrice: prop?.price || 0,
         propertyImage: coverImage,
         advertiserId: l.advertiser_id,
+        buyerId: l.buyer_id || undefined,
         buyerName: l.name,
         buyerEmail: l.email || '',
         buyerPhone: l.phone || '',
@@ -670,6 +671,25 @@ export async function fetchLeadsFromSupabase(): Promise<Lead[] | null> {
         scheduledVisitDate: crmMeta.scheduledVisitDate || undefined,
         createdAt: l.created_at,
         updatedAt: l.updated_at
+      };
+    });
+
+    // Older releases could create several cards for the same person. Preserve
+    // every contact event, but present one CRM card per signed-in contact.
+    const grouped = new Map<string, any[]>();
+    mappedLeads.forEach((lead: any) => {
+      const key = lead.buyerId
+        ? `account:${lead.buyerId}`
+        : `contact:${String(lead.buyerEmail || lead.buyerPhone || lead.id).trim().toLowerCase()}`;
+      grouped.set(key, [...(grouped.get(key) || []), lead]);
+    });
+    return Array.from(grouped.values()).map(group => {
+      const canonical = group.find((lead: any) => Boolean((dbLeads.find((row: any) => row.id === lead.id) as any)?.contact_key)) || group[0];
+      if (group.length === 1) return canonical;
+      return {
+        ...canonical,
+        interactions: group.flatMap((lead: any) => lead.interactions || [])
+          .sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
       };
     });
   } catch (err) {
@@ -764,8 +784,8 @@ export async function updateLeadMetadataInSupabase(id: string, metadata: Record<
 export async function deleteLeadFromSupabase(id: string): Promise<boolean> {
   if (!supabase) return false;
   try {
-    const { data, error } = await supabase.from('leads').delete().eq('id', id).select('id');
-    return !error && Boolean(data?.length);
+    const { data, error } = await supabase.rpc('delete_my_lead', { p_lead_id: ensureValidUuid(id) });
+    return !error && data === true;
   } catch (e) {
     console.error('Error deleting lead from Supabase:', e);
     return false;
@@ -874,6 +894,7 @@ export async function fetchConversationsFromSupabase(userId: string): Promise<Co
         conversationsList.push({
           id: c.id,
           isArchived: Boolean(isUserBuyer ? c.is_archived_buyer : c.is_archived_advertiser),
+          isDeleted: Boolean(isUserBuyer ? c.is_deleted_buyer : c.is_deleted_advertiser),
           propertyId: c.property_id || '',
           propertyTitle: prop?.title || 'Imóvel em Destaque',
           propertyImage: coverImage,
@@ -980,6 +1001,19 @@ export async function setConversationArchiveInSupabase(id: string, archived: boo
     return !error && data === true;
   } catch (err) {
     console.warn('Error archiving conversation in Supabase:', err);
+    return false;
+  }
+}
+
+export async function deleteConversationForCurrentUserInSupabase(id: string): Promise<boolean> {
+  if (!supabase) return false;
+  try {
+    const { data, error } = await supabase.rpc('delete_my_conversation', {
+      p_conversation_id: ensureValidUuid(id)
+    });
+    return !error && data === true;
+  } catch (err) {
+    console.warn('Error deleting personal conversation copy:', err);
     return false;
   }
 }

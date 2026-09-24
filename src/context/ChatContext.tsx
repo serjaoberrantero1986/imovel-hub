@@ -5,6 +5,7 @@ import {
   insertConversationToSupabase,
   insertMessageToSupabase,
   setConversationArchiveInSupabase,
+  deleteConversationForCurrentUserInSupabase,
   markConversationAsReadInSupabase
 } from '../lib/supabaseCrud';
 import { isSupabaseConfigured, supabase } from '../lib/supabaseClient';
@@ -19,6 +20,7 @@ export interface ChatContextType {
   sendMessage: (conversationId: string, text: string) => Promise<void>;
   startOrOpenConversation: (propertyId: string) => void;
   setConversationArchived: (conversationId: string, archived: boolean) => Promise<boolean>;
+  deleteConversationForCurrentUser: (conversationId: string) => Promise<boolean>;
   setConversations: React.Dispatch<React.SetStateAction<Conversation[]>>;
   refreshConversations: () => Promise<void>;
 }
@@ -281,7 +283,20 @@ export const ChatProvider: React.FC<{
     if (sessionUserId.current !== currentUser.id) return false;
     refreshVersion.current++;
     setConversations(previous => previous.map(c => c.id === conversationId ? { ...c, isArchived: archived } : c));
-    addToast({ type: 'success', title: archived ? 'Conversa arquivada' : 'Conversa restaurada', message: 'Essa alteração vale apenas para você. O histórico foi preservado.' });
+    addToast({ type: 'success', title: archived ? 'Conversa movida para arquivadas.' : 'Conversa movida para conversas.' });
+    await refreshConversations();
+    return true;
+  };
+
+  const deleteConversationForCurrentUser = async (conversationId: string) => {
+    if (!isAuthenticated || currentUser.id === 'guest_buyer') return false;
+    if (!await deleteConversationForCurrentUserInSupabase(conversationId)) {
+      addToast({ type: 'error', title: 'Não foi possível excluir a conversa.' });
+      return false;
+    }
+    refreshVersion.current++;
+    setConversations(previous => previous.map(c => c.id === conversationId ? { ...c, isDeleted: true } : c));
+    addToast({ type: 'success', title: 'Conversa excluída definitivamente.' });
     await refreshConversations();
     return true;
   };
@@ -296,6 +311,7 @@ export const ChatProvider: React.FC<{
         sendMessage,
         startOrOpenConversation,
         setConversationArchived,
+        deleteConversationForCurrentUser,
         setConversations,
         refreshConversations
       }}

@@ -598,7 +598,7 @@ export const HeroLuxurySection: React.FC = () => {
             <button
               type="button"
               onClick={handleExecuteSearch}
-              className="col-span-2 w-full xl:w-auto px-6 xl:px-8 py-3.5 rounded-2xl xl:rounded-full bg-gradient-to-r from-rose-600 via-fuchsia-600 to-rose-600 text-white text-xs sm:text-sm font-extrabold shadow-lg shadow-rose-600/30 hover:shadow-rose-600/50 active:scale-[0.98] transition-all flex items-center justify-center gap-2 shrink-0 cursor-pointer"
+              className="col-span-2 w-full xl:w-auto px-6 xl:px-8 py-3.5 rounded-2xl xl:rounded-full bg-rose-600 hover:bg-rose-700 text-white text-xs sm:text-sm font-extrabold shadow-lg shadow-rose-600/30 hover:shadow-rose-600/50 active:scale-[0.98] transition-all flex items-center justify-center gap-2 shrink-0 cursor-pointer"
             >
               <Search className="w-4 h-4" />
               <span>Buscar</span>

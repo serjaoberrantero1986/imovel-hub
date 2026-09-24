@@ -68,7 +68,11 @@ export const UserMenu: React.FC = () => {
         type="button"
         onClick={() => setIsOpen(!isOpen)}
         aria-expanded={isOpen}
-        className="flex items-center gap-1.5 p-1 sm:p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700/80 transition-colors focus:outline-none focus:ring-2 focus:ring-rose-500/20 shrink-0 cursor-pointer"
+        className={`flex items-center gap-1.5 p-1 sm:p-1.5 rounded-xl border transition-all focus:outline-none focus:ring-2 focus:ring-rose-500/20 shrink-0 cursor-pointer ${
+          isAuthenticated
+            ? 'hover:bg-slate-100 dark:hover:bg-slate-800 border-slate-200 dark:border-slate-700/80'
+            : 'group border-rose-200 dark:border-rose-900/70 bg-gradient-to-r from-rose-50 via-white to-fuchsia-50 dark:from-rose-950/40 dark:via-slate-900 dark:to-fuchsia-950/30 hover:scale-[1.02] hover:border-rose-400 shadow-sm shadow-rose-500/10'
+        }`}
       >
         {isAuthenticated && (
           <div className="relative shrink-0 flex items-center justify-center">
@@ -91,8 +95,9 @@ export const UserMenu: React.FC = () => {
           </div>
         )}
 
+        {!isAuthenticated && <span className="w-6 h-6 rounded-lg bg-rose-600 text-white flex items-center justify-center animate-pulse shadow-sm shadow-rose-500/40"><Sparkles className="w-3.5 h-3.5" /></span>}
         <div className={`text-left pr-1 ${isAuthenticated ? 'hidden xl:block' : 'block'}`}>
-          <div className="text-xs font-bold text-slate-800 dark:text-slate-100 truncate max-w-[120px]">
+          <div className={`text-xs font-bold truncate max-w-[145px] ${isAuthenticated ? 'text-slate-800 dark:text-slate-100' : 'text-rose-700 dark:text-rose-300'}`}>
             {isAuthenticated ? currentUser.name.split(' ')[0] : 'Entre ou Cadastre-se'}
           </div>
           {isAuthenticated && <div className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">

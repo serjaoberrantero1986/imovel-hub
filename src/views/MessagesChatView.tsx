@@ -12,6 +12,7 @@ import {
   User,
   Archive,
   RotateCcw,
+  Trash2,
   LogIn,
   ArrowRight,
   ArrowLeft,
@@ -28,6 +29,7 @@ export const MessagesChatView: React.FC = () => {
     markAsRead, 
     sendMessage, 
     setConversationArchived,
+    deleteConversationForCurrentUser,
     currentUser,
     isAuthenticated,
     openAuthModal,
@@ -43,7 +45,7 @@ export const MessagesChatView: React.FC = () => {
   const [mobileThreadOpen, setMobileThreadOpen] = useState(false);
   const messagesScrollRef = useRef<HTMLDivElement>(null);
 
-  const visibleConversations = conversations.filter(c => Boolean(c.isArchived) === showArchived);
+  const visibleConversations = conversations.filter(c => !c.isDeleted && Boolean(c.isArchived) === showArchived);
   const activeConversation = visibleConversations.find(c => c.id === activeConversationId) || visibleConversations[0];
   const participantLabels = { buyer: 'Comprador / Inquilino', broker: 'Corretor', agency: 'Imobiliária', owner: 'Proprietário', admin: 'Equipe do portal' };
 
@@ -52,6 +54,19 @@ export const MessagesChatView: React.FC = () => {
     setChangingArchive(true);
     try {
       if (await setConversationArchived(activeConversation.id, !activeConversation.isArchived)) {
+        setConfirmDeleteId(null);
+        setMobileThreadOpen(false);
+      }
+    } finally {
+      setChangingArchive(false);
+    }
+  };
+
+  const handlePermanentDelete = async () => {
+    if (!activeConversation || changingArchive) return;
+    setChangingArchive(true);
+    try {
+      if (await deleteConversationForCurrentUser(activeConversation.id)) {
         setConfirmDeleteId(null);
         setMobileThreadOpen(false);
       }
@@ -304,10 +319,12 @@ export const MessagesChatView: React.FC = () => {
                   {/* Botão discreto para exclusão da conversa */}
                   {confirmDeleteId === activeConversation.id ? (
                     <div className="flex items-center gap-1.5 p-1 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 text-xs">
-                      <span className="text-[10px] text-rose-700 dark:text-rose-300 font-medium pl-1">{activeConversation.isArchived ? 'Restaurar?' : 'Arquivar?'}</span>
+                      <span className="text-[10px] text-rose-700 dark:text-rose-300 font-medium pl-1">
+                        {activeConversation.isArchived ? 'Excluir definitivamente?' : 'Arquivar?'}
+                      </span>
                       <button
                         type="button"
-                        onClick={handleArchive}
+                        onClick={activeConversation.isArchived ? handlePermanentDelete : handleArchive}
                         disabled={changingArchive}
                         className="px-2 py-0.5 text-[10px] font-bold bg-rose-600 hover:bg-rose-700 text-white rounded-lg transition-colors cursor-pointer"
                         title="Confirmar apenas na minha lista; preservar o histórico"
@@ -323,6 +340,19 @@ export const MessagesChatView: React.FC = () => {
                         Não
                       </button>
                     </div>
+                  ) : activeConversation.isArchived ? (
+                    <div className="flex items-center gap-1">
+                      <button type="button" onClick={handleArchive} disabled={changingArchive}
+                        className="p-1.5 sm:p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 rounded-xl transition-colors cursor-pointer"
+                        title="Restaurar em conversas" aria-label="Restaurar conversa">
+                        <RotateCcw className="w-4 h-4" />
+                      </button>
+                      <button type="button" onClick={() => setConfirmDeleteId(activeConversation.id)}
+                        className="p-1.5 sm:p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-xl transition-colors cursor-pointer"
+                        title="Excluir definitivamente da minha conta" aria-label="Excluir conversa definitivamente da minha conta">
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
                   ) : (
                     <button
                       type="button"
@@ -331,7 +361,7 @@ export const MessagesChatView: React.FC = () => {
                       title={activeConversation.isArchived ? 'Restaurar na minha lista' : 'Arquivar só para mim; manter o histórico'}
                       aria-label={activeConversation.isArchived ? 'Restaurar conversa' : 'Arquivar conversa apenas para mim'}
                     >
-                      {activeConversation.isArchived ? <RotateCcw className="w-4 h-4" /> : <Archive className="w-4 h-4" />}
+                      {activeConversation.isArchived ? <Trash2 className="w-4 h-4" /> : <Archive className="w-4 h-4" />}
                     </button>
                   )}
                 </div>
