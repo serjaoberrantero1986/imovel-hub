@@ -20,6 +20,7 @@ import { Lead, LeadStatus, Property } from '../../types';
 import { formatCurrency, formatDateTime } from '../../lib/utils';
 import { calculatePropertyMatchScore } from '../../lib/crmMatching';
 import { KANBAN_STAGES } from './CrmKanbanBoard';
+import { useApp } from '../../context/AppContext';
 
 interface CrmLeadsTableProps {
   leads: Lead[];
@@ -39,6 +40,19 @@ export const CrmLeadsTable: React.FC<CrmLeadsTableProps> = ({
   onOpenProperty,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
+  const { conversations, setActiveConversationId, setCurrentView, setConversationArchived, markLeadAsViewed, addToast } = useApp();
+  const openConversation = async (lead: Lead) => {
+    const conversation = conversations.find(c => !c.isDeleted && c.propertyId === lead.propertyId &&
+      Boolean(lead.buyerEmail) && c.otherUser.email?.toLowerCase() === lead.buyerEmail.toLowerCase());
+    if (!conversation) {
+      addToast({ type: 'info', title: 'Conversa ainda indisponível', message: 'O contato aparecerá aqui quando o interessado criar ou acessar sua conta.' });
+      return;
+    }
+    if (conversation.isArchived && !await setConversationArchived(conversation.id, false)) return;
+    markLeadAsViewed(lead.id);
+    setActiveConversationId(conversation.id);
+    setCurrentView('messages');
+  };
   const [stageFilter, setStageFilter] = useState<string>('all');
   const [priorityFilter, setPriorityFilter] = useState<string>('all');
   const [originFilter, setOriginFilter] = useState<string>('all');
@@ -275,6 +289,15 @@ export const CrmLeadsTable: React.FC<CrmLeadsTableProps> = ({
                             onClick={(e) => handleWhatsAppClick(e, lead)}
                             className="p-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/50 text-emerald-600 transition-colors"
                             title="Abrir WhatsApp"
+                          >
+                            <MessageSquare className="w-4 h-4" />
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => void openConversation(lead)}
+                            className="p-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/50 text-rose-600 transition-colors"
+                            title="Abrir conversa" aria-label={`Abrir conversa com ${lead.buyerName}`}
                           >
                             <MessageSquare className="w-4 h-4" />
                           </button>

@@ -11,7 +11,7 @@ import {
   LogOut, 
   CheckCircle2, 
   ChevronDown,
-  Sparkles,
+  KeyRound,
   Settings,
   Moon,
   Sun
@@ -61,6 +61,16 @@ export const UserMenu: React.FC = () => {
 
   const unreadMessages = conversations.reduce((sum, c) => sum + c.unreadCount, 0);
 
+  if (!isAuthenticated) {
+    return (
+      <button type="button" className="guest-key-login text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-900 bg-white dark:bg-slate-900"
+        aria-label="Cadastrar/Login" onClick={() => openAuthModal('login')}>
+        <span className="guest-key-login-icon" aria-hidden="true"><KeyRound size={20} /></span>
+        <span className="guest-key-login-text" aria-hidden="true">Cadastrar/Login</span>
+      </button>
+    );
+  }
+
   return (
     <div ref={menuRef} className="relative inline-block text-left shrink-0">
       <button
@@ -95,7 +105,6 @@ export const UserMenu: React.FC = () => {
           </div>
         )}
 
-        {!isAuthenticated && <span className="w-6 h-6 rounded-lg bg-rose-600 text-white flex items-center justify-center animate-pulse shadow-sm shadow-rose-500/40"><Sparkles className="w-3.5 h-3.5" /></span>}
         <div className={`text-left pr-1 ${isAuthenticated ? 'hidden xl:block' : 'block'}`}>
           <div className={`text-xs font-bold truncate max-w-[145px] ${isAuthenticated ? 'text-slate-800 dark:text-slate-100' : 'text-rose-700 dark:text-rose-300'}`}>
             {isAuthenticated ? currentUser.name.split(' ')[0] : 'Entre ou Cadastre-se'}

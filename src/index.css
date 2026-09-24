@@ -2,6 +2,49 @@
 
 @custom-variant dark (&:where(.dark, .dark *));
 
+/* Width participates in the right-aligned navbar layout, pushing its neighbours
+   left instead of covering them. Touch devices keep the compact clickable key. */
+.guest-key-login {
+  position: relative;
+  display: block;
+  flex: 0 0 auto;
+  width: 38px;
+  height: 38px;
+  overflow: hidden;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: width 420ms cubic-bezier(.22, 1, .36, 1);
+}
+.guest-key-login-icon {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 36px;
+  display: grid;
+  place-items: center;
+  transition: transform 420ms cubic-bezier(.22, 1, .36, 1);
+}
+.guest-key-login-text {
+  position: absolute;
+  left: 38px;
+  top: 50%;
+  transform: translate(8px, -50%);
+  opacity: 0;
+  white-space: nowrap;
+  font-size: 12px;
+  font-weight: 700;
+  transition: opacity 240ms ease, transform 420ms ease;
+}
+@media (hover: hover) and (pointer: fine) {
+  .guest-key-login:hover { width: 154px; }
+  .guest-key-login:hover .guest-key-login-icon { transform: rotate(-360deg); }
+  .guest-key-login:hover .guest-key-login-text { opacity: 1; transform: translate(0, -50%); }
+}
+.guest-key-login:focus-visible { width: 154px; outline: 2px solid #e11d48; outline-offset: 3px; }
+.guest-key-login:focus-visible .guest-key-login-text { opacity: 1; transform: translate(0, -50%); }
+@media (prefers-reduced-motion: reduce) {
+  .guest-key-login, .guest-key-login-icon, .guest-key-login-text { transition: none; }
+}
+
 @layer base {
   :root {
     --brand-primary: #e11d48;

@@ -1,9 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Users, 
   Search, 
   Plus, 
-  RefreshCw, 
   BarChart3, 
   Kanban, 
   Table, 
@@ -15,6 +14,7 @@ import {
   Building2
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
+import { useCrm } from '../context/CrmContext';
 import { Lead, LeadStatus } from '../types';
 import { CrmDashboardMetrics } from '../components/crm/CrmDashboardMetrics';
 import { CrmKanbanBoard, KANBAN_STAGES } from '../components/crm/CrmKanbanBoard';
@@ -46,10 +46,12 @@ export const CrmLeadsView: React.FC = () => {
     deleteLead, 
     openPropertyDetail, 
     addToast, 
-    isSyncing, 
-    refreshData,
     markLeadAsViewed
   } = useApp();
+  const { refreshLeads } = useCrm();
+  useEffect(() => {
+    if (isAuthenticated && currentUser.role !== 'buyer') void refreshLeads();
+  }, [isAuthenticated, currentUser.id, currentUser.role, refreshLeads]);
 
   const [activeTab, setActiveTab] = useState<'kanban' | 'dashboard' | 'table' | 'tasks'>('kanban');
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
@@ -194,14 +196,8 @@ export const CrmLeadsView: React.FC = () => {
         {/* Top Header Bar */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <div className="flex items-center gap-2">
-              <span className="px-2.5 py-0.5 rounded-md bg-rose-100 dark:bg-rose-950 text-rose-700 dark:text-rose-300 text-xs font-black uppercase tracking-wider">
-                CRM Imobiliário Pro
-              </span>
-            </div>
-            
             <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white font-['Outfit'] mt-1">
-              Gestão Comercial & Pipeline de Vendas
+              Gestão Comercial & Funil de Vendas
             </h1>
             <p className="text-xs sm:text-sm text-slate-500">
               Controle de leads, agendamento de visitas, matchmaker de imóveis e follow-ups em tempo real
@@ -209,24 +205,13 @@ export const CrmLeadsView: React.FC = () => {
           </div>
 
           <div className="flex items-center gap-2.5 flex-wrap">
-            {/* Sync Button */}
-            <button
-              onClick={() => refreshData()}
-              disabled={isSyncing}
-              className="px-3 py-2 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors flex items-center gap-1.5 text-xs font-bold shadow-xs cursor-pointer"
-              title="Sincronizar dados"
-            >
-              <RefreshCw className={`w-3.5 h-3.5 text-emerald-500 ${isSyncing ? 'animate-spin' : ''}`} />
-              <span className="hidden sm:inline">Sincronizar</span>
-            </button>
-
             {/* New Lead Button */}
             <button
               onClick={() => setIsNewLeadModalOpen(true)}
               className="px-4 py-2.5 rounded-2xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs flex items-center gap-2 shadow-md shadow-rose-600/20 transition-all active:scale-95 cursor-pointer"
             >
               <Plus className="w-4 h-4" />
-              <span>+ Novo Lead</span>
+              <span>Novo Lead</span>
             </button>
           </div>
         </div>
