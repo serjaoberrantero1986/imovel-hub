@@ -78,14 +78,11 @@ export const UserMenu: React.FC = () => {
         type="button"
         onClick={() => setIsOpen(!isOpen)}
         aria-expanded={isOpen}
-        className={`flex items-center gap-1.5 p-1 sm:p-1.5 rounded-xl border transition-all focus:outline-none focus:ring-2 focus:ring-rose-500/20 shrink-0 cursor-pointer ${
-          isAuthenticated
-            ? 'hover:bg-slate-100 dark:hover:bg-slate-800 border-slate-200 dark:border-slate-700/80'
-            : 'group border-rose-200 dark:border-rose-900/70 bg-gradient-to-r from-rose-50 via-white to-fuchsia-50 dark:from-rose-950/40 dark:via-slate-900 dark:to-fuchsia-950/30 hover:scale-[1.02] hover:border-rose-400 shadow-sm shadow-rose-500/10'
-        }`}
+        aria-label={`Menu de ${currentUser.name}`}
+        className="member-profile-menu border border-slate-200 dark:border-slate-700/80 hover:bg-slate-100 dark:hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-rose-500/20"
       >
         {isAuthenticated && (
-          <div className="relative shrink-0 flex items-center justify-center">
+          <div className="member-profile-avatar shrink-0 flex items-center justify-center">
             {currentUser.avatarUrl ? (
               <img
                 src={currentUser.avatarUrl}
@@ -105,7 +102,7 @@ export const UserMenu: React.FC = () => {
           </div>
         )}
 
-        <div className={`text-left pr-1 ${isAuthenticated ? 'hidden xl:block' : 'block'}`}>
+        <div className="member-profile-details text-left pr-1">
           <div className={`text-xs font-bold truncate max-w-[145px] ${isAuthenticated ? 'text-slate-800 dark:text-slate-100' : 'text-rose-700 dark:text-rose-300'}`}>
             {isAuthenticated ? currentUser.name.split(' ')[0] : 'Entre ou Cadastre-se'}
           </div>
@@ -116,7 +113,7 @@ export const UserMenu: React.FC = () => {
           </div>}
         </div>
 
-        <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform duration-200 shrink-0 ${isOpen ? 'rotate-180' : ''}`} />
+        <ChevronDown className={`member-profile-chevron w-3.5 h-3.5 text-slate-400 ${isOpen ? 'rotate-180' : ''}`} />
       </button>
 
       {isOpen && (

@@ -222,7 +222,6 @@ export const BrokerDashboardView: React.FC = () => {
               <span className="px-2.5 py-0.5 rounded-md bg-rose-100 dark:bg-rose-950 text-rose-700 dark:text-rose-300 text-xs font-black uppercase tracking-wider">
                 Painel & Analytics
               </span>
-              <span className="text-xs text-slate-400 font-medium">Sincronizado com Supabase</span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white font-['Outfit'] mt-1">
               Olá, {currentUser.name || 'Corretor'} 👋

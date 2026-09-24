@@ -13,7 +13,7 @@
   overflow: hidden;
   border-radius: 12px;
   cursor: pointer;
-  transition: width 420ms cubic-bezier(.22, 1, .36, 1);
+  transition: width 800ms cubic-bezier(.4, 0, .2, 1);
 }
 .guest-key-login-icon {
   position: absolute;
@@ -21,7 +21,7 @@
   width: 36px;
   display: grid;
   place-items: center;
-  transition: transform 420ms cubic-bezier(.22, 1, .36, 1);
+  transition: transform 800ms cubic-bezier(.4, 0, .2, 1);
 }
 .guest-key-login-text {
   position: absolute;
@@ -32,17 +32,59 @@
   white-space: nowrap;
   font-size: 12px;
   font-weight: 700;
-  transition: opacity 240ms ease, transform 420ms ease;
+  transition: opacity 650ms ease, transform 800ms cubic-bezier(.4, 0, .2, 1);
+}
+.member-profile-menu {
+  position: relative;
+  display: block;
+  width: 44px;
+  height: 44px;
+  overflow: hidden;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: width 800ms cubic-bezier(.4, 0, .2, 1);
+}
+.member-profile-avatar {
+  position: absolute;
+  left: 5px;
+  top: 5px;
+  width: 32px;
+  height: 32px;
+}
+.member-profile-details {
+  position: absolute;
+  left: 44px;
+  top: 50%;
+  width: 112px;
+  white-space: nowrap;
+  transform: translate(8px, -50%);
+  opacity: 0;
+  transition: opacity 650ms ease, transform 800ms cubic-bezier(.4, 0, .2, 1);
+}
+.member-profile-details > div { overflow: hidden; text-overflow: ellipsis; }
+.member-profile-chevron {
+  position: absolute;
+  left: 160px;
+  top: 14px;
+  opacity: 0;
+  transition: opacity 650ms ease, transform 800ms ease;
 }
 @media (hover: hover) and (pointer: fine) {
+  .member-profile-menu:hover { width: 180px; }
+  .member-profile-menu:hover .member-profile-details { opacity: 1; transform: translate(0, -50%); }
+  .member-profile-menu:hover .member-profile-chevron { opacity: 1; }
   .guest-key-login:hover { width: 154px; }
   .guest-key-login:hover .guest-key-login-icon { transform: rotate(-360deg); }
   .guest-key-login:hover .guest-key-login-text { opacity: 1; transform: translate(0, -50%); }
 }
 .guest-key-login:focus-visible { width: 154px; outline: 2px solid #e11d48; outline-offset: 3px; }
 .guest-key-login:focus-visible .guest-key-login-text { opacity: 1; transform: translate(0, -50%); }
+.member-profile-menu:focus-visible { width: 180px; }
+.member-profile-menu:focus-visible .member-profile-details { opacity: 1; transform: translate(0, -50%); }
+.member-profile-menu:focus-visible .member-profile-chevron { opacity: 1; }
 @media (prefers-reduced-motion: reduce) {
-  .guest-key-login, .guest-key-login-icon, .guest-key-login-text { transition: none; }
+  .guest-key-login, .guest-key-login-icon, .guest-key-login-text,
+  .member-profile-menu, .member-profile-details, .member-profile-chevron { transition: none; }
 }
 
 @layer base {
