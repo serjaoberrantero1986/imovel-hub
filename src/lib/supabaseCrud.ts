@@ -631,8 +631,9 @@ export async function fetchLeadsFromSupabase(): Promise<Lead[] | null> {
       const prop = l.properties;
       const crm = Array.isArray(l.lead_crm) ? l.lead_crm[0] : l.lead_crm;
       const crmMeta = crm?.meta || {};
-      const contactInteractions = Array.isArray(l.lead_contact_events)
-        ? l.lead_contact_events.map((event: any) => ({
+      const contactEvents = Array.isArray(l.lead_contact_events) ? l.lead_contact_events : [];
+      const contactInteractions = contactEvents
+        .map((event: any) => ({
             id: event.id,
             leadId: l.id,
             type: 'system' as const,
@@ -640,8 +641,7 @@ export async function fetchLeadsFromSupabase(): Promise<Lead[] | null> {
             description: event.message,
             createdAt: event.created_at,
             createdBy: 'Interessado'
-          }))
-        : [];
+          }));
       const coverImage = prop?.property_images?.find((img: any) => img.is_cover)?.url || prop?.property_images?.[0]?.url;
       return {
         ...crmMeta,
@@ -653,6 +653,7 @@ export async function fetchLeadsFromSupabase(): Promise<Lead[] | null> {
         propertyImage: coverImage,
         advertiserId: l.advertiser_id,
         buyerId: l.buyer_id || undefined,
+        conversationId: contactEvents.find((event: any) => event.conversation_id)?.conversation_id || undefined,
         buyerName: l.name,
         buyerEmail: l.email || '',
         buyerPhone: l.phone || '',
@@ -688,6 +689,7 @@ export async function fetchLeadsFromSupabase(): Promise<Lead[] | null> {
       if (group.length === 1) return canonical;
       return {
         ...canonical,
+        conversationId: canonical.conversationId || group.find((lead: any) => lead.conversationId)?.conversationId,
         interactions: group.flatMap((lead: any) => lead.interactions || [])
           .sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
       };
@@ -865,8 +867,11 @@ export async function fetchConversationsFromSupabase(userId: string): Promise<Co
           if (emailMatch) leadEmail = emailMatch[1].trim();
         }
 
-        const msgs: Message[] = (c.messages || [])
+        const deletedAt = isUserBuyer ? c.deleted_at_buyer : c.deleted_at_advertiser;
+        const visibleMessages = (c.messages || [])
           .sort((a: any, b: any) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+          .filter((m: any) => !deletedAt || new Date(m.created_at).getTime() > new Date(deletedAt).getTime());
+        const msgs: Message[] = visibleMessages
           .map((m: any) => {
             const isLeadOrigin = m.content?.startsWith('[Lead') || m.content?.startsWith('[Novo Lead');
             const isMine = isLeadOrigin ? false : (m.sender_id === userId && !isLeadPortalConv);
@@ -920,7 +925,7 @@ export async function fetchConversationsFromSupabase(userId: string): Promise<Co
           lastMessageTime: new Date(c.last_message_at).toLocaleDateString('pt-BR'),
           // Archived threads remain available in their folder but do not keep an
           // inbox badge active. A new incoming message restores the inbox in SQL.
-          unreadCount: (isUserBuyer ? c.is_archived_buyer : c.is_archived_advertiser) ? 0 : unreadCount,
+          unreadCount: (isUserBuyer ? c.is_archived_buyer || c.is_deleted_buyer : c.is_archived_advertiser || c.is_deleted_advertiser) ? 0 : unreadCount,
           messages: msgs
         });
       }

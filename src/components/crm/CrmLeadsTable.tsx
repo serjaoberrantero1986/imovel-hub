@@ -42,8 +42,12 @@ export const CrmLeadsTable: React.FC<CrmLeadsTableProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const { conversations, setActiveConversationId, setCurrentView, setConversationArchived, markLeadAsViewed, addToast } = useApp();
   const openConversation = async (lead: Lead) => {
-    const conversation = conversations.find(c => !c.isDeleted && c.propertyId === lead.propertyId &&
-      Boolean(lead.buyerEmail) && c.otherUser.email?.toLowerCase() === lead.buyerEmail.toLowerCase());
+    const conversation = conversations.find(c => !c.isDeleted && (
+      c.id === lead.conversationId || (c.propertyId === lead.propertyId && (
+        (lead.buyerId && c.otherUser.id === lead.buyerId) ||
+        (Boolean(lead.buyerEmail) && c.otherUser.email?.toLowerCase() === lead.buyerEmail.toLowerCase())
+      ))
+    ));
     if (!conversation) {
       addToast({ type: 'info', title: 'Conversa ainda indisponível', message: 'O contato aparecerá aqui quando o interessado criar ou acessar sua conta.' });
       return;

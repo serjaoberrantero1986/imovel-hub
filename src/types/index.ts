@@ -235,6 +235,7 @@ export interface LeadInterestProperty {
 export interface Lead {
   id: string;
   buyerId?: string;
+  conversationId?: string;
   propertyId: string; // Imóvel de origem
   propertyTitle: string;
   propertyCode: string;

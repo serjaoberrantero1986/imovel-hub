@@ -105,9 +105,11 @@ export const CrmLeadDetailModal: React.FC<CrmLeadDetailModalProps> = ({
   };
 
   const handleOpenConversation = async () => {
-    const conversation = conversations.find(c => !c.isDeleted && c.propertyId === lead.propertyId && (
+    const conversation = conversations.find(c => !c.isDeleted && (
+      c.id === lead.conversationId || (c.propertyId === lead.propertyId && (
       (lead.buyerId && c.otherUser.id === lead.buyerId) ||
       (lead.buyerEmail && c.otherUser.email?.toLowerCase() === lead.buyerEmail.toLowerCase())
+      ))
     ));
     if (!conversation) {
       addToast({ type: 'info', title: 'Conversa ainda indisponível', message: 'A conversa aparecerá quando o interessado iniciar o contato pelo portal.' });
