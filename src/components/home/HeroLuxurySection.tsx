@@ -26,6 +26,13 @@ import { PropertyType, PropertyPurpose } from '../../types';
 import { HeroPropertyScene } from './HeroPropertyScene';
 import { AMENITIES_LIST } from '../../lib/mockData';
 
+const HERO_BACKGROUNDS = [
+  { src: '/assets/hero-city-sunset.jpg', width: 1739, height: 608, desktopPosition: '62% center', mobilePosition: '70% center' },
+  { src: '/assets/hero-aerial-landscape.jpg', width: 1920, height: 671, desktopPosition: '55% center', mobilePosition: '55% center' },
+  { src: '/assets/hero-rio-panorama.jpg', width: 1920, height: 672, desktopPosition: '72% center', mobilePosition: '78% center' },
+  { src: '/assets/hero-city-skyline.jpg', width: 1900, height: 664, desktopPosition: '55% center', mobilePosition: '60% center' },
+];
+
 export const HeroLuxurySection: React.FC = () => {
   const { 
     properties, 
@@ -35,6 +42,12 @@ export const HeroLuxurySection: React.FC = () => {
     saveCurrentSearch, 
     openPropertyDetail
   } = useApp();
+
+  // Pick once per home visit, independently of listings and search updates.
+  // Only the selected image is requested by the browser.
+  const [background, setBackground] = useState(() =>
+    HERO_BACKGROUNDS[Math.floor(Math.random() * HERO_BACKGROUNDS.length)]
+  );
 
   // Search Bar Local State
   const [isCodeSearchActive, setIsCodeSearchActive] = useState<boolean>(Boolean(filters.propertyCode));
@@ -155,14 +168,24 @@ export const HeroLuxurySection: React.FC = () => {
 
   return (
     <section className="portal-hero">
-      <div className="portal-hero-background" aria-hidden="true">
+      <div
+        className="portal-hero-background"
+        aria-hidden="true"
+        style={{
+          '--hero-background-desktop-position': background.desktopPosition,
+          '--hero-background-mobile-position': background.mobilePosition,
+        } as React.CSSProperties}
+      >
         <img
-          src="/assets/hero-city-sunset.jpg"
+          src={background.src}
           alt=""
-          width={1739}
-          height={608}
+          width={background.width}
+          height={background.height}
           fetchPriority="high"
           decoding="async"
+          onError={() => {
+            if (background !== HERO_BACKGROUNDS[0]) setBackground(HERO_BACKGROUNDS[0]);
+          }}
         />
       </div>
 
