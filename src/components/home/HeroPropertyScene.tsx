@@ -23,6 +23,15 @@ const anchors = [
   { x: '86%', y: '82%', color: '#ffb58f' },
 ];
 
+const shuffleProperties = (properties: Property[]) => {
+  const shuffled = [...properties];
+  for (let index = shuffled.length - 1; index > 0; index--) {
+    const randomIndex = Math.floor(Math.random() * (index + 1));
+    [shuffled[index], shuffled[randomIndex]] = [shuffled[randomIndex], shuffled[index]];
+  }
+  return shuffled;
+};
+
 export function HeroPropertyScene({ properties, onOpenProperty, getTypeLabel }: HeroPropertySceneProps) {
   const sceneRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
@@ -32,12 +41,11 @@ export function HeroPropertyScene({ properties, onOpenProperty, getTypeLabel }: 
   const gradientId = `hero-route-${useId().replace(/:/g, '')}`;
 
   const listings = useMemo(() => {
-    const selected = properties
-      .filter(property => property.id && property.title && property.status === 'active')
-      .sort((a, b) => Number(b.featured) - Number(a.featured))
-      .slice(0, 3);
-    // Put the highest-priority listing in the large middle card.
-    return selected.length > 1 ? [selected[1], selected[0], ...selected.slice(2)] : selected;
+    // Every active listing has the same chance on each visit. The shuffled order
+    // also determines which listing occupies the larger central position.
+    return shuffleProperties(
+      properties.filter(property => property.id && property.title && property.status === 'active')
+    ).slice(0, 3);
   }, [properties]);
   const listingKey = listings.map(property => property.id).join(',');
 
