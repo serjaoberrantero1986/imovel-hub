@@ -13,19 +13,17 @@ import {
   Store, 
   Hash, 
   ChevronDown, 
-  ChevronRight, 
   Star, 
   RotateCcw, 
   BookmarkPlus,
   BedDouble,
   Bath,
-  Car,
-  MapPin
+  Car
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useApp } from '../../context/AppContext';
-import { Property, PropertyType, PropertyPurpose } from '../../types';
-import { formatCurrency } from '../../lib/utils';
+import { PropertyType, PropertyPurpose } from '../../types';
+import { HeroPropertyScene } from './HeroPropertyScene';
 import { AMENITIES_LIST } from '../../lib/mockData';
 
 export const HeroLuxurySection: React.FC = () => {
@@ -35,11 +33,8 @@ export const HeroLuxurySection: React.FC = () => {
     setFilters, 
     resetFilters, 
     saveCurrentSearch, 
-    openPropertyDetail,
-    theme
+    openPropertyDetail
   } = useApp();
-
-  const isDark = theme === 'dark';
 
   // Search Bar Local State
   const [isCodeSearchActive, setIsCodeSearchActive] = useState<boolean>(Boolean(filters.propertyCode));
@@ -67,22 +62,6 @@ export const HeroLuxurySection: React.FC = () => {
       setIsCodeSearchActive(true);
     }
   }, [filters.propertyCode]);
-
-  // Select up to 3 real properties strictly from the database (zero mock, max 3)
-  const floatingProperties = useMemo<Property[]>(() => {
-    if (!properties || properties.length === 0) return [];
-    
-    // Sort to prioritize featured ones, then shuffle a bit for dynamism
-    const valid = properties.filter(p => p && p.id && p.title);
-    if (valid.length <= 3) return valid;
-
-    // Pick 3 pseudo-random or featured items
-    const featured = valid.filter(p => p.featured);
-    const nonFeatured = valid.filter(p => !p.featured);
-    const pool = [...featured, ...nonFeatured];
-    
-    return pool.slice(0, 3);
-  }, [properties]);
 
   // Property types list with icons and labels
   const propertyTypes: { id: PropertyType; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
@@ -174,215 +153,35 @@ export const HeroLuxurySection: React.FC = () => {
     return `${filters.types.length} Tipos`;
   }, [filters.types]);
 
-  // Helper to strictly get real property cover image from Supabase without fake houses
-  const getPropertyCoverImage = (property: Property): string => {
-    if (!property) return '';
-    const coverMedia = property.media?.find(m => m.isCover && m.url)?.url;
-    if (coverMedia) return coverMedia;
-    const firstMedia = property.media?.find(m => m.url)?.url;
-    if (firstMedia) return firstMedia;
-    if (property.images && property.images.length > 0 && property.images[0]) {
-      return property.images[0];
-    }
-    return '';
-  };
-
   return (
-    <section 
-      style={{ backgroundColor: '#000000' }}
-      className={`relative w-full bg-[#000000] text-white ${
-        isAdvancedExpanded ? 'min-h-[680px] h-auto' : 'min-h-[680px] lg:h-[680px]'
-      } flex flex-col justify-between pt-6 sm:pt-8 pb-8 sm:pb-10 transition-all duration-300`}
-    >
-      
-      {/* 2. Top & Center Container: Headline & Floating Real Properties */}
-      <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full flex-1 flex flex-col justify-center">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-6 items-center min-h-[380px] sm:min-h-[440px]">
-          
-          {/* LEFT: Exact Headline & Subtitle with 50px font sizes applied */}
-          <div className="lg:col-span-6 xl:col-span-5 space-y-4 sm:space-y-5 text-left pt-4 lg:pt-0">
-            <h1 className="font-extrabold tracking-tight font-['Outfit',sans-serif] leading-[1.15]">
-              <span 
-                className="block text-white"
-                style={{ fontSize: '50px' }}
-              >
-                Seu próximo imóvel
-              </span>
-              <span 
-                className="block mt-1 text-transparent bg-clip-text bg-gradient-to-r from-fuchsia-400 via-rose-400 to-rose-300"
-                style={{ fontSize: '45px' }}
-              >
-                está mais perto do que
-              </span>
-              <span 
-                className="block text-transparent bg-clip-text bg-gradient-to-r from-rose-400 via-rose-300 to-amber-200"
-                style={{ fontSize: '45px' }}
-              >
-                você imagina.
-              </span>
-            </h1>
+    <section className="portal-hero">
+      <div className="portal-hero-background" aria-hidden="true">
+        <img
+          src="/assets/hero-city-sunset.jpg"
+          alt=""
+          width={1739}
+          height={608}
+          fetchPriority="high"
+          decoding="async"
+        />
+      </div>
 
-            <p className="text-base sm:text-lg text-slate-300 font-normal max-w-xl leading-relaxed">
-              Encontre imóveis para comprar, alugar ou investir em poucos cliques.
-            </p>
-          </div>
-
-          {/* RIGHT: Floating Real Properties with Geolocation Pins (Max 3, Real Data Only) */}
-          <div className="lg:col-span-6 xl:col-span-7 relative w-full h-[320px] sm:h-[380px] lg:h-[420px]">
-            
-            {/* Real properties exists check */}
-            {floatingProperties.length > 0 ? (
-              <>
-                {/* SVG Geolocation Neon Connection Lines */}
-                <svg className="hidden md:block absolute inset-0 w-full h-full pointer-events-none z-10" xmlns="http://www.w3.org/2000/svg">
-                  <defs>
-                    <linearGradient id="neonGlowLine" x1="0%" y1="0%" x2="100%" y2="100%">
-                      <stop offset="0%" stopColor="#ec4899" stopOpacity="0.8" />
-                      <stop offset="50%" stopColor="#d946ef" stopOpacity="0.9" />
-                      <stop offset="100%" stopColor="#f43f5e" stopOpacity="0.6" />
-                    </linearGradient>
-                    <filter id="neonShadow" x="-20%" y="-20%" width="140%" height="140%">
-                      <feGaussianBlur stdDeviation="3" result="blur" />
-                      <feComposite in="SourceGraphic" in2="blur" operator="over" />
-                    </filter>
-                  </defs>
-
-                  {/* Interconnected geo lines if 2 or 3 items */}
-                  {floatingProperties.length >= 2 && (
-                    <path
-                      d="M 170 210 Q 240 180 340 130"
-                      stroke="url(#neonGlowLine)"
-                      strokeWidth="2"
-                      strokeDasharray="4 3"
-                      fill="none"
-                      filter="url(#neonShadow)"
-                      className="opacity-70 animate-pulse"
-                    />
-                  )}
-                  {floatingProperties.length >= 3 && (
-                    <path
-                      d="M 340 130 Q 420 180 510 240"
-                      stroke="url(#neonGlowLine)"
-                      strokeWidth="2"
-                      strokeDasharray="4 3"
-                      fill="none"
-                      filter="url(#neonShadow)"
-                      className="opacity-70 animate-pulse"
-                    />
-                  )}
-                </svg>
-
-                {/* Floating Cards Container (Smooth horizontal scroll on mobile, floating geo-spatial on desktop) */}
-                <div className="relative w-full h-full flex md:block overflow-x-auto md:overflow-visible pb-4 md:pb-0 gap-3.5 no-scrollbar">
-                  {floatingProperties.map((property, idx) => {
-                    // Coordinates matching gemini.jpeg layout across large screens
-                    const desktopPositions = [
-                      'md:left-[2%] lg:left-[4%] md:top-[28%] lg:top-[24%]',
-                      'md:left-[40%] lg:left-[42%] md:top-[4%] lg:top-[2%]',
-                      'md:left-[72%] lg:left-[74%] md:top-[38%] lg:top-[34%]'
-                    ];
-
-                    const currentPosClass = desktopPositions[idx % 3];
-
-                    return (
-                      <motion.div
-                        key={property.id}
-                        initial={{ opacity: 0, y: 20, scale: 0.95 }}
-                        animate={{ opacity: 1, y: 0, scale: 1 }}
-                        transition={{ duration: 0.5, delay: idx * 0.15 }}
-                        className={`shrink-0 md:shrink md:absolute ${currentPosClass} z-20 group cursor-pointer`}
-                        onClick={() => openPropertyDetail(property.id)}
-                      >
-                        {/* Interactive Floating Card matching Theme (White on Light, Black on Dark) */}
-                        <div className={`relative ${
-                          isDark 
-                            ? 'bg-slate-950/90 text-white border-fuchsia-500/30 hover:border-fuchsia-400/80 shadow-xl shadow-slate-950/80 hover:shadow-fuchsia-500/20' 
-                            : 'bg-white/95 text-slate-900 border-slate-200/90 hover:border-slate-300 shadow-xl shadow-slate-950/20 hover:shadow-2xl'
-                        } backdrop-blur-md rounded-2xl p-2.5 sm:p-3 border transition-all duration-300 transform group-hover:scale-[1.04] group-hover:-translate-y-1 w-[210px] sm:w-[230px]`}>
-
-                          {/* Real Property Image Thumbnail */}
-                          <div className={`relative w-full h-24 sm:h-28 rounded-xl overflow-hidden mb-2 ${isDark ? 'bg-slate-800' : 'bg-slate-100'}`}>
-                            {getPropertyCoverImage(property) ? (
-                              <img
-                                src={getPropertyCoverImage(property)}
-                                alt={property.title}
-                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                                loading="lazy"
-                                referrerPolicy="no-referrer"
-                              />
-                            ) : (
-                              <div className={`w-full h-full flex flex-col items-center justify-center p-2 text-center ${
-                                isDark ? 'bg-gradient-to-br from-slate-900 to-slate-800 text-slate-400' : 'bg-slate-100 text-slate-500'
-                              }`}>
-                                <Home className="w-6 h-6 text-fuchsia-400/70 mb-1" />
-                                <span className={`text-[10px] font-medium truncate max-w-full ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
-                                  {property.title}
-                                </span>
-                              </div>
-                            )}
-                            <div className={`absolute inset-0 pointer-events-none ${
-                              isDark 
-                                ? 'bg-gradient-to-t from-slate-950/60 via-transparent to-transparent' 
-                                : 'bg-gradient-to-t from-slate-950/30 via-transparent to-transparent'
-                            }`} />
-                          </div>
-
-                          {/* Property Details matching Theme */}
-                          <div className="flex items-start justify-between gap-1">
-                            <div className="min-w-0 flex-1">
-                              <h4 className={`text-xs font-bold truncate leading-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                                {getPropertyTypeLabel(property.type)}
-                              </h4>
-                              <p className={`text-[11px] truncate mt-0.5 flex items-center gap-0.5 ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
-                                <span className="truncate">
-                                  {property.neighborhood ? `${property.neighborhood} - ${property.city || 'SP'}` : (property.city || 'Região')}
-                                </span>
-                              </p>
-                              <p className={`text-xs sm:text-sm font-extrabold mt-1 ${isDark ? 'text-white' : 'text-slate-950'}`}>
-                                {formatCurrency(property.price)}
-                              </p>
-                            </div>
-
-                            {/* Arrow button matching Theme */}
-                            <div className={`w-6 h-6 rounded-full flex items-center justify-center transition-colors shrink-0 mt-2 ${
-                              isDark 
-                                ? 'bg-white/10 group-hover:bg-fuchsia-600 text-slate-300 group-hover:text-white' 
-                                : 'bg-slate-100 group-hover:bg-slate-900 text-slate-700 group-hover:text-white'
-                            }`}>
-                              <ChevronRight className="w-3.5 h-3.5" />
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Geolocation Pin Below Card with Neon Pulsing Glow */}
-                        <div className="hidden md:flex flex-col items-center justify-center mt-2.5 relative">
-                          {/* Connecting vertical tick */}
-                          <div className="w-0.5 h-3 bg-fuchsia-500/60" />
-                          
-                          {/* Glowing Pin */}
-                          <div className="relative flex items-center justify-center">
-                            <div className="absolute w-6 h-6 rounded-full bg-fuchsia-500/30 animate-ping" />
-                            <div className="w-5 h-5 rounded-full bg-gradient-to-br from-rose-500 to-fuchsia-600 shadow-lg shadow-fuchsia-500/80 flex items-center justify-center border border-white/50 text-white">
-                              <MapPin className="w-3 h-3 fill-white" />
-                            </div>
-                          </div>
-                        </div>
-
-                      </motion.div>
-                    );
-                  })}
-                </div>
-              </>
-            ) : (
-              /* If zero properties in database: render pristine clean city panorama without fake listings */
-              <div className="hidden lg:flex items-center justify-center h-full text-center text-slate-400 text-xs">
-                {/* Zero mock: keep scenic view uncluttered */}
-              </div>
-            )}
-
-          </div>
-
+      <div className="portal-hero-composition">
+        <div className="portal-hero-copy">
+          <h1 className="portal-hero-title">
+            <span>Seu próximo imóvel</span>
+            <span className="portal-hero-title-accent">está mais perto do que</span>
+            <span className="portal-hero-title-accent">você imagina.</span>
+          </h1>
+          <p className="portal-hero-subtitle">
+            Encontre imóveis para comprar, alugar ou investir em poucos cliques.
+          </p>
         </div>
+        <HeroPropertyScene
+          properties={properties}
+          onOpenProperty={openPropertyDetail}
+          getTypeLabel={getPropertyTypeLabel}
+        />
       </div>
 
       {/* 3. Bottom Embedded Modern Hero Search Bar (Identical to gemini.jpeg) */}
