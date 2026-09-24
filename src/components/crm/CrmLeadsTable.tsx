@@ -80,6 +80,19 @@ export const CrmLeadsTable: React.FC<CrmLeadsTableProps> = ({
     return phone.replace(/\D/g, '');
   };
 
+  const getOriginLabel = (origin?: string) => ({
+    portal_form: 'Formulário do portal',
+    whatsapp: 'WhatsApp',
+    whatsapp_click: 'Clique no WhatsApp',
+    phone_call: 'Ligação telefônica',
+    schedule_visit: 'Agendamento de visita',
+    referral: 'Indicação',
+    social_media: 'Redes sociais',
+    walk_in: 'Atendimento presencial',
+    campaign: 'Campanha',
+    manual_entry: 'Cadastro manual'
+  }[origin || ''] || 'Contato pelo portal');
+
   const handleWhatsAppClick = (e: React.MouseEvent, lead: Lead) => {
     e.stopPropagation();
     const phone = lead.buyerWhatsapp || getCleanPhone(lead.buyerPhone);
@@ -144,7 +157,7 @@ export const CrmLeadsTable: React.FC<CrmLeadsTableProps> = ({
             className="px-3 py-2 rounded-xl text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-medium"
           >
             <option value="all">Todas as Origens</option>
-            <option value="portal_form">Portal Web</option>
+            <option value="portal_form">Formulário do portal</option>
             <option value="whatsapp">WhatsApp</option>
             <option value="phone_call">Telefone</option>
             <option value="referral">Indicação</option>
@@ -165,9 +178,9 @@ export const CrmLeadsTable: React.FC<CrmLeadsTableProps> = ({
               <tr>
                 <th className="py-3.5 px-4">Cliente / Contato</th>
                 <th className="py-3.5 px-4">Imóvel & Orçamento</th>
-                <th className="py-3.5 px-4">Match %</th>
+                <th className="py-3.5 px-4">Compatibilidade</th>
                 <th className="py-3.5 px-4">Estágio no Funil</th>
-                <th className="py-3.5 px-4">Próximo Follow-up</th>
+                <th className="py-3.5 px-4">Próximo acompanhamento</th>
                 <th className="py-3.5 px-4 text-right">Ações</th>
               </tr>
             </thead>
@@ -213,7 +226,7 @@ export const CrmLeadsTable: React.FC<CrmLeadsTableProps> = ({
                               <span>{lead.buyerPhone}</span>
                               {lead.origin && (
                                 <span className="px-1.5 py-0.2 rounded bg-slate-100 dark:bg-slate-800 text-[9px]">
-                                  {lead.origin}
+                                  {getOriginLabel(lead.origin)}
                                 </span>
                               )}
                             </div>

@@ -104,7 +104,7 @@ export const CrmTasksCalendar: React.FC<CrmTasksCalendarProps> = ({
         <div>
           <h2 className="text-xl font-bold text-slate-900 dark:text-white font-['Outfit'] flex items-center gap-2">
             <CalendarCheck className="w-5 h-5 text-rose-600" />
-            <span>Agenda & Gestão de Tarefas (Follow-up)</span>
+            <span>Agenda & Gestão de Tarefas (Acompanhamento)</span>
           </h2>
           <p className="text-xs text-slate-500">
             Controle de compromissos, visitas agendadas e retorno com compradores
@@ -124,7 +124,7 @@ export const CrmTasksCalendar: React.FC<CrmTasksCalendarProps> = ({
       {isFormOpen && (
         <form onSubmit={handleCreateTask} className="p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-md space-y-4 animate-fade-in">
           <h3 className="text-sm font-bold text-slate-900 dark:text-white font-['Outfit']">
-            Agendar Compromisso / Follow-up
+            Agendar Compromisso / Acompanhamento
           </h3>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
@@ -150,7 +150,7 @@ export const CrmTasksCalendar: React.FC<CrmTasksCalendarProps> = ({
                 onChange={(e) => setNewTaskType(e.target.value as LeadTask['type'])}
                 className="w-full px-3 py-2 rounded-xl text-xs bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200"
               >
-                <option value="follow_up">Follow-up / Retorno</option>
+                <option value="follow_up">Acompanhamento / Retorno</option>
                 <option value="visit">Visita Presencial</option>
                 <option value="call">Ligação Telefônica</option>
                 <option value="proposal">Elaboração de Proposta</option>
@@ -285,7 +285,7 @@ export const CrmTasksCalendar: React.FC<CrmTasksCalendarProps> = ({
           >
             <option value="all">Todos os tipos</option>
             <option value="visit">Visitas</option>
-            <option value="follow_up">Follow-ups</option>
+            <option value="follow_up">Acompanhamentos</option>
             <option value="call">Ligações</option>
             <option value="proposal">Propostas</option>
           </select>

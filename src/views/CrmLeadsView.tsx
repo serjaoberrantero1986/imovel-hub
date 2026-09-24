@@ -200,7 +200,7 @@ export const CrmLeadsView: React.FC = () => {
               Gestão Comercial & Funil de Vendas
             </h1>
             <p className="text-xs sm:text-sm text-slate-500">
-              Controle de leads, agendamento de visitas, matchmaker de imóveis e follow-ups em tempo real
+              Controle de leads, agendamento de visitas, compatibilidade de imóveis e acompanhamentos em tempo real
             </p>
           </div>
 

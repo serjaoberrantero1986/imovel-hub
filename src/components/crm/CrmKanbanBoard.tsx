@@ -395,7 +395,7 @@ export const CrmKanbanBoard: React.FC<CrmKanbanBoardProps> = ({
                           <div className="flex items-center justify-between text-[11px] px-2 py-1 rounded-lg bg-emerald-50/70 dark:bg-emerald-950/40 border border-emerald-100 dark:border-emerald-900/50 text-emerald-700 dark:text-emerald-300">
                             <span className="flex items-center gap-1 font-semibold">
                               <Sparkles className="w-3 h-3 text-emerald-500" />
-                              Match Inteligente
+                              Compatibilidade Inteligente
                             </span>
                             <span className="font-mono font-black text-xs">
                               {matchResult.score}%

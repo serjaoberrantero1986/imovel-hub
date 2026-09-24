@@ -227,7 +227,7 @@ export const CrmLeadDetailModal: React.FC<CrmLeadDetailModalProps> = ({
             }`}
           >
             <Calendar className="w-4 h-4" />
-            <span>Tarefas & Follow-up ({lead.tasks?.length || 0})</span>
+            <span>Tarefas & Acompanhamentos ({lead.tasks?.length || 0})</span>
           </button>
 
           <button

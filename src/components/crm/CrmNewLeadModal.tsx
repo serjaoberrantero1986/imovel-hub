@@ -292,7 +292,7 @@ export const CrmNewLeadModal: React.FC<CrmNewLeadModalProps> = ({
           {/* Preferências e Matchmaking */}
           <div className="space-y-3 pt-2 border-t border-slate-100 dark:border-slate-800">
             <h4 className="font-bold text-slate-900 dark:text-white uppercase tracking-wider font-['Outfit'] text-[11px]">
-              3. Perfil de Compra & Match Inteligente
+              3. Perfil de Compra & Compatibilidade Inteligente
             </h4>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">

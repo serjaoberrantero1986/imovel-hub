@@ -43,7 +43,7 @@ export const CrmLeadTasksTab: React.FC<CrmLeadTasksTabProps> = ({
       {/* Form Add Task */}
       <form onSubmit={handleCreateTask} className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 space-y-3">
         <h4 className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider font-['Outfit']">
-          Agendar Nova Tarefa / Follow-up
+          Agendar Nova Tarefa / Acompanhamento
         </h4>
 
         <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
@@ -86,7 +86,7 @@ export const CrmLeadTasksTab: React.FC<CrmLeadTasksTabProps> = ({
               onChange={(e) => setNewTaskType(e.target.value as LeadTask['type'])}
               className="px-2.5 py-1.5 rounded-lg text-xs bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200"
             >
-              <option value="follow_up">Follow-up</option>
+              <option value="follow_up">Acompanhamento</option>
               <option value="visit">Visita</option>
               <option value="call">Ligação</option>
               <option value="proposal">Proposta</option>
