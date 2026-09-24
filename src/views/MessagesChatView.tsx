@@ -10,7 +10,8 @@ import {
   ExternalLink,
   ChevronRight,
   User,
-  Trash2,
+  Archive,
+  RotateCcw,
   LogIn,
   ArrowRight,
   ArrowLeft,
@@ -26,7 +27,7 @@ export const MessagesChatView: React.FC = () => {
     setActiveConversationId,
     markAsRead, 
     sendMessage, 
-    deleteConversation,
+    setConversationArchived,
     currentUser,
     isAuthenticated,
     openAuthModal,
@@ -37,10 +38,27 @@ export const MessagesChatView: React.FC = () => {
   const [messageInput, setMessageInput] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [showArchived, setShowArchived] = useState(false);
+  const [changingArchive, setChangingArchive] = useState(false);
   const [mobileThreadOpen, setMobileThreadOpen] = useState(false);
   const messagesScrollRef = useRef<HTMLDivElement>(null);
 
-  const activeConversation = conversations.find(c => c.id === activeConversationId) || conversations[0];
+  const visibleConversations = conversations.filter(c => Boolean(c.isArchived) === showArchived);
+  const activeConversation = visibleConversations.find(c => c.id === activeConversationId) || visibleConversations[0];
+  const participantLabels = { buyer: 'Comprador / Inquilino', broker: 'Corretor', agency: 'Imobiliária', owner: 'Proprietário', admin: 'Equipe do portal' };
+
+  const handleArchive = async () => {
+    if (!activeConversation || changingArchive) return;
+    setChangingArchive(true);
+    try {
+      if (await setConversationArchived(activeConversation.id, !activeConversation.isArchived)) {
+        setConfirmDeleteId(null);
+        setMobileThreadOpen(false);
+      }
+    } finally {
+      setChangingArchive(false);
+    }
+  };
 
   // When active conversation changes, mark as read immediately
   useEffect(() => {
@@ -54,9 +72,9 @@ export const MessagesChatView: React.FC = () => {
   useEffect(() => {
     const panel = messagesScrollRef.current;
     if (panel) panel.scrollTo({ top: panel.scrollHeight, behavior: 'smooth' });
-  }, [activeConversation?.messages?.length]);
+  }, [activeConversation?.id, activeConversation?.messages?.length]);
 
-  const filteredConversations = conversations.filter(c => 
+  const filteredConversations = visibleConversations.filter(c =>
     c.otherUser.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     c.propertyTitle.toLowerCase().includes(searchTerm.toLowerCase())
   );
@@ -136,10 +154,19 @@ export const MessagesChatView: React.FC = () => {
                   <span>Mensagens</span>
                 </h2>
                 <span className="text-[11px] font-bold text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full">
-                  {conversations.length} conversas
+                  {visibleConversations.length} {visibleConversations.length === 1 ? 'conversa' : 'conversas'}
                 </span>
               </div>
 
+              <div className="flex gap-2" aria-label="Pastas de conversas">
+                {[false, true].map(archived => (
+                  <button key={String(archived)} type="button" aria-pressed={showArchived === archived}
+                    onClick={() => { setShowArchived(archived); setConfirmDeleteId(null); setMobileThreadOpen(false); }}
+                    className={`flex-1 rounded-xl px-3 py-2 text-xs font-semibold ${showArchived === archived ? 'bg-rose-600 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'}`}>
+                    {archived ? 'Arquivadas' : 'Conversas'}
+                  </button>
+                ))}
+              </div>
               <div className="relative">
                 <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                 <input
@@ -157,8 +184,8 @@ export const MessagesChatView: React.FC = () => {
               {filteredConversations.length === 0 ? (
                 <div className="p-8 text-center text-slate-400 text-xs space-y-2">
                   <MessageSquare className="w-8 h-8 mx-auto text-slate-300 dark:text-slate-600" />
-                  <p className="font-semibold text-slate-600 dark:text-slate-300">Nenhuma conversa ativa</p>
-                  <p className="text-[11px]">Você pode iniciar uma conversa clicando em "Conversar com Anunciante" na página de qualquer imóvel.</p>
+                  <p className="font-semibold text-slate-600 dark:text-slate-300">{searchTerm ? 'Nenhuma conversa encontrada' : showArchived ? 'Nenhuma conversa arquivada' : 'Nenhuma conversa ativa'}</p>
+                  <p className="text-[11px]">{showArchived ? 'Conversas arquivadas ficam guardadas aqui e podem ser restauradas.' : 'Inicie uma conversa na página de um imóvel ou consulte suas conversas arquivadas.'}</p>
                 </div>
               ) : (
                 filteredConversations.map(conv => {
@@ -244,10 +271,12 @@ export const MessagesChatView: React.FC = () => {
                       <h3 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white truncate">
                         {activeConversation.otherUser.name}
                       </h3>
-                      <ShieldCheck className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-500 shrink-0" />
+                      {activeConversation.otherUser.verified && ['broker', 'agency'].includes(activeConversation.otherUser.role) && (
+                        <ShieldCheck aria-label="Profissional verificado" className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-500 shrink-0" />
+                      )}
                     </div>
                     <span className="text-[11px] text-slate-400 block truncate">
-                      {activeConversation.otherUser.agencyName || 'Corretor Associado'}
+                      {participantLabels[activeConversation.otherUser.role] || 'Usuário'}
                     </span>
                   </div>
                 </div>
@@ -275,18 +304,15 @@ export const MessagesChatView: React.FC = () => {
                   {/* Botão discreto para exclusão da conversa */}
                   {confirmDeleteId === activeConversation.id ? (
                     <div className="flex items-center gap-1.5 p-1 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 text-xs">
-                      <span className="text-[10px] text-rose-700 dark:text-rose-300 font-medium pl-1">Excluir?</span>
+                      <span className="text-[10px] text-rose-700 dark:text-rose-300 font-medium pl-1">{activeConversation.isArchived ? 'Restaurar?' : 'Arquivar?'}</span>
                       <button
                         type="button"
-                        onClick={() => {
-                          deleteConversation(activeConversation.id);
-                          setConfirmDeleteId(null);
-                          setMobileThreadOpen(false);
-                        }}
+                        onClick={handleArchive}
+                        disabled={changingArchive}
                         className="px-2 py-0.5 text-[10px] font-bold bg-rose-600 hover:bg-rose-700 text-white rounded-lg transition-colors cursor-pointer"
-                        title="Confirmar exclusão"
+                        title="Confirmar apenas na minha lista; preservar o histórico"
                       >
-                        Sim
+                        {changingArchive ? 'Aguarde...' : 'Sim'}
                       </button>
                       <button
                         type="button"
@@ -302,10 +328,10 @@ export const MessagesChatView: React.FC = () => {
                       type="button"
                       onClick={() => setConfirmDeleteId(activeConversation.id)}
                       className="p-1.5 sm:p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-xl transition-colors cursor-pointer"
-                      title="Excluir conversa"
-                      aria-label="Excluir conversa"
+                      title={activeConversation.isArchived ? 'Restaurar na minha lista' : 'Arquivar só para mim; manter o histórico'}
+                      aria-label={activeConversation.isArchived ? 'Restaurar conversa' : 'Arquivar conversa apenas para mim'}
                     >
-                      <Trash2 className="w-4 h-4" />
+                      {activeConversation.isArchived ? <RotateCcw className="w-4 h-4" /> : <Archive className="w-4 h-4" />}
                     </button>
                   )}
                 </div>
@@ -352,7 +378,7 @@ export const MessagesChatView: React.FC = () => {
               <form onSubmit={handleSend} className="shrink-0 p-2.5 sm:p-4 bg-white dark:bg-slate-900 border-t border-slate-100 dark:border-slate-800 flex items-center gap-2">
                 <input
                   type="text"
-                  placeholder="Escreva sua mensagem para o anunciante..."
+                  placeholder="Escreva sua mensagem..."
                   value={messageInput}
                   onChange={(e) => setMessageInput(e.target.value)}
                   className="flex-1 px-3.5 py-2.5 sm:px-4 sm:py-3 rounded-xl sm:rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs sm:text-sm font-medium text-slate-900 dark:text-white focus:outline-none focus:border-rose-500"

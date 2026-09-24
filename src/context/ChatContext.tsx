@@ -4,7 +4,7 @@ import {
   fetchConversationsFromSupabase,
   insertConversationToSupabase,
   insertMessageToSupabase,
-  deleteConversationFromSupabase,
+  setConversationArchiveInSupabase,
   markConversationAsReadInSupabase
 } from '../lib/supabaseCrud';
 import { isSupabaseConfigured, supabase } from '../lib/supabaseClient';
@@ -18,7 +18,7 @@ export interface ChatContextType {
   markAsRead: (conversationId: string) => Promise<void>;
   sendMessage: (conversationId: string, text: string) => Promise<void>;
   startOrOpenConversation: (propertyId: string) => void;
-  deleteConversation: (conversationId: string) => Promise<void>;
+  setConversationArchived: (conversationId: string, archived: boolean) => Promise<boolean>;
   setConversations: React.Dispatch<React.SetStateAction<Conversation[]>>;
   refreshConversations: () => Promise<void>;
 }
@@ -205,7 +205,7 @@ export const ChatProvider: React.FC<{
     await refreshConversations();
   };
 
-  const startOrOpenConversation = (propertyId: string) => {
+  const startOrOpenConversation = async (propertyId: string) => {
     if (!isAuthenticated || currentUser.id === 'guest_buyer') {
       addToast({
         type: 'warning',
@@ -264,27 +264,26 @@ export const ChatProvider: React.FC<{
         });
       }
     } else {
+      if (conv.isArchived && !await setConversationArchived(conv.id, false)) return;
       setActiveConversationId(conv.id);
     }
     setCurrentView('messages');
   };
 
-  const deleteConversation = async (conversationId: string) => {
+  const setConversationArchived = async (conversationId: string, archived: boolean) => {
     if (!isAuthenticated || currentUser.id === 'guest_buyer') {
-      return;
+      return false;
     }
-
-    const remaining = conversations.filter(c => c.id !== conversationId);
-    setConversations(remaining);
-    if (activeConversationId === conversationId) {
-      setActiveConversationId(remaining.length > 0 ? remaining[0].id : null);
+    if (!await setConversationArchiveInSupabase(conversationId, archived)) {
+      addToast({ type: 'error', title: 'Conversa não alterada', message: 'Não foi possível confirmar a alteração. Tente novamente.' });
+      return false;
     }
-
-    if (isSupabaseConfigured) {
-      await deleteConversationFromSupabase(conversationId);
-    }
-
-    addToast({ type: 'info', title: 'Conversa excluída com sucesso' });
+    if (sessionUserId.current !== currentUser.id) return false;
+    refreshVersion.current++;
+    setConversations(previous => previous.map(c => c.id === conversationId ? { ...c, isArchived: archived } : c));
+    addToast({ type: 'success', title: archived ? 'Conversa arquivada' : 'Conversa restaurada', message: 'Essa alteração vale apenas para você. O histórico foi preservado.' });
+    await refreshConversations();
+    return true;
   };
 
   return (
@@ -296,7 +295,7 @@ export const ChatProvider: React.FC<{
         markAsRead,
         sendMessage,
         startOrOpenConversation,
-        deleteConversation,
+        setConversationArchived,
         setConversations,
         refreshConversations
       }}

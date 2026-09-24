@@ -392,13 +392,13 @@ export const HeroLuxurySection: React.FC = () => {
         <div className={`bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl ${
           isAdvancedExpanded 
             ? 'rounded-3xl p-3.5 sm:p-5' 
-            : 'rounded-[28px] sm:rounded-full p-2 sm:p-2.5'
+            : 'rounded-3xl xl:rounded-full p-3 xl:p-2.5'
         } shadow-2xl shadow-slate-950/60 border border-white/40 dark:border-slate-800 transition-all duration-300`}>
           
-          <div className="flex flex-col md:flex-row items-stretch md:items-center gap-2">
+          <div className="grid grid-cols-[minmax(0,1fr)_auto] xl:flex xl:flex-row items-stretch xl:items-center gap-2 min-w-0">
             
             {/* A. Text Search Input with Inline Discreet Code Switch */}
-            <div className="flex-1 relative flex items-center min-w-[240px] pl-3 pr-2 py-1 sm:py-0">
+            <div className="col-span-2 xl:flex-1 relative flex items-center min-w-0 rounded-2xl bg-slate-50 dark:bg-slate-800/60 xl:bg-transparent xl:dark:bg-transparent pl-3 pr-2 py-3 xl:py-0">
               <Search className="w-5 h-5 text-slate-400 shrink-0 mr-2.5" />
               
               <input
@@ -420,7 +420,8 @@ export const HeroLuxurySection: React.FC = () => {
                     ? "Digite o código do imóvel (ex: 99298446)..." 
                     : "Digite imóveis, bairros, condomínios..."
                 }
-                className="w-full bg-transparent border-none text-xs sm:text-sm font-semibold text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-0"
+                aria-label={isCodeSearchActive ? 'Código do imóvel' : 'Buscar imóveis, bairros ou condomínios'}
+                className="w-full min-w-0 flex-1 bg-transparent border-none text-xs sm:text-sm font-semibold text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-0"
               />
 
               {/* Clear button if has text */}
@@ -456,14 +457,14 @@ export const HeroLuxurySection: React.FC = () => {
               </button>
             </div>
 
-            <div className="hidden md:block w-px h-7 bg-slate-200 dark:bg-slate-700 self-center" />
+            <div className="hidden xl:block w-px h-7 bg-slate-200 dark:bg-slate-700 self-center shrink-0" />
 
             {/* B. Purpose Toggle (Comprar / Alugar) */}
-            <div className="flex items-center justify-center gap-1 p-1 bg-slate-100/80 dark:bg-slate-800/80 rounded-full shrink-0">
+            <div className="col-span-2 flex items-center justify-center gap-1 p-1 bg-slate-100/80 dark:bg-slate-800/80 rounded-2xl xl:rounded-full shrink-0">
               <button
                 type="button"
                 onClick={() => handlePurposeChange('sale')}
-                className={`px-3.5 sm:px-4 py-2 rounded-full text-xs font-bold transition-all ${
+                className={`flex-1 xl:flex-none px-3.5 sm:px-4 py-2 rounded-full text-xs font-bold transition-all ${
                   filters.purpose === 'sale'
                     ? 'bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300 shadow-sm'
                     : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
@@ -474,7 +475,7 @@ export const HeroLuxurySection: React.FC = () => {
               <button
                 type="button"
                 onClick={() => handlePurposeChange('rent')}
-                className={`px-3.5 sm:px-4 py-2 rounded-full text-xs font-bold transition-all ${
+                className={`flex-1 xl:flex-none px-3.5 sm:px-4 py-2 rounded-full text-xs font-bold transition-all ${
                   filters.purpose === 'rent'
                     ? 'bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300 shadow-sm'
                     : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
@@ -484,14 +485,14 @@ export const HeroLuxurySection: React.FC = () => {
               </button>
             </div>
 
-            <div className="hidden md:block w-px h-7 bg-slate-200 dark:bg-slate-700 self-center" />
+            <div className="hidden xl:block w-px h-7 bg-slate-200 dark:bg-slate-700 self-center shrink-0" />
 
             {/* C. Slide-Down Menu: "Tipo" with Grid Icon & Modern Dropdown */}
-            <div className="relative shrink-0" ref={typeDropdownRef}>
+            <div className="col-span-2 relative min-w-0 xl:shrink-0" ref={typeDropdownRef}>
               <button
                 type="button"
                 onClick={() => setIsTypeDropdownOpen(!isTypeDropdownOpen)}
-                className={`w-full sm:w-auto px-4 py-2 rounded-full text-xs font-bold flex items-center justify-center gap-2 transition-all ${
+                className={`w-full xl:w-auto min-w-0 px-4 py-3 xl:py-2 rounded-2xl xl:rounded-full text-xs font-bold flex items-center justify-center gap-2 transition-all ${
                   filters.types.length > 0
                     ? 'bg-slate-100 dark:bg-slate-800 text-rose-600 dark:text-rose-400'
                     : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
@@ -516,7 +517,7 @@ export const HeroLuxurySection: React.FC = () => {
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: -8, scale: 0.96 }}
                     transition={{ duration: 0.15 }}
-                    className="absolute left-0 sm:left-auto sm:right-0 mt-3 w-72 sm:w-80 bg-white dark:bg-slate-900 rounded-3xl p-3 shadow-2xl border border-slate-200 dark:border-slate-800 z-50 space-y-1 text-slate-900 dark:text-white"
+                    className="relative xl:absolute left-0 xl:left-auto xl:right-0 mt-3 w-full xl:w-80 max-w-[calc(100vw-4rem)] bg-white dark:bg-slate-900 rounded-2xl p-3 shadow-2xl border border-slate-200 dark:border-slate-800 z-50 space-y-1 text-slate-900 dark:text-white"
                   >
                     <div className="flex items-center justify-between px-3 py-1.5 border-b border-slate-100 dark:border-slate-800">
                       <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-400">
@@ -597,7 +598,7 @@ export const HeroLuxurySection: React.FC = () => {
             <button
               type="button"
               onClick={handleExecuteSearch}
-              className="px-6 sm:px-8 py-3.5 rounded-full bg-gradient-to-r from-rose-600 via-fuchsia-600 to-rose-600 text-white text-xs sm:text-sm font-extrabold shadow-lg shadow-rose-600/30 hover:shadow-rose-600/50 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2 shrink-0 cursor-pointer"
+              className="col-span-2 w-full xl:w-auto px-6 xl:px-8 py-3.5 rounded-2xl xl:rounded-full bg-gradient-to-r from-rose-600 via-fuchsia-600 to-rose-600 text-white text-xs sm:text-sm font-extrabold shadow-lg shadow-rose-600/30 hover:shadow-rose-600/50 active:scale-[0.98] transition-all flex items-center justify-center gap-2 shrink-0 cursor-pointer"
             >
               <Search className="w-4 h-4" />
               <span>Buscar</span>

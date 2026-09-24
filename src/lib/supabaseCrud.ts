@@ -884,6 +884,7 @@ export async function fetchConversationsFromSupabase(userId: string): Promise<Co
 
         conversationsList.push({
           id: c.id,
+          isArchived: Boolean(isUserBuyer ? c.is_archived_buyer : c.is_archived_advertiser),
           propertyId: c.property_id || '',
           propertyTitle: prop?.title || 'Imóvel em Destaque',
           propertyImage: coverImage,
@@ -902,11 +903,14 @@ export async function fetchConversationsFromSupabase(userId: string): Promise<Co
             email: otherProfile?.email || 'contato@imovelhub.com.br',
             role: otherProfile?.role || (isUserBuyer ? 'broker' : 'buyer'),
             avatarUrl: otherProfile?.avatar_url,
-            verified: otherProfile?.verified ?? true
+            verified: otherProfile?.verified === true,
+            agencyName: otherProfile?.agency_name
           },
           lastMessage: c.last_message_text || 'Conversa iniciada',
           lastMessageTime: new Date(c.last_message_at).toLocaleDateString('pt-BR'),
-          unreadCount,
+          // Archived threads remain available in their folder but do not keep an
+          // inbox badge active. A new incoming message restores the inbox in SQL.
+          unreadCount: (isUserBuyer ? c.is_archived_buyer : c.is_archived_advertiser) ? 0 : unreadCount,
           messages: msgs
         });
       }
@@ -969,12 +973,7 @@ export async function insertMessageToSupabase(message: Message, conversationId: 
 
     if (msgErr) return false;
 
-    // Update conversation last message timestamp
-    await supabase.from('conversations').update({
-      last_message_text: message.text,
-      last_message_at: message.createdAt,
-      updated_at: new Date().toISOString()
-    }).eq('id', ensureValidUuid(conversationId));
+    // The database trigger updates the summary and restores the recipient's inbox.
 
     return true;
   } catch (e) {
@@ -983,16 +982,15 @@ export async function insertMessageToSupabase(message: Message, conversationId: 
   }
 }
 
-export async function deleteConversationFromSupabase(id: string): Promise<boolean> {
+export async function setConversationArchiveInSupabase(id: string, archived: boolean): Promise<boolean> {
   if (!supabase) return false;
   try {
-    const validId = ensureValidUuid(id);
-    // Delete child messages first to guarantee FK constraint integrity
-    await supabase.from('messages').delete().eq('conversation_id', validId);
-    const { error } = await supabase.from('conversations').delete().eq('id', validId);
-    return !error;
+    const { data, error } = await supabase.rpc('set_my_conversation_archive', {
+      p_conversation_id: ensureValidUuid(id), p_archived: archived
+    });
+    return !error && data === true;
   } catch (err) {
-    console.warn('Error deleting conversation from Supabase:', err);
+    console.warn('Error archiving conversation in Supabase:', err);
     return false;
   }
 }

@@ -312,6 +312,7 @@ export interface Message {
 
 export interface Conversation {
   id: string;
+  isArchived?: boolean;
   propertyId: string;
   propertyTitle: string;
   propertyImage?: string;

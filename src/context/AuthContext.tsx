@@ -20,19 +20,20 @@ export interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const GUEST_USER: UserProfile = { id: 'guest_buyer', name: 'Visitante Web Imóvel', email: '', role: 'buyer', verified: false };
 
-const toProfile = (user: any, row: any): UserProfile => ({
+const toProfile = (user: any, row: any, preferences: UserProfile['preferences'] = {}): UserProfile => ({
   id: user.id, name: row.name, email: user.email || row.email, phone: row.phone, whatsapp: row.whatsapp,
   role: row.role, creci: row.creci, creciUf: row.creci_uf, agencyName: row.agency_name,
   agencyLogo: row.agency_logo, verified: row.verified, avatarUrl: row.avatar_url, bio: row.bio,
   city: row.city, state: row.state, website: row.website, instagram: row.instagram, linkedin: row.linkedin,
   creciType: row.creci_type, creciStatus: row.creci_status || (row.creci ? 'pending' : 'unverified'),
   creciVerifiedAt: row.creci_verified_at, creciProtocol: row.creci_protocol,
-  availableWeekendVisits: row.available_weekend_visits ?? false, authProvider: 'email'
+  availableWeekendVisits: row.available_weekend_visits ?? false, authProvider: 'email', preferences
 });
 
 export const AuthProvider: React.FC<{ children: React.ReactNode; addToast: (toast: Omit<Toast, 'id'>) => void }> = ({ children, addToast }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [currentUser, setCurrentUser] = useState<UserProfile>(GUEST_USER);
+  const [preferencesReady, setPreferencesReady] = useState(false);
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [authModalTab, setAuthModalTab] = useState<'login' | 'signup' | 'forgot'>('login');
 
@@ -42,10 +43,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode; addToast: (toas
   const sync = useCallback(async (candidate?: any) => {
     if (!supabase) return;
     const user = candidate || (await supabase.auth.getUser()).data.user;
-    if (!user) { setIsAuthenticated(false); setCurrentUser(GUEST_USER); return; }
+    if (!user) { setIsAuthenticated(false); setCurrentUser(GUEST_USER); setPreferencesReady(false); return; }
     const { data, error } = await supabase.from('profiles').select('*').eq('id', user.id).single();
     if (error || !data) { await supabase.auth.signOut(); setIsAuthenticated(false); setCurrentUser(GUEST_USER); return; }
-    setCurrentUser(toProfile(user, data)); setIsAuthenticated(true);
+    const { data: privateData, error: preferencesError } = await supabase
+      .from('profile_preferences').select('preferences').eq('user_id', user.id).maybeSingle();
+    setPreferencesReady(!preferencesError);
+    if (preferencesError) {
+      addToast({ type: 'warning', title: 'Preferências indisponíveis', message: 'Não foi possível carregar suas preferências. Recarregue a página antes de editar o perfil.' });
+    }
+    setCurrentUser(toProfile(user, data, privateData?.preferences || {})); setIsAuthenticated(true);
   }, []);
   useEffect(() => {
     clearLegacy();
@@ -70,12 +77,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode; addToast: (toas
       if (data.session) await sync(data.user); addToast({ type: 'success', title: 'Conta criada', message: 'Cadastro realizado com sucesso.' }); return true;
     } catch (e: any) { addToast({ type: 'error', title: 'Erro de conexão', message: e.message }); return false; }
   };
-  const logout = async () => { if (supabase) await supabase.auth.signOut(); setIsAuthenticated(false); setCurrentUser(GUEST_USER); };
-  const updateUserProfile = async (updates: Partial<UserProfile>) => {
+  const logout = async () => { if (supabase) await supabase.auth.signOut(); setIsAuthenticated(false); setCurrentUser(GUEST_USER); setPreferencesReady(false); };
+  const updateUserProfile = async (patch: Partial<UserProfile>) => {
     if (!isAuthenticated) throw new Error('Faça login para editar o perfil.');
+    if (!preferencesReady) throw new Error('Recarregue suas preferências antes de salvar.');
+    const updates = { ...currentUser, ...patch };
+    if (updates.preferences?.maxPrice !== undefined &&
+        (!Number.isFinite(updates.preferences.maxPrice) || updates.preferences.maxPrice < 0)) {
+      throw new Error('Informe um preço máximo válido.');
+    }
     const payload: any = { name: updates.name, phone: updates.phone ?? null, whatsapp: updates.whatsapp ?? null, avatar_url: updates.avatarUrl ?? null, creci: updates.creci ?? null, creci_uf: updates.creciUf ?? null, creci_type: updates.creciType ?? null, creci_status: updates.creciStatus ?? 'unverified', creci_verified_at: updates.creciVerifiedAt ?? null, creci_protocol: updates.creciProtocol ?? null, agency_name: updates.agencyName ?? null, agency_logo: updates.agencyLogo ?? null, city: updates.city ?? null, state: updates.state ?? null, bio: updates.bio ?? null, website: updates.website ?? null, instagram: updates.instagram ?? null, linkedin: updates.linkedin ?? null, available_weekend_visits: updates.availableWeekendVisits ?? false };
-    const { data, error } = await client().from('profiles').update(payload).eq('id', currentUser.id).select().single();
-    if (error) throw error; setCurrentUser(toProfile({ id: currentUser.id, email: currentUser.email }, data));
+    const { data, error } = await client().rpc('save_my_profile', {
+      p_profile: payload,
+      p_preferences: {
+        purpose: 'sale', alertEmail: true, alertWhatsapp: true, allowPartnerContact: true,
+        ...updates.preferences
+      }
+    });
+    if (error || !data?.profile || !data?.preferences) throw error || new Error('Salvamento não confirmado.');
+    setCurrentUser(toProfile({ id: currentUser.id, email: currentUser.email }, data.profile, data.preferences));
   };
   const verifyCreci = async (creci: string, uf: string) => { const result = await verifyCreciNational(creci, uf, currentUser.name); if (result.isValid && result.isAccredited) await updateUserProfile({ creci: result.creciNumber, creciUf: result.creciUf }); return result; };
   const loginWithGoogle = async () => { throw new Error('Login Google ainda não foi configurado.'); };

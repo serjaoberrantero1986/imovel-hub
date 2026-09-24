@@ -39,6 +39,7 @@ import {
   CreciVerificationResult 
 } from '../lib/creciVerification';
 import { formatCurrency } from '../lib/utils';
+import { BRAZILIAN_STATES } from '../lib/brazilianStates';
 
 export const ProfileView: React.FC = () => {
   const { 
@@ -189,7 +190,7 @@ export const ProfileView: React.FC = () => {
       addToast({ 
         type: 'error', 
         title: 'Erro ao Salvar', 
-        message: err.message || 'Não foi possível atualizar o perfil.' 
+        message: 'Não foi possível salvar as alterações. Seus dados continuam no formulário; tente novamente.'
       });
     } finally {
       setIsSaving(false);
@@ -543,7 +544,7 @@ export const ProfileView: React.FC = () => {
 
               <div>
                 <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                  Cidade de Atuação / Residência
+                  {isBroker ? 'Cidade de atuação' : 'Cidade'}
                 </label>
                 <input
                   id="input-profile-city"
@@ -561,13 +562,14 @@ export const ProfileView: React.FC = () => {
                 </label>
                 <select
                   id="select-profile-state"
-                  value={formData.state || 'SP'}
-                  onChange={e => setFormData(prev => ({ ...prev, state: e.target.value, creciUf: e.target.value }))}
+                  value={formData.state || ''}
+                  onChange={e => setFormData(prev => ({ ...prev, state: e.target.value }))}
                   className="w-full px-3.5 py-2.5 rounded-2xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500"
                 >
-                  {ufList.map(uf => (
+                  <option value="">Selecione o estado</option>
+                  {Object.keys(BRAZILIAN_STATES).map(uf => (
                     <option key={uf} value={uf}>
-                      {uf} - {BRAZILIAN_CRECI_REGIONS[uf]?.fullName || uf}
+                      {isBroker ? `${uf} - ${BRAZILIAN_CRECI_REGIONS[uf]?.fullName || BRAZILIAN_STATES[uf]}` : BRAZILIAN_STATES[uf]}
                     </option>
                   ))}
                 </select>
@@ -839,11 +841,13 @@ export const ProfileView: React.FC = () => {
                 <input
                   id="input-pref-max-price"
                   type="number"
+                  min="0"
+                  step="0.01"
                   placeholder="Ex: 850000"
-                  value={formData.preferences?.maxPrice || ''}
+                  value={formData.preferences?.maxPrice ?? ''}
                   onChange={e => setFormData(prev => ({
                     ...prev,
-                    preferences: { ...prev.preferences, maxPrice: Number(e.target.value) || undefined }
+                    preferences: { ...prev.preferences, maxPrice: e.target.value === '' ? undefined : Number(e.target.value) }
                   }))}
                   className="w-full px-3.5 py-2.5 rounded-2xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-xs text-slate-900 dark:text-white"
                 />
