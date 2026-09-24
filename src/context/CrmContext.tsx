@@ -5,8 +5,7 @@ import {
   insertLeadToSupabase,
   updateLeadInSupabase,
   deleteLeadFromSupabase,
-  updateLeadMetadataInSupabase,
-  updatePropertyInSupabase
+  updateLeadMetadataInSupabase
 } from '../lib/supabaseCrud';
 import { isSupabaseConfigured } from '../lib/supabaseClient';
 import { Toast } from './appTypes';
@@ -134,45 +133,37 @@ export const CrmProvider: React.FC<{
   }, [refreshLeads, currentUser?.id]);
 
   const addLead = async (leadData: Omit<Lead, 'id' | 'createdAt' | 'updatedAt'>): Promise<{ success: boolean; error?: string }> => {
-    const leadId = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `lead-${Date.now()}`;
-    const newLead: Lead = {
+    if (!isSupabaseConfigured) {
+      return { success: false, error: 'O banco de dados não está configurado.' };
+    }
+    const res = await insertLeadToSupabase({
       ...leadData,
-      id: leadId,
+      id: crypto.randomUUID(),
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
-    };
-
-    if (isSupabaseConfigured) {
-      const res = await insertLeadToSupabase(newLead);
-      if (!res.success) {
-        addToast({
-          type: 'error',
-          title: 'Erro ao Enviar Contato',
-          message: res.error || 'O banco de dados do Supabase não permitiu registrar o contato.'
-        });
-        return { success: false, error: res.error };
-      }
-
-      if (leadData.propertyId) {
-        const prop = properties.find(p => p.id === leadData.propertyId);
-        if (prop) {
-          await updatePropertyInSupabase(prop.id, { leadsCount: (prop.leadsCount || 0) + 1 });
-        }
-      }
+    });
+    if (!res.success) {
+      addToast({
+        type: 'error',
+        title: 'Contato não enviado',
+        message: res.error || 'O banco não confirmou o contato e a conversa.'
+      });
+      return { success: false, error: res.error };
     }
 
-    setLeads(prev => [newLead, ...prev]);
-    setProperties(prev => prev.map(p => p.id === leadData.propertyId ? { ...p, leadsCount: (p.leadsCount || 0) + 1 } : p));
+    // The server decides whether this is a new lead or an existing contact.
+    // Refresh prevents an optimistic duplicate card in the browser.
+    await refreshLeads();
 
     // Dispatch global event so chat and navbar update immediately
     if (typeof window !== 'undefined') {
-      window.dispatchEvent(new CustomEvent('imovelhub_lead_submitted', { detail: newLead }));
+      window.dispatchEvent(new CustomEvent('imovelhub_lead_submitted', { detail: { leadId: res.leadId, conversationId: res.conversationId } }));
     }
 
     addToast({
       type: 'success',
       title: 'Mensagem Enviada!',
-      message: 'O anunciante recebeu seu contato com sucesso e responderá em breve.'
+      message: res.createdLead ? 'Seu contato e a conversa foram registrados para o anunciante.' : 'Sua nova mensagem foi adicionada à conversa existente.'
     });
 
     return { success: true };

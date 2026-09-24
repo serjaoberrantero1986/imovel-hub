@@ -70,28 +70,36 @@ export const UserMenu: React.FC = () => {
         aria-expanded={isOpen}
         className="flex items-center gap-1.5 p-1 sm:p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700/80 transition-colors focus:outline-none focus:ring-2 focus:ring-rose-500/20 shrink-0 cursor-pointer"
       >
-        <div className="relative shrink-0 flex items-center justify-center">
-          <img
-            src={currentUser.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=256&q=80'}
-            alt={currentUser.name}
-            className="w-7 h-7 sm:w-8 sm:h-8 min-w-[28px] min-h-[28px] sm:min-w-[32px] sm:min-h-[32px] aspect-square rounded-lg object-cover ring-2 ring-rose-500/20 shrink-0"
-          />
-          {currentUser.verified && (
+        {isAuthenticated && (
+          <div className="relative shrink-0 flex items-center justify-center">
+            {currentUser.avatarUrl ? (
+              <img
+                src={currentUser.avatarUrl}
+                alt={currentUser.name}
+                className="w-7 h-7 sm:w-8 sm:h-8 min-w-[28px] min-h-[28px] sm:min-w-[32px] sm:min-h-[32px] aspect-square rounded-lg object-cover ring-2 ring-rose-500/20 shrink-0"
+              />
+            ) : (
+              <div aria-hidden="true" className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-rose-100 dark:bg-rose-950 text-rose-600 flex items-center justify-center text-xs font-bold">
+                {currentUser.name.slice(0, 1).toUpperCase()}
+              </div>
+            )}
+            {currentUser.verified && (
             <span className="absolute -bottom-1 -right-1 w-3.5 h-3.5 bg-emerald-500 rounded-full border-2 border-white dark:border-slate-900 flex items-center justify-center shrink-0">
               <CheckCircle2 className="w-2.5 h-2.5 text-white" />
             </span>
-          )}
-        </div>
-
-        <div className="hidden xl:block text-left pr-1">
-          <div className="text-xs font-bold text-slate-800 dark:text-slate-100 truncate max-w-[120px]">
-            {isAuthenticated ? currentUser.name.split(' ')[0] : 'Visitante'}
+            )}
           </div>
-          <div className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">
+        )}
+
+        <div className={`text-left pr-1 ${isAuthenticated ? 'hidden xl:block' : 'block'}`}>
+          <div className="text-xs font-bold text-slate-800 dark:text-slate-100 truncate max-w-[120px]">
+            {isAuthenticated ? currentUser.name.split(' ')[0] : 'Entre ou Cadastre-se'}
+          </div>
+          {isAuthenticated && <div className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">
             {isAuthenticated 
               ? (currentUser.role === 'broker' ? 'CRECI ' + (currentUser.creci || 'Ativo') : 'Cliente') 
-              : 'Entre ou Cadastre-se'}
-          </div>
+              : ''}
+          </div>}
         </div>
 
         <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform duration-200 shrink-0 ${isOpen ? 'rotate-180' : ''}`} />
@@ -103,15 +111,17 @@ export const UserMenu: React.FC = () => {
           {/* Header Card */}
           <div className="px-4 py-3 border-b border-slate-100 dark:border-slate-800">
             <div className="flex items-center gap-3">
-              <img
-                src={currentUser.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=256&q=80'}
-                alt={currentUser.name}
-                className="w-10 h-10 rounded-xl object-cover"
-              />
+              {isAuthenticated && (currentUser.avatarUrl ? (
+                <img src={currentUser.avatarUrl} alt={currentUser.name} className="w-10 h-10 rounded-xl object-cover" />
+              ) : (
+                <div aria-hidden="true" className="w-10 h-10 rounded-xl bg-rose-100 dark:bg-rose-950 text-rose-600 flex items-center justify-center font-bold">
+                  {currentUser.name.slice(0, 1).toUpperCase()}
+                </div>
+              ))}
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-1.5">
                   <p className="text-sm font-bold text-slate-900 dark:text-white truncate">
-                    {isAuthenticated ? currentUser.name : 'Visitante'}
+                    {isAuthenticated ? currentUser.name : 'Entre ou Cadastre-se'}
                   </p>
                   {isAuthenticated && currentUser.verified && (
                     <Badge variant="verified" size="sm" className="py-0 px-1 text-[9px]">
@@ -119,9 +129,7 @@ export const UserMenu: React.FC = () => {
                     </Badge>
                   )}
                 </div>
-                <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
-                  {isAuthenticated ? currentUser.email : 'Nenhuma conta conectada'}
-                </p>
+                {isAuthenticated && <p className="text-xs text-slate-500 dark:text-slate-400 truncate">{currentUser.email}</p>}
                 {isAuthenticated && currentUser.role === 'broker' && currentUser.agencyName && (
                   <p className="text-[10px] font-semibold text-rose-600 dark:text-rose-400 mt-0.5">
                     {currentUser.agencyName}

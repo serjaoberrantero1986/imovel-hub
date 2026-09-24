@@ -6,7 +6,6 @@ import { MobileNav } from './components/layout/MobileNav';
 import { ToastContainer } from './components/ui/ToastContainer';
 import { PropertyWizardModal } from './components/properties/PropertyWizardModal';
 import { AuthModal } from './components/modals/AuthModal';
-import { PwaInstallPrompt } from './components/layout/PwaInstallPrompt';
 import { OfflineBanner } from './components/layout/OfflineBanner';
 
 // Views
@@ -52,7 +51,6 @@ const MainContent: React.FC = () => {
 
       <Footer />
       <MobileNav />
-      <PwaInstallPrompt />
       <PropertyWizardModal />
       <AuthModal />
       <ToastContainer />

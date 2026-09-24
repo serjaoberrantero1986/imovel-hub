@@ -172,6 +172,7 @@ const AppCompositeProvider: React.FC<{
     deleteAccount: auth.deleteAccount,
     updateUserProfile: auth.updateUserProfile,
     verifyCreci: auth.verifyCreci,
+    requestCreciReview: auth.requestCreciReview,
     switchUserRole: auth.switchUserRole,
     // Property slice
     properties: propertyCtx.properties,

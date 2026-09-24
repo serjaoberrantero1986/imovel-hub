@@ -47,6 +47,7 @@ export const ProfileView: React.FC = () => {
     isAuthenticated,
     openAuthModal,
     updateUserProfile, 
+    requestCreciReview,
     logout, 
     deleteAccount,
     refreshData,
@@ -57,6 +58,7 @@ export const ProfileView: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'general' | 'role_specific' | 'security'>('general');
   const [isSaving, setIsSaving] = useState(false);
   const [isVerifyingCreci, setIsVerifyingCreci] = useState(false);
+  const [isRequestingCreciReview, setIsRequestingCreciReview] = useState(false);
   const [creciResult, setCreciResult] = useState<CreciVerificationResult | null>(null);
 
   // Delete account confirmation state
@@ -160,6 +162,24 @@ export const ProfileView: React.FC = () => {
       addToast({ type: 'error', title: 'Erro de Verificação', message: err.message || 'Falha ao consultar conselho.' });
     } finally {
       setIsVerifyingCreci(false);
+    }
+  };
+
+  const handleRequestCreciReview = async () => {
+    if (!formData.creci || !formData.creciUf) {
+      addToast({ type: 'warning', title: 'Dados incompletos', message: 'Informe o número e a UF do CRECI antes de solicitar análise.' });
+      return;
+    }
+    setIsRequestingCreciReview(true);
+    try {
+      // Save edited registration data before asking the team to review it.
+      await updateUserProfile(formData);
+      await requestCreciReview();
+      addToast({ type: 'success', title: 'Análise solicitada', message: 'Seu registro ficará pendente até a conferência em fonte oficial.' });
+    } catch (err: any) {
+      addToast({ type: 'error', title: 'Solicitação não enviada', message: err.message || 'Não foi possível solicitar a análise.' });
+    } finally {
+      setIsRequestingCreciReview(false);
     }
   };
 
@@ -582,28 +602,28 @@ export const ProfileView: React.FC = () => {
         {activeTab === 'role_specific' && isBroker && (
           <div className="space-y-6">
             
-            {/* Box 1: CRECI National Verification Section */}
+            {/* Registration preparation and human official review */}
             <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
               <div className="flex items-center justify-between">
                 <div>
                   <h3 className="text-base font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
                     <Award className="w-5 h-5 text-indigo-500" />
-                    <span>Verificação Nacional de CRECI (COFECI)</span>
+                    <span>Análise de Registro CRECI</span>
                   </h3>
                   <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                    Consulte a autenticidade de sua inscrição nos 27 Conselhos Regionais e garanta o selo de verificação oficial.
+                    Confira o formato do registro e solicite análise em fonte oficial. O selo só é liberado após aprovação da equipe.
                   </p>
                 </div>
 
-                {formData.verified ? (
+                {formData.creciReviewStatus === 'approved' && formData.verified ? (
                   <span className="px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 flex items-center gap-1.5">
                     <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                    CRECI Regular & Ativo
+                    CRECI aprovado
                   </span>
                 ) : (
                   <span className="px-3 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 flex items-center gap-1.5">
                     <AlertCircle className="w-4 h-4 text-amber-600" />
-                    Pendente de Validação
+                    {formData.creciReviewStatus === 'rejected' ? 'Revisão necessária' : formData.creciReviewStatus === 'pending' ? 'Em análise' : 'Aguardando solicitação'}
                   </span>
                 )}
               </div>
@@ -641,56 +661,43 @@ export const ProfileView: React.FC = () => {
                   </select>
                 </div>
 
-                <div className="sm:col-span-3">
-                  <button
-                    id="btn-trigger-creci-verify"
-                    type="button"
-                    onClick={handleVerifyCreci}
-                    disabled={isVerifyingCreci}
-                    className="w-full py-2.5 px-4 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-md shadow-indigo-500/20 flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-60"
-                  >
-                    {isVerifyingCreci ? (
-                      <RefreshCw className="w-4 h-4 animate-spin" />
-                    ) : (
-                      <FileCheck className="w-4 h-4" />
-                    )}
-                    <span>{isVerifyingCreci ? 'Consultando...' : 'Verificar Registro'}</span>
+                <div className="sm:col-span-3 space-y-2">
+                  <button id="btn-trigger-creci-verify" type="button" onClick={handleVerifyCreci} disabled={isVerifyingCreci}
+                    className="w-full py-2.5 px-4 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-md shadow-indigo-500/20 flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-60">
+                    {isVerifyingCreci ? <RefreshCw className="w-4 h-4 animate-spin" /> : <FileCheck className="w-4 h-4" />}
+                    <span>{isVerifyingCreci ? 'Conferindo...' : 'Conferir formato'}</span>
+                  </button>
+                  <button type="button" onClick={handleRequestCreciReview}
+                    disabled={isRequestingCreciReview || formData.creciReviewStatus === 'pending' || formData.creciReviewStatus === 'approved'}
+                    className="w-full py-2.5 px-4 rounded-2xl border border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-50 dark:hover:bg-indigo-950/30 text-xs font-bold flex items-center justify-center gap-2 transition-colors disabled:opacity-50">
+                    {isRequestingCreciReview ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                    <span>{isRequestingCreciReview ? 'Enviando...' : 'Solicitar análise'}</span>
                   </button>
                 </div>
               </div>
 
-              {/* Live result details panel */}
-              {(creciResult || formData.creciProtocol) && (
+              {creciResult && (
                 <div className="mt-4 p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/80 space-y-2 text-xs">
                   <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-700 pb-2">
                     <span className="font-bold text-slate-700 dark:text-slate-300">
-                      Resultado da Consulta COFECI / CRECI
+                      Conferência de preenchimento
                     </span>
-                    <span className="font-mono text-[11px] font-bold text-emerald-600 dark:text-emerald-400">
-                      STATUS: ATIVO / REGULAR
+                    <span className="text-[11px] font-bold text-amber-600 dark:text-amber-400">
+                      NÃO É VALIDAÇÃO OFICIAL
                     </span>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1 text-slate-600 dark:text-slate-400">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1 text-slate-600 dark:text-slate-400">
                     <div>
-                      <span className="block text-[10px] uppercase font-bold text-slate-400">Conselho Emitente</span>
+                      <span className="block text-[10px] uppercase font-bold text-slate-400">Conselho informado</span>
                       <strong className="text-slate-800 dark:text-slate-200">
-                        {creciResult?.councilName || `${BRAZILIAN_CRECI_REGIONS[formData.creciUf || 'SP']?.name}`}
+                        {BRAZILIAN_CRECI_REGIONS[formData.creciUf || 'SP']?.name}
                       </strong>
                     </div>
 
                     <div>
-                      <span className="block text-[10px] uppercase font-bold text-slate-400">Protocolo Nacional</span>
-                      <strong className="text-slate-800 dark:text-slate-200 font-mono">
-                        {creciResult?.protocol || formData.creciProtocol || 'BR.COFECI.SP.2026.K9X2A'}
-                      </strong>
-                    </div>
-
-                    <div>
-                      <span className="block text-[10px] uppercase font-bold text-slate-400">Data de Validação</span>
-                      <strong className="text-slate-800 dark:text-slate-200">
-                        {new Date(creciResult?.verifiedAt || formData.creciVerifiedAt || Date.now()).toLocaleDateString('pt-BR')}
-                      </strong>
+                      <span className="block text-[10px] uppercase font-bold text-slate-400">Próxima etapa</span>
+                      <strong className="text-slate-800 dark:text-slate-200">Solicite análise para conferência oficial.</strong>
                     </div>
                   </div>
                 </div>

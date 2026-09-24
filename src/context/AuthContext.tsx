@@ -14,6 +14,7 @@ export interface AuthContextType {
   logout: () => Promise<void>; deleteAccount: () => Promise<boolean>;
   updateUserProfile: (updates: Partial<UserProfile>) => Promise<void>;
   verifyCreci: (creci: string, uf: string) => Promise<CreciVerificationResult>;
+  requestCreciReview: () => Promise<void>;
   switchUserRole: (role: 'broker' | 'buyer') => void;
 }
 
@@ -27,6 +28,8 @@ const toProfile = (user: any, row: any, preferences: UserProfile['preferences'] 
   city: row.city, state: row.state, website: row.website, instagram: row.instagram, linkedin: row.linkedin,
   creciType: row.creci_type, creciStatus: row.creci_status || (row.creci ? 'pending' : 'unverified'),
   creciVerifiedAt: row.creci_verified_at, creciProtocol: row.creci_protocol,
+  creciReviewStatus: row.creci_review_status || 'not_requested',
+  creciReviewedAt: row.creci_reviewed_at, creciReviewExpiresAt: row.creci_review_expires_at,
   availableWeekendVisits: row.available_weekend_visits ?? false, authProvider: 'email', preferences
 });
 
@@ -98,9 +101,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode; addToast: (toas
     setCurrentUser(toProfile({ id: currentUser.id, email: currentUser.email }, data.profile, data.preferences));
   };
   const verifyCreci = async (creci: string, uf: string) => { const result = await verifyCreciNational(creci, uf, currentUser.name); if (result.isValid && result.isAccredited) await updateUserProfile({ creci: result.creciNumber, creciUf: result.creciUf }); return result; };
+  const requestCreciReview = async () => {
+    if (!isAuthenticated) throw new Error('Faça login para solicitar a análise.');
+    const { error } = await client().rpc('request_my_creci_review');
+    if (error) throw error;
+    await sync();
+  };
   const loginWithGoogle = async () => { throw new Error('Login Google ainda não foi configurado.'); };
   const deleteAccount = async () => { addToast({ type: 'warning', title: 'Exclusão indisponível', message: 'A exclusão será implementada por função segura no servidor.' }); return false; };
   const switchUserRole = (_role: 'broker' | 'buyer') => addToast({ type: 'info', title: 'Tipo de conta fixo', message: 'O tipo de conta é definido no cadastro.' });
-  return <AuthContext.Provider value={{ currentUser, isAuthenticated, authModalOpen, setAuthModalOpen, authModalTab, setAuthModalTab, openAuthModal, closeAuthModal, login, loginWithGoogle, signUp, logout, deleteAccount, updateUserProfile, verifyCreci, switchUserRole }}>{children}</AuthContext.Provider>;
+  return <AuthContext.Provider value={{ currentUser, isAuthenticated, authModalOpen, setAuthModalOpen, authModalTab, setAuthModalTab, openAuthModal, closeAuthModal, login, loginWithGoogle, signUp, logout, deleteAccount, updateUserProfile, verifyCreci, requestCreciReview, switchUserRole }}>{children}</AuthContext.Provider>;
 };
 export const useAuth = () => { const context = useContext(AuthContext); if (!context) throw new Error('useAuth must be used within an AuthProvider'); return context; };

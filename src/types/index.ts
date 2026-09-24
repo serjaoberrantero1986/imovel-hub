@@ -51,6 +51,9 @@ export interface UserProfile {
   creciStatus?: 'unverified' | 'pending' | 'verified' | 'invalid';
   creciVerifiedAt?: string;
   creciProtocol?: string;
+  creciReviewStatus?: 'not_requested' | 'pending' | 'approved' | 'rejected' | 'expired';
+  creciReviewedAt?: string;
+  creciReviewExpiresAt?: string;
   agencyName?: string;
   agencyLogo?: string;
   verified?: boolean;

@@ -615,7 +615,8 @@ export async function fetchLeadsFromSupabase(): Promise<Lead[] | null> {
       .select(`
         *,
         properties (id, title, code, price, property_images (url, is_cover)),
-        lead_crm (meta)
+        lead_crm (meta),
+        lead_contact_events (id, property_id, conversation_id, message, origin, created_at)
       `)
       .order('created_at', { ascending: false });
 
@@ -630,6 +631,17 @@ export async function fetchLeadsFromSupabase(): Promise<Lead[] | null> {
       const prop = l.properties;
       const crm = Array.isArray(l.lead_crm) ? l.lead_crm[0] : l.lead_crm;
       const crmMeta = crm?.meta || {};
+      const contactInteractions = Array.isArray(l.lead_contact_events)
+        ? l.lead_contact_events.map((event: any) => ({
+            id: event.id,
+            leadId: l.id,
+            type: 'system' as const,
+            title: event.origin === 'schedule_visit' ? 'Solicitação de visita' : 'Mensagem recebida pelo portal',
+            description: event.message,
+            createdAt: event.created_at,
+            createdBy: 'Interessado'
+          }))
+        : [];
       const coverImage = prop?.property_images?.find((img: any) => img.is_cover)?.url || prop?.property_images?.[0]?.url;
       return {
         ...crmMeta,
@@ -649,7 +661,8 @@ export async function fetchLeadsFromSupabase(): Promise<Lead[] | null> {
         notes: crmMeta.notes || undefined,
         privateNotes: crmMeta.privateNotes || undefined,
         tasks: Array.isArray(crmMeta.tasks) ? crmMeta.tasks : [],
-        interactions: Array.isArray(crmMeta.interactions) ? crmMeta.interactions : [],
+        interactions: [...contactInteractions, ...(Array.isArray(crmMeta.interactions) ? crmMeta.interactions : [])]
+          .sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()),
         tags: Array.isArray(crmMeta.tags) ? crmMeta.tags : [],
         interestedPropertyIds: Array.isArray(crmMeta.interestedPropertyIds) ? crmMeta.interestedPropertyIds : [],
         accessRestricted: Boolean(crmMeta.accessRestricted),
@@ -665,72 +678,48 @@ export async function fetchLeadsFromSupabase(): Promise<Lead[] | null> {
   }
 }
 
-export async function insertLeadToSupabase(lead: Lead): Promise<{ success: boolean; error?: string }> {
+export interface LeadSubmissionResult {
+  success: boolean;
+  leadId?: string;
+  conversationId?: string | null;
+  createdLead?: boolean;
+  error?: string;
+}
+
+export async function insertLeadToSupabase(lead: Lead): Promise<LeadSubmissionResult> {
   if (!supabase) {
     return { success: false, error: 'Supabase não está configurado.' };
   }
   try {
-    const validId = ensureValidUuid(lead.id);
     const validPropId = lead.propertyId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(lead.propertyId) ? lead.propertyId : null;
-    
-    // Resolve advertiser_id: must be a valid UUID existing in profiles
-    let targetAdvId = lead.advertiserId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(lead.advertiserId) ? lead.advertiserId : null;
-
-    // If advertiserId is not valid UUID, check property's user_id
-    if (!targetAdvId && validPropId) {
-      const { data: propRow } = await supabase
-        .from('properties')
-        .select('user_id')
-        .eq('id', validPropId)
-        .maybeSingle();
-      if (propRow?.user_id) {
-        targetAdvId = propRow.user_id;
-      }
-    }
-
-
-    if (!targetAdvId) {
+    if (!validPropId) {
       return { 
         success: false, 
-        error: 'Não foi possível associar a mensagem ao corretor responsável. Verifique se o perfil existe no Supabase.' 
+        error: 'Não foi possível identificar o imóvel deste contato.'
       };
     }
-
-    const { data: authData } = await supabase.auth.getUser();
-    const loggedBuyer = authData.user && lead.buyerEmail &&
-      authData.user.email?.trim().toLowerCase() === lead.buyerEmail.trim().toLowerCase()
-      ? authData.user.id
-      : null;
-
-    const { error } = await supabase.from('leads').insert({
-      id: validId,
-      property_id: validPropId,
-      advertiser_id: targetAdvId,
-      buyer_id: loggedBuyer,
-      name: lead.buyerName,
-      email: lead.buyerEmail || null,
-      phone: lead.buyerPhone || null,
-      message: lead.message,
-      origin: lead.origin || 'portal_form',
-      status: 'new'
+    const { data, error } = await supabase.rpc('submit_property_contact', {
+      p_property_id: validPropId,
+      p_name: lead.buyerName,
+      p_email: lead.buyerEmail || null,
+      p_phone: lead.buyerPhone || null,
+      p_message: lead.message,
+      p_origin: lead.origin === 'schedule_visit' ? 'schedule_visit' : 'portal_form'
     });
-
     if (error) {
-      console.warn('Supabase lead insert notice:', error.message);
-      return { success: false, error: `Erro no banco de dados ao salvar lead: ${error.message}` };
+      console.warn('Supabase contact submission error:', error.message);
+      return { success: false, error: `O banco não confirmou o envio: ${error.message}` };
     }
-
-    if (loggedBuyer) {
-      const { error: conversationError } = await supabase.rpc('create_lead_conversation', {
-        p_lead_id: validId,
-        p_buyer_id: loggedBuyer
-      });
-      if (conversationError) {
-        console.warn('Lead saved but conversation could not be created:', conversationError.message);
-      }
+    const result = Array.isArray(data) ? data[0] : data;
+    if (!result?.lead_id || result.conversation_id === undefined) {
+      return { success: false, error: 'O banco não confirmou a conversa e o contato.' };
     }
-
-    return { success: true };
+    return {
+      success: true,
+      leadId: result.lead_id,
+      conversationId: result.conversation_id,
+      createdLead: Boolean(result.created_lead)
+    };
   } catch (e: any) {
     console.error('Error inserting lead to Supabase:', e);
     return { success: false, error: e?.message || 'Erro inesperado ao registrar contato no Supabase.' };
