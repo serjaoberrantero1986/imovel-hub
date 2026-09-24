@@ -31,15 +31,11 @@ export const CrmNewLeadModal: React.FC<CrmNewLeadModalProps> = ({
   const [buyerName, setBuyerName] = useState('');
   const [buyerPhone, setBuyerPhone] = useState('');
   const [buyerEmail, setBuyerEmail] = useState('');
-  const [buyerDocument, setBuyerDocument] = useState('');
-  const [buyerOccupation, setBuyerOccupation] = useState('');
   const [origin, setOrigin] = useState<Lead['origin']>('portal_form');
   const [status, setStatus] = useState<LeadStatus>('new');
   const [priority, setPriority] = useState<Lead['priority']>('medium');
   const [selectedPropertyId, setSelectedPropertyId] = useState<string>(properties[0]?.id || '');
   const [budget, setBudget] = useState<string>('');
-  const [budgetMin, setBudgetMin] = useState<string>('');
-  const [budgetMax, setBudgetMax] = useState<string>('');
   const [preferredNeighborhoods, setPreferredNeighborhoods] = useState<string>('');
   const [minBedrooms, setMinBedrooms] = useState<string>('2');
   const [notes, setNotes] = useState('');
@@ -66,8 +62,6 @@ export const CrmNewLeadModal: React.FC<CrmNewLeadModalProps> = ({
       buyerName,
       buyerPhone,
       buyerEmail: buyerEmail || undefined,
-      buyerDocument: buyerDocument || undefined,
-      buyerOccupation: buyerOccupation || undefined,
       origin,
       status,
       priority,
@@ -79,8 +73,6 @@ export const CrmNewLeadModal: React.FC<CrmNewLeadModalProps> = ({
       propertyCode: chosenProp?.code || 'GERAL',
       advertiserId: chosenProp?.userId || 'user-1',
       budget: budget ? Number(budget) : undefined,
-      budgetMin: budgetMin ? Number(budgetMin) : undefined,
-      budgetMax: budgetMax ? Number(budgetMax) : undefined,
       preferredNeighborhoods: neighborhoods.length > 0 ? neighborhoods : undefined,
       minBedrooms: minBedrooms ? Number(minBedrooms) : undefined,
       notes: notes || undefined,
@@ -198,18 +190,6 @@ export const CrmNewLeadModal: React.FC<CrmNewLeadModalProps> = ({
                 />
               </div>
 
-              <div>
-                <label className="font-semibold text-slate-600 dark:text-slate-400 block mb-1">
-                  CPF (Opcional)
-                </label>
-                <input
-                  type="text"
-                  placeholder="000.000.000-00"
-                  value={buyerDocument}
-                  onChange={(e) => setBuyerDocument(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white"
-                />
-              </div>
             </div>
           </div>
 

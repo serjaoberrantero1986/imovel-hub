@@ -30,6 +30,7 @@ import { KANBAN_STAGES } from './CrmKanbanBoard';
 import { CrmLeadMatchingTab } from './CrmLeadMatchingTab';
 import { CrmLeadHistoryTab } from './CrmLeadHistoryTab';
 import { CrmLeadTasksTab } from './CrmLeadTasksTab';
+import { useApp } from '../../context/AppContext';
 
 interface CrmLeadDetailModalProps {
   lead: Lead | null;
@@ -68,6 +69,14 @@ export const CrmLeadDetailModal: React.FC<CrmLeadDetailModalProps> = ({
   onTogglePrivacy,
   onOpenProperty,
 }) => {
+  const {
+    conversations,
+    setActiveConversationId,
+    setCurrentView,
+    setConversationArchived,
+    markAsRead,
+    addToast
+  } = useApp();
   if (!isOpen || !lead) return null;
 
   const [activeTab, setActiveTab] = useState<TabType>('overview');
@@ -93,6 +102,22 @@ export const CrmLeadDetailModal: React.FC<CrmLeadDetailModalProps> = ({
     const cleanNumber = phone.startsWith('55') ? phone : `55${phone}`;
     const message = customText || `Olá ${lead.buyerName}, tudo bem? Aqui é da Web Imóvel. Estou entrando em contato para dar continuidade ao seu interesse no imóvel ${lead.propertyTitle}. Quando seria um bom momento para conversarmos?`;
     window.open(`https://wa.me/${cleanNumber}?text=${encodeURIComponent(message)}`, '_blank');
+  };
+
+  const handleOpenConversation = async () => {
+    const conversation = conversations.find(c => !c.isDeleted && c.propertyId === lead.propertyId && (
+      (lead.buyerId && c.otherUser.id === lead.buyerId) ||
+      (lead.buyerEmail && c.otherUser.email?.toLowerCase() === lead.buyerEmail.toLowerCase())
+    ));
+    if (!conversation) {
+      addToast({ type: 'info', title: 'Conversa ainda indisponível', message: 'A conversa aparecerá quando o interessado iniciar o contato pelo portal.' });
+      return;
+    }
+    if (conversation.isArchived && !await setConversationArchived(conversation.id, false)) return;
+    setActiveConversationId(conversation.id);
+    await markAsRead(conversation.id);
+    onClose();
+    setCurrentView('messages');
   };
 
   const handleSharePropertyOnWhatsApp = (prop: Property) => {
@@ -144,7 +169,7 @@ export const CrmLeadDetailModal: React.FC<CrmLeadDetailModalProps> = ({
           </div>
 
           {/* Right Actions & Status Selector */}
-          <div className="flex items-center gap-2.5 self-end md:self-center">
+          <div className="flex flex-wrap items-center justify-end gap-2.5 self-stretch md:self-center md:self-auto">
             
             {/* WhatsApp 1-click */}
             <button
@@ -153,6 +178,15 @@ export const CrmLeadDetailModal: React.FC<CrmLeadDetailModalProps> = ({
             >
               <MessageSquare className="w-4 h-4" />
               <span>WhatsApp</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => void handleOpenConversation()}
+              className="px-3.5 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs flex items-center gap-1.5 shadow-md shadow-rose-600/20 transition-colors"
+            >
+              <MessageSquare className="w-4 h-4" />
+              <span>Conversa</span>
             </button>
 
             {/* Stage Selector */}
@@ -181,10 +215,10 @@ export const CrmLeadDetailModal: React.FC<CrmLeadDetailModalProps> = ({
         </div>
 
         {/* TAB NAVIGATION */}
-        <div className="px-6 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex gap-1 overflow-x-auto scrollbar-none text-xs font-bold">
+        <div className="px-3 sm:px-6 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-x-1 text-xs font-bold shrink-0">
           <button
             onClick={() => setActiveTab('overview')}
-            className={`py-3 px-3.5 border-b-2 transition-colors flex items-center gap-1.5 whitespace-nowrap ${
+            className={`min-w-0 py-3 px-2 border-b-2 transition-colors flex items-center justify-center gap-1.5 text-center ${
               activeTab === 'overview'
                 ? 'border-rose-600 text-rose-600 dark:text-rose-400'
                 : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
@@ -196,19 +230,19 @@ export const CrmLeadDetailModal: React.FC<CrmLeadDetailModalProps> = ({
 
           <button
             onClick={() => setActiveTab('matching')}
-            className={`py-3 px-3.5 border-b-2 transition-colors flex items-center gap-1.5 whitespace-nowrap ${
+            className={`min-w-0 py-3 px-2 border-b-2 transition-colors flex items-center justify-center gap-1.5 text-center ${
               activeTab === 'matching'
                 ? 'border-rose-600 text-rose-600 dark:text-rose-400'
                 : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
             }`}
           >
             <Sparkles className="w-4 h-4 text-emerald-500" />
-            <span>Match de Imóveis ({topMatches.length})</span>
+            <span>Compatibilidade de Imóveis ({topMatches.length})</span>
           </button>
 
           <button
             onClick={() => setActiveTab('history')}
-            className={`py-3 px-3.5 border-b-2 transition-colors flex items-center gap-1.5 whitespace-nowrap ${
+            className={`min-w-0 py-3 px-2 border-b-2 transition-colors flex items-center justify-center gap-1.5 text-center ${
               activeTab === 'history'
                 ? 'border-rose-600 text-rose-600 dark:text-rose-400'
                 : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
@@ -220,7 +254,7 @@ export const CrmLeadDetailModal: React.FC<CrmLeadDetailModalProps> = ({
 
           <button
             onClick={() => setActiveTab('tasks')}
-            className={`py-3 px-3.5 border-b-2 transition-colors flex items-center gap-1.5 whitespace-nowrap ${
+            className={`min-w-0 py-3 px-2 border-b-2 transition-colors flex items-center justify-center gap-1.5 text-center ${
               activeTab === 'tasks'
                 ? 'border-rose-600 text-rose-600 dark:text-rose-400'
                 : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
@@ -232,7 +266,7 @@ export const CrmLeadDetailModal: React.FC<CrmLeadDetailModalProps> = ({
 
           <button
             onClick={() => setActiveTab('notes')}
-            className={`py-3 px-3.5 border-b-2 transition-colors flex items-center gap-1.5 whitespace-nowrap ${
+            className={`min-w-0 py-3 px-2 border-b-2 transition-colors flex items-center justify-center gap-1.5 text-center ${
               activeTab === 'notes'
                 ? 'border-rose-600 text-rose-600 dark:text-rose-400'
                 : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
@@ -244,7 +278,7 @@ export const CrmLeadDetailModal: React.FC<CrmLeadDetailModalProps> = ({
 
           <button
             onClick={() => setActiveTab('preferences')}
-            className={`py-3 px-3.5 border-b-2 transition-colors flex items-center gap-1.5 whitespace-nowrap ${
+            className={`min-w-0 py-3 px-2 border-b-2 transition-colors flex items-center justify-center gap-1.5 text-center ${
               activeTab === 'preferences'
                 ? 'border-rose-600 text-rose-600 dark:text-rose-400'
                 : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
@@ -293,19 +327,6 @@ export const CrmLeadDetailModal: React.FC<CrmLeadDetailModalProps> = ({
                       </span>
                     </div>
 
-                    <div className="flex items-center justify-between">
-                      <span className="text-slate-500">Documento (CPF):</span>
-                      <span className="font-mono font-bold text-slate-800 dark:text-slate-200">
-                        {lead.buyerDocument || 'Não informado'}
-                      </span>
-                    </div>
-
-                    <div className="flex items-center justify-between">
-                      <span className="text-slate-500">Profissão / Ocupação:</span>
-                      <span className="font-bold text-slate-800 dark:text-slate-200">
-                        {lead.buyerOccupation || 'Não informado'}
-                      </span>
-                    </div>
                   </div>
                 </div>
 
@@ -317,16 +338,9 @@ export const CrmLeadDetailModal: React.FC<CrmLeadDetailModalProps> = ({
 
                   <div className="space-y-2.5 text-xs">
                     <div className="flex items-center justify-between">
-                      <span className="text-slate-500">Orçamento Previsto:</span>
+                      <span className="text-slate-500">Preço máximo desejado:</span>
                       <span className="font-bold font-mono text-emerald-600 dark:text-emerald-400 text-sm">
-                        {lead.budget ? formatCurrency(lead.budget) : 'A definir'}
-                      </span>
-                    </div>
-
-                    <div className="flex items-center justify-between">
-                      <span className="text-slate-500">Faixa Desejada:</span>
-                      <span className="font-mono text-slate-700 dark:text-slate-300">
-                        {lead.budgetMin ? formatCurrency(lead.budgetMin) : 'R$ 0'} até {lead.budgetMax ? formatCurrency(lead.budgetMax) : 'Ilimitado'}
+                        {lead.budgetMax || lead.budget ? formatCurrency(lead.budgetMax || lead.budget || 0) : 'Não informado'}
                       </span>
                     </div>
 

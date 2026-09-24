@@ -68,7 +68,6 @@ export const CrmLeadsTable: React.FC<CrmLeadsTableProps> = ({
       lead.buyerName.toLowerCase().includes(term) ||
       lead.buyerPhone.includes(term) ||
       (lead.buyerEmail && lead.buyerEmail.toLowerCase().includes(term)) ||
-      (lead.buyerDocument && lead.buyerDocument.includes(term)) ||
       lead.propertyTitle.toLowerCase().includes(term) ||
       (lead.propertyCode && lead.propertyCode.toLowerCase().includes(term)) ||
       (lead.tags && lead.tags.some(t => t.toLowerCase().includes(term)))

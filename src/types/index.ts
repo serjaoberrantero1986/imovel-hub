@@ -234,6 +234,7 @@ export interface LeadInterestProperty {
 
 export interface Lead {
   id: string;
+  buyerId?: string;
   propertyId: string; // Imóvel de origem
   propertyTitle: string;
   propertyCode: string;
@@ -246,8 +247,8 @@ export interface Lead {
   buyerEmail: string;
   buyerPhone: string;
   buyerWhatsapp?: string;
-  buyerDocument?: string; // CPF/CNPJ (com controle de privacidade)
-  buyerOccupation?: string;
+  buyerDocument?: string; // Mantido apenas para compatibilidade com registros antigos
+  buyerOccupation?: string; // Mantido apenas para compatibilidade com registros antigos
   buyerEstimatedIncome?: number;
   
   // Mensagem e Origem
