@@ -23,3 +23,15 @@
 - Toda e qualquer informação visualizada no portal (vitrine da home, exploração por bairros, mapa, busca por código ou cidade, sugestões do rodapé e CRM de leads) deve ser computada e agregada estritamente a partir dos registros reais do Supabase.
 - Se o banco de dados estiver com zero imóveis ou zero contatos/leads, o portal inteiro deve refletir fielmente esse estado vazio, sem inventar bairros ou números fictícios (ex: "48 imóveis no Campolim").
 
+## 5. Protocolo Obrigatório de Transparência Antes de Alterações
+- Antes de criar, alterar ou excluir qualquer função, fluxo, arquivo, tabela, campo, política ou rotina, explicar ao usuário com clareza:
+  - o que será criado, alterado ou excluído;
+  - quais arquivos, funções e estruturas de banco de dados serão afetados;
+  - qual será o comportamento visível para o usuário;
+  - quais funcionalidades existentes podem ser impactadas e como serão preservadas;
+  - como a alteração será validada;
+  - se o resultado está apenas local, publicado ou validado em produção.
+- Não iniciar a implementação antes da concordância do usuário com a proposta, salvo quando ele autorizar expressamente a execução no mesmo pedido.
+- Não introduzir funções alternativas, campos, integrações ou mudanças de arquitetura que não tenham sido descritas e aprovadas.
+- Caso a investigação revele a necessidade de ampliar ou modificar o escopo aprovado, interromper a implementação, explicar a descoberta e solicitar nova confirmação.
+

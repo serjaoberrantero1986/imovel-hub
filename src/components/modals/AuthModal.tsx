@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { 
   X, 
   Mail, 
@@ -41,6 +41,35 @@ export const AuthModal: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [forgotSent, setForgotSent] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!authModalOpen) return;
+
+    try {
+      const rawDraft = sessionStorage.getItem('imovelhub_pending_property_contact');
+      if (!rawDraft) return;
+
+      const draft = JSON.parse(rawDraft) as {
+        name?: string;
+        email?: string;
+        phone?: string;
+        createdAt?: number;
+      };
+      const isRecent = typeof draft.createdAt === 'number'
+        && Date.now() - draft.createdAt <= 24 * 60 * 60 * 1000;
+
+      if (!isRecent) {
+        sessionStorage.removeItem('imovelhub_pending_property_contact');
+        return;
+      }
+
+      if (draft.email) setEmail(draft.email);
+      if (draft.name) setName(draft.name);
+      if (draft.phone) setPhone(draft.phone);
+    } catch {
+      sessionStorage.removeItem('imovelhub_pending_property_contact');
+    }
+  }, [authModalOpen]);
 
   if (!authModalOpen) return null;
 

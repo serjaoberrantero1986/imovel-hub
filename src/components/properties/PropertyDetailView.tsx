@@ -37,6 +37,18 @@ import { SwipeableImageGallery } from './SwipeableImageGallery';
 import { PropertyMortgageCalculator } from './PropertyMortgageCalculator';
 import { PropertyLeadContactForm } from './PropertyLeadContactForm';
 
+const PENDING_PROPERTY_CONTACT_KEY = 'imovelhub_pending_property_contact';
+const PENDING_PROPERTY_CONTACT_MAX_AGE = 24 * 60 * 60 * 1000;
+
+interface PendingPropertyContact {
+  propertyId: string;
+  name: string;
+  email: string;
+  phone: string;
+  message: string;
+  createdAt: number;
+}
+
 export const PropertyDetailView: React.FC = () => {
   const { 
     properties, 
@@ -76,11 +88,30 @@ export const PropertyDetailView: React.FC = () => {
 
   useEffect(() => {
     if (isAuthenticated && currentUser?.id !== 'guest_buyer') {
+      try {
+        const rawDraft = sessionStorage.getItem(PENDING_PROPERTY_CONTACT_KEY);
+        const draft = rawDraft ? JSON.parse(rawDraft) as PendingPropertyContact : null;
+        const isCurrentDraft = draft?.propertyId === property.id
+          && Date.now() - draft.createdAt <= PENDING_PROPERTY_CONTACT_MAX_AGE;
+
+        if (isCurrentDraft && draft) {
+          setLeadName(draft.name || currentUser.name);
+          setLeadEmail(draft.email || currentUser.email || '');
+          setLeadPhone(draft.phone || currentUser.phone || '');
+          setLeadMessage(draft.message);
+          return;
+        }
+
+        if (rawDraft) sessionStorage.removeItem(PENDING_PROPERTY_CONTACT_KEY);
+      } catch {
+        sessionStorage.removeItem(PENDING_PROPERTY_CONTACT_KEY);
+      }
+
       if (!leadName) setLeadName(currentUser.name);
       if (!leadEmail && currentUser.email) setLeadEmail(currentUser.email);
       if (!leadPhone && currentUser.phone) setLeadPhone(currentUser.phone);
     }
-  }, [isAuthenticated, currentUser]);
+  }, [isAuthenticated, currentUser, property.id]);
 
   // Visit Scheduling state
   const [scheduleModalOpen, setScheduleModalOpen] = useState(false);
@@ -156,6 +187,20 @@ export const PropertyDetailView: React.FC = () => {
       return;
     }
 
+    if (!isAuthenticated || currentUser?.id === 'guest_buyer') {
+      const draft: PendingPropertyContact = {
+        propertyId: property.id,
+        name: leadName.trim(),
+        email: isEmailValid ? leadEmail.trim().toLowerCase() : '',
+        phone: hasValidPhone ? leadPhone.trim() : '',
+        message: leadMessage,
+        createdAt: Date.now()
+      };
+      sessionStorage.setItem(PENDING_PROPERTY_CONTACT_KEY, JSON.stringify(draft));
+      openAuthModal('login');
+      return;
+    }
+
     setIsSubmittingLead(true);
     try {
       const res = await addLead({
@@ -177,6 +222,7 @@ export const PropertyDetailView: React.FC = () => {
         return;
       }
 
+      sessionStorage.removeItem(PENDING_PROPERTY_CONTACT_KEY);
       setLeadName('');
       setLeadPhone('');
       setLeadEmail('');
@@ -187,6 +233,12 @@ export const PropertyDetailView: React.FC = () => {
   };
 
   const handleScheduleVisitSubmit = async () => {
+    if (!isAuthenticated || currentUser?.id === 'guest_buyer') {
+      setScheduleModalOpen(false);
+      openAuthModal('login');
+      return;
+    }
+
     const cleanPhone = leadPhone.replace(/\D/g, '');
     const hasValidPhone = cleanPhone.length >= 10;
     const isEmailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(leadEmail.trim());
@@ -564,7 +616,13 @@ export const PropertyDetailView: React.FC = () => {
 
               {/* Agendar Visita CTA */}
               <button
-                onClick={() => setScheduleModalOpen(true)}
+                onClick={() => {
+                  if (!isAuthenticated || currentUser?.id === 'guest_buyer') {
+                    openAuthModal('login');
+                    return;
+                  }
+                  setScheduleModalOpen(true);
+                }}
                 className="w-full py-3 px-4 rounded-2xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-100 font-bold text-xs flex items-center justify-center gap-2 transition-all"
               >
                 <Calendar className="w-4 h-4 text-rose-500" />
@@ -745,7 +803,13 @@ export const PropertyDetailView: React.FC = () => {
           </a>
 
           <button
-            onClick={() => setScheduleModalOpen(true)}
+            onClick={() => {
+              if (!isAuthenticated || currentUser?.id === 'guest_buyer') {
+                openAuthModal('login');
+                return;
+              }
+              setScheduleModalOpen(true);
+            }}
             className="min-h-[44px] px-4 py-2 rounded-2xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold flex items-center gap-1.5 shadow-md shadow-rose-600/30 active:scale-95 transition-all"
           >
             <Calendar className="w-4 h-4" />
