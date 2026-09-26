@@ -13,6 +13,7 @@ export type AppView =
   | 'comparator'
   | 'design_system'
   | 'profile'
+  | 'admin_creci'
   | 'legal';
 
 export type LegalTab = 'terms' | 'privacy' | 'consumer' | 'security' | 'cookies';

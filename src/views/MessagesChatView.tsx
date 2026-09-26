@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { formatCurrency, formatDateTime } from '../lib/utils';
+import { UserAvatar } from '../components/ui/UserAvatar';
 
 export const MessagesChatView: React.FC = () => {
   const { 
@@ -219,9 +220,9 @@ export const MessagesChatView: React.FC = () => {
                           : 'hover:bg-slate-50 dark:hover:bg-slate-800/40'
                       }`}
                     >
-                      <img
-                        src={conv.otherUser.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&q=80'}
-                        alt={conv.otherUser.name}
+                      <UserAvatar
+                        src={conv.otherUser.avatarUrl}
+                        name={conv.otherUser.name}
                         className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl object-cover ring-2 ring-rose-500/20 shrink-0"
                       />
 
@@ -276,10 +277,10 @@ export const MessagesChatView: React.FC = () => {
                     <ArrowLeft className="w-5 h-5 text-slate-700 dark:text-slate-200" />
                   </button>
 
-                  <img
-                    src={activeConversation.otherUser.avatarUrl || 'https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&w=150&q=80'}
+                  <UserAvatar
+                    src={activeConversation.otherUser.avatarUrl}
+                    name={activeConversation.otherUser.name}
                     className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl object-cover shrink-0"
-                    alt={activeConversation.otherUser.name}
                   />
                   <div className="min-w-0">
                     <div className="flex items-center gap-1.5">
@@ -377,10 +378,10 @@ export const MessagesChatView: React.FC = () => {
                       className={`flex items-end gap-2 ${isMine ? 'justify-end' : 'justify-start'}`}
                     >
                       {!isMine && (
-                        <img
+                        <UserAvatar
                           src={msg.senderAvatar || activeConversation.otherUser.avatarUrl}
+                          name={msg.senderName || activeConversation.otherUser.name}
                           className="w-7 h-7 rounded-full object-cover shrink-0"
-                          alt="Avatar"
                         />
                       )}
 

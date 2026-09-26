@@ -40,6 +40,7 @@ import {
 } from '../lib/creciVerification';
 import { formatCurrency } from '../lib/utils';
 import { BRAZILIAN_STATES } from '../lib/brazilianStates';
+import { CreciDocumentManager } from '../components/profile/CreciDocumentManager';
 
 export const ProfileView: React.FC = () => {
   const { 
@@ -59,6 +60,7 @@ export const ProfileView: React.FC = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [isVerifyingCreci, setIsVerifyingCreci] = useState(false);
   const [isRequestingCreciReview, setIsRequestingCreciReview] = useState(false);
+  const [creciDocumentCount, setCreciDocumentCount] = useState(0);
   const [creciResult, setCreciResult] = useState<CreciVerificationResult | null>(null);
 
   // Delete account confirmation state
@@ -168,6 +170,10 @@ export const ProfileView: React.FC = () => {
   const handleRequestCreciReview = async () => {
     if (!formData.creci || !formData.creciUf) {
       addToast({ type: 'warning', title: 'Dados incompletos', message: 'Informe o número e a UF do CRECI antes de solicitar análise.' });
+      return;
+    }
+    if (creciDocumentCount < 1) {
+      addToast({ type: 'warning', title: 'Documento obrigatório', message: 'Anexe a CIRP ou uma certidão de regularidade antes de solicitar a análise.' });
       return;
     }
     setIsRequestingCreciReview(true);
@@ -675,6 +681,8 @@ export const ProfileView: React.FC = () => {
                   </button>
                 </div>
               </div>
+
+              <CreciDocumentManager user={formData} addToast={addToast} onCountChange={setCreciDocumentCount} />
 
               {creciResult && (
                 <div className="mt-4 p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/80 space-y-2 text-xs">

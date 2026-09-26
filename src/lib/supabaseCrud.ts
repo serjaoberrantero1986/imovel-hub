@@ -875,6 +875,7 @@ export async function fetchConversationsFromSupabase(userId: string): Promise<Co
           .map((m: any) => {
             const isLeadOrigin = m.content?.startsWith('[Lead') || m.content?.startsWith('[Novo Lead');
             const isMine = isLeadOrigin ? false : (m.sender_id === userId && !isLeadPortalConv);
+            const senderProfile = profilesMap[m.sender_id];
 
             return {
               id: m.id,
@@ -882,7 +883,7 @@ export async function fetchConversationsFromSupabase(userId: string): Promise<Co
               senderId: isLeadOrigin ? `lead-sender-${c.id}` : m.sender_id,
               senderName: isMine ? 'Você' : (isLeadOrigin ? leadName : (otherProfile?.name || 'Usuário')),
               senderAvatar: isMine 
-                ? otherProfile?.avatar_url 
+                ? senderProfile?.avatar_url
                 : (isLeadOrigin 
                     ? `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(leadName)}&backgroundColor=e11d48&textColor=ffffff` 
                     : otherProfile?.avatar_url),
