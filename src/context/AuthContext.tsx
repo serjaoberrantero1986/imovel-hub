@@ -76,7 +76,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode; addToast: (toas
   };
   const signUp = async (form: { name: string; email: string; password: string; role: 'broker' | 'buyer'; phone?: string; creci?: string }) => {
     try { const { data, error } = await client().auth.signUp({ email: form.email.trim().toLowerCase(), password: form.password, options: { data: { name: form.name.trim(), role: form.role, phone: form.phone || null, creci: form.creci || null } } });
-      if (error || !data.user) { addToast({ type: 'error', title: 'Cadastro recusado', message: error?.message || 'Não foi possível criar a conta.' }); return false; }
+      if (error || !data.user) {
+        if (error) console.warn('Account registration was not completed:', error.message);
+        addToast({ type: 'error', title: 'Cadastro não concluído', message: 'Não foi possível criar a conta agora. Confira os dados e tente novamente.' });
+        return false;
+      }
       if (data.session) await sync(data.user); addToast({ type: 'success', title: 'Conta criada', message: 'Cadastro realizado com sucesso.' }); return true;
     } catch (e: any) { addToast({ type: 'error', title: 'Erro de conexão', message: e.message }); return false; }
   };
