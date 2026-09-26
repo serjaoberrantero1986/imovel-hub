@@ -11,7 +11,7 @@ export interface AuthContextType {
   openAuthModal: (tab?: 'login' | 'signup' | 'forgot') => void; closeAuthModal: () => void;
   login: (email: string, password: string) => Promise<boolean>; loginWithGoogle: () => Promise<void>;
   signUp: (data: { name: string; email: string; password: string; role: 'broker' | 'buyer'; phone?: string; creci?: string }) => Promise<boolean>;
-  logout: () => Promise<void>; deleteAccount: () => Promise<boolean>;
+  logout: () => Promise<void>; deleteAccount: (password: string) => Promise<boolean>;
   updateUserProfile: (updates: Partial<UserProfile>) => Promise<void>;
   verifyCreci: (creci: string, uf: string) => Promise<CreciVerificationResult>;
   requestCreciReview: () => Promise<void>;
@@ -108,7 +108,46 @@ export const AuthProvider: React.FC<{ children: React.ReactNode; addToast: (toas
     await sync();
   };
   const loginWithGoogle = async () => { throw new Error('Login Google ainda não foi configurado.'); };
-  const deleteAccount = async () => { addToast({ type: 'warning', title: 'Exclusão indisponível', message: 'A exclusão será implementada por função segura no servidor.' }); return false; };
+  const deleteAccount = async (password: string) => {
+    if (!isAuthenticated || currentUser.id === 'guest_buyer') throw new Error('Faça login novamente para excluir sua conta.');
+    if (currentUser.role === 'admin') throw new Error('Contas administrativas não podem ser excluídas. Transfira e remova o privilégio antes de continuar.');
+    const authClient = client();
+    const { error: authenticationError } = await authClient.auth.signInWithPassword({ email: currentUser.email, password });
+    if (authenticationError) throw new Error('Senha incorreta. A conta não foi excluída.');
+    const { data: prepared, error: preparationError } = await authClient.rpc('begin_my_account_deletion');
+    if (preparationError || prepared !== true) throw preparationError || new Error('Não foi possível preparar a exclusão segura.');
+
+    const { data: documents, error: documentsError } = await authClient
+      .from('creci_verification_documents').select('storage_path');
+    if (documentsError) throw documentsError;
+    const documentPaths = (documents || []).map((item: any) => item.storage_path).filter(Boolean);
+    if (documentPaths.length > 0) {
+      const { error: storageError } = await authClient.storage.from('creci-verification').remove(documentPaths);
+      if (storageError) throw new Error(`Não foi possível remover os documentos privados: ${storageError.message}`);
+    }
+
+    const { data: ownedProperties, error: propertiesError } = await authClient.from('properties').select('id').eq('user_id', currentUser.id);
+    if (propertiesError) throw propertiesError;
+    const propertyBucket = import.meta.env.VITE_SUPABASE_STORAGE_BUCKET || 'property-images';
+    for (const property of ownedProperties || []) {
+      const folder = `properties/${property.id}`;
+      const { data: files, error: listError } = await authClient.storage.from(propertyBucket).list(folder, { limit: 1000 });
+      if (listError) throw new Error(`Não foi possível conferir as imagens do anúncio: ${listError.message}`);
+      const paths = (files || []).filter(file => file.name).map(file => `${folder}/${file.name}`);
+      if (paths.length > 0) {
+        const { error: removalError } = await authClient.storage.from(propertyBucket).remove(paths);
+        if (removalError) throw new Error(`Não foi possível remover as imagens do anúncio: ${removalError.message}`);
+      }
+    }
+    const { data, error } = await authClient.rpc('delete_my_account');
+    if (error || data !== true) throw error || new Error('A exclusão não foi confirmada pelo servidor.');
+    try { await authClient.auth.signOut({ scope: 'local' }); } catch { /* The Auth row is already gone. */ }
+    setIsAuthenticated(false);
+    setCurrentUser(GUEST_USER);
+    setPreferencesReady(false);
+    addToast({ type: 'success', title: 'Conta excluída definitivamente' });
+    return true;
+  };
   const switchUserRole = (_role: 'broker' | 'buyer') => addToast({ type: 'info', title: 'Tipo de conta fixo', message: 'O tipo de conta é definido no cadastro.' });
   return <AuthContext.Provider value={{ currentUser, isAuthenticated, authModalOpen, setAuthModalOpen, authModalTab, setAuthModalTab, openAuthModal, closeAuthModal, login, loginWithGoogle, signUp, logout, deleteAccount, updateUserProfile, verifyCreci, requestCreciReview, switchUserRole }}>{children}</AuthContext.Provider>;
 };

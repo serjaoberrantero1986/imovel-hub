@@ -51,7 +51,6 @@ export const ProfileView: React.FC = () => {
     requestCreciReview,
     logout, 
     deleteAccount,
-    refreshData,
     setCurrentView,
     addToast
   } = useApp();
@@ -66,6 +65,7 @@ export const ProfileView: React.FC = () => {
   // Delete account confirmation state
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [deleteConfirmationText, setDeleteConfirmationText] = useState('');
+  const [deletePassword, setDeletePassword] = useState('');
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
 
   // Form State initialized from currentUser
@@ -263,10 +263,11 @@ export const ProfileView: React.FC = () => {
 
     setIsDeletingAccount(true);
     try {
-      await deleteAccount();
-      await refreshData();
+      const deleted = await deleteAccount(deletePassword);
+      if (!deleted) return;
       setIsDeleteModalOpen(false);
       setDeleteConfirmationText('');
+      setDeletePassword('');
       setCurrentView('portal');
     } catch (err: any) {
       addToast({
@@ -1031,12 +1032,17 @@ export const ProfileView: React.FC = () => {
                 </div>
               </div>
 
-              <div className="pt-2 flex justify-start">
+              {currentUser.role === 'admin' ? (
+                <div className="rounded-2xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 p-3 text-xs text-amber-800 dark:text-amber-300">
+                  Contas administrativas são protegidas contra exclusão. Transfira a administração e remova esse privilégio antes de excluir a conta.
+                </div>
+              ) : <div className="pt-2 flex justify-start">
                 <button
                   id="btn-open-delete-account-modal"
                   type="button"
                   onClick={() => {
                     setDeleteConfirmationText('');
+                    setDeletePassword('');
                     setIsDeleteModalOpen(true);
                   }}
                   className="px-5 py-2.5 rounded-2xl bg-red-600 hover:bg-red-700 active:scale-95 text-white font-bold text-xs shadow-md shadow-red-600/20 flex items-center gap-2 transition-all cursor-pointer"
@@ -1044,7 +1050,7 @@ export const ProfileView: React.FC = () => {
                   <Trash2 className="w-4 h-4" />
                   <span>Excluir Minha Conta Definitivamente</span>
                 </button>
-              </div>
+              </div>}
             </div>
 
           </div>
@@ -1082,6 +1088,19 @@ export const ProfileView: React.FC = () => {
                 />
               </div>
 
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">Confirme sua senha atual</label>
+                <input
+                  id="input-confirm-delete-password"
+                  type="password"
+                  autoComplete="current-password"
+                  value={deletePassword}
+                  onChange={e => setDeletePassword(e.target.value)}
+                  placeholder="Sua senha"
+                  className="w-full px-3.5 py-2 rounded-xl bg-white dark:bg-slate-900 border border-red-300 dark:border-red-800 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-red-500"
+                />
+              </div>
+
               <div className="grid grid-cols-2 gap-3 pt-2">
                 <button
                   id="btn-cancel-delete-account"
@@ -1090,6 +1109,7 @@ export const ProfileView: React.FC = () => {
                   onClick={() => {
                     setIsDeleteModalOpen(false);
                     setDeleteConfirmationText('');
+                    setDeletePassword('');
                   }}
                   className="py-2.5 px-4 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
                 >
@@ -1099,7 +1119,7 @@ export const ProfileView: React.FC = () => {
                 <button
                   id="btn-confirm-delete-account-permanently"
                   type="button"
-                  disabled={isDeletingAccount || deleteConfirmationText.trim().toUpperCase() !== 'EXCLUIR'}
+                  disabled={isDeletingAccount || deleteConfirmationText.trim().toUpperCase() !== 'EXCLUIR' || !deletePassword}
                   onClick={handleDeleteAccount}
                   className="py-2.5 px-4 rounded-xl bg-red-600 hover:bg-red-700 active:scale-95 text-white text-xs font-extrabold shadow-lg shadow-red-600/30 flex items-center justify-center gap-1.5 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                 >
