@@ -140,7 +140,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode; addToast: (toas
       }
     }
     const { data, error } = await authClient.rpc('delete_my_account');
-    if (error || data !== true) throw error || new Error('A exclusão não foi confirmada pelo servidor.');
+    if (error || data !== true) {
+      console.warn('Account deletion was not confirmed:', error?.message || 'Unexpected server response');
+      throw new Error('Não foi possível concluir a exclusão da conta. Tente novamente em instantes.');
+    }
     try { await authClient.auth.signOut({ scope: 'local' }); } catch { /* The Auth row is already gone. */ }
     setIsAuthenticated(false);
     setCurrentUser(GUEST_USER);
