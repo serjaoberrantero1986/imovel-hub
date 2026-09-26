@@ -14,10 +14,10 @@ import {
 interface Props {
   user: UserProfile;
   addToast: (toast: Omit<Toast, 'id'>) => void;
-  onCountChange?: (count: number) => void;
+  onDocumentsChange?: (documents: CreciDocument[]) => void;
 }
 
-export const CreciDocumentManager: React.FC<Props> = ({ user, addToast, onCountChange }) => {
+export const CreciDocumentManager: React.FC<Props> = ({ user, addToast, onDocumentsChange }) => {
   const [documents, setDocuments] = useState<CreciDocument[]>([]);
   const [kind, setKind] = useState<CreciDocumentKind>('cirp');
   const [busy, setBusy] = useState(false);
@@ -28,7 +28,7 @@ export const CreciDocumentManager: React.FC<Props> = ({ user, addToast, onCountC
     try {
       const items = await listMyCreciDocuments();
       setDocuments(items);
-      onCountChange?.(items.length);
+      onDocumentsChange?.(items);
     } catch (error: any) {
       addToast({ type: 'error', title: 'Documentos indisponíveis', message: error.message || 'Não foi possível carregar os documentos.' });
     }
@@ -81,7 +81,7 @@ export const CreciDocumentManager: React.FC<Props> = ({ user, addToast, onCountC
     <div className="rounded-2xl border border-indigo-100 dark:border-indigo-900/60 bg-indigo-50/40 dark:bg-indigo-950/20 p-4 space-y-3">
       <div>
         <h4 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2"><FileCheck className="w-4 h-4 text-indigo-600" /> Documentos comprobatórios</h4>
-        <p className="text-[11px] text-slate-500 mt-1">Envie a CIRP ou uma certidão de regularidade em PDF, JPEG ou PNG, com até 8 MB. Os arquivos são privados.</p>
+        <p className="text-[11px] text-slate-500 mt-1">Envie sua CIRP em PDF, JPEG ou PNG, com até 8 MB. A certidão de regularidade pode ser anexada como documento complementar. Os arquivos são privados.</p>
       </div>
 
       {!locked && (
@@ -98,7 +98,7 @@ export const CreciDocumentManager: React.FC<Props> = ({ user, addToast, onCountC
       )}
 
       <div className="space-y-2">
-        {documents.length === 0 ? <p className="text-xs text-amber-700 dark:text-amber-300">Nenhum documento anexado. É necessário anexar ao menos um para solicitar a análise.</p> : documents.map(document => (
+        {documents.length === 0 ? <p className="text-xs text-amber-700 dark:text-amber-300">Nenhum documento anexado. Anexe sua CIRP para habilitar a solicitação de análise.</p> : documents.map(document => (
           <div key={document.id} className="flex items-center justify-between gap-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-3">
             <div className="min-w-0"><p className="text-xs font-bold truncate">{document.originalName}</p><p className="text-[10px] text-slate-500">{document.documentKind === 'cirp' ? 'CIRP' : 'Certidão de regularidade'} · {(document.fileSize / 1024 / 1024).toFixed(2)} MB</p></div>
             <div className="flex gap-1 shrink-0">

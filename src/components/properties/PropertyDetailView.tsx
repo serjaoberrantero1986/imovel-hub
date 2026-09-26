@@ -36,6 +36,7 @@ import { verifyHoneypot, sanitizeHtml, auditService } from '../../lib/security';
 import { SwipeableImageGallery } from './SwipeableImageGallery';
 import { PropertyMortgageCalculator } from './PropertyMortgageCalculator';
 import { PropertyLeadContactForm } from './PropertyLeadContactForm';
+import { UserAvatar } from '../ui/UserAvatar';
 
 const PENDING_PROPERTY_CONTACT_KEY = 'imovelhub_pending_property_contact';
 const PENDING_PROPERTY_CONTACT_MAX_AGE = 24 * 60 * 60 * 1000;
@@ -582,11 +583,7 @@ export const PropertyDetailView: React.FC = () => {
               
               {/* Broker info header */}
               <div className="flex items-center gap-3.5 pb-4 border-b border-slate-100 dark:border-slate-800">
-                <img
-                  src={property.advertiser.avatarUrl || 'https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&w=256&q=80'}
-                  alt={property.advertiser.name}
-                  className="w-14 h-14 rounded-2xl object-cover ring-2 ring-rose-500/30"
-                />
+                <UserAvatar name={property.advertiser.name} src={property.advertiser.avatarUrl} className="w-14 h-14 rounded-2xl ring-2 ring-rose-500/30" />
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-1.5">
                     <h4 className="text-sm font-bold text-slate-900 dark:text-white truncate">

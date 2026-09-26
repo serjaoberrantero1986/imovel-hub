@@ -109,7 +109,7 @@ export const UserMenu: React.FC = () => {
           </div>
           {isAuthenticated && <div className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">
             {isAuthenticated 
-              ? (currentUser.role === 'broker' ? 'CRECI ' + (currentUser.creci || 'Ativo') : 'Cliente') 
+              ? (currentUser.role === 'admin' ? 'Administrador' : currentUser.role === 'broker' ? 'CRECI ' + (currentUser.creci || 'Ativo') : 'Cliente')
               : ''}
           </div>}
         </div>

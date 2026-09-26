@@ -21,6 +21,7 @@ import { useApp, AppView } from '../../context/AppContext';
 import { Button } from '../ui/Button';
 import { Badge } from '../ui/Badge';
 import { cn } from '../../lib/utils';
+import { UserAvatar } from '../ui/UserAvatar';
 
 export interface SidebarProps {
   collapsed?: boolean;
@@ -247,17 +248,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
         {!isCollapsed && (
           <div className="flex items-center justify-between p-2 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/60 dark:border-slate-700/60">
             <div className="flex items-center gap-2 min-w-0">
-              <img
-                src={currentUser.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=256&q=80'}
-                alt={currentUser.name}
-                className="w-7 h-7 rounded-lg object-cover"
-              />
+              <UserAvatar name={currentUser.name} src={currentUser.avatarUrl} className="w-7 h-7 rounded-lg" />
               <div className="min-w-0">
                 <p className="text-xs font-bold text-slate-800 dark:text-white truncate">
                   {currentUser.name.split(' ')[0]}
                 </p>
                 <p className="text-[10px] text-slate-400 truncate">
-                  {currentUser.role === 'broker' ? 'Corretor' : 'Cliente'}
+                  {currentUser.role === 'admin' ? 'Administrador' : currentUser.role === 'broker' ? 'Corretor' : 'Cliente'}
                 </p>
               </div>
             </div>

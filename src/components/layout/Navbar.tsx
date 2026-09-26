@@ -22,6 +22,7 @@ import { UserMenu } from './UserMenu';
 import { Button } from '../ui/Button';
 import { formatCurrency } from '../../lib/utils';
 import { SupabaseSqlModal } from '../modals/SupabaseSqlModal';
+import { useAdminCreciNotifications } from '../../hooks/useAdminCreciNotifications';
 
 export const Navbar: React.FC = () => {
   const { 
@@ -52,6 +53,9 @@ export const Navbar: React.FC = () => {
   const [navCodeInput, setNavCodeInput] = useState('');
 
   const totalUnread = conversations.reduce((sum, c) => sum + c.unreadCount, 0);
+  const { pendingCount: pendingCreciCount } = useAdminCreciNotifications(
+    isAuthenticated && currentUser.role === 'admin'
+  );
 
   const handleStartNewListing = () => {
     if (!isAuthenticated) {
@@ -210,6 +214,23 @@ export const Navbar: React.FC = () => {
                 <Sun className="w-4 h-4 sm:w-5 sm:h-5 text-amber-400" />
               )}
             </button>
+
+            {isAuthenticated && currentUser.role === 'admin' && (
+              <button
+                id="btn-admin-creci-nav"
+                onClick={() => handleNavigate('admin_creci')}
+                title="Análises de CRECI"
+                aria-label={`${pendingCreciCount} análise${pendingCreciCount === 1 ? '' : 's'} de CRECI pendente${pendingCreciCount === 1 ? '' : 's'}`}
+                className="relative w-8 h-8 sm:w-10 sm:h-10 p-0 flex items-center justify-center rounded-xl text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/40 hover:bg-indigo-100 dark:hover:bg-indigo-950/70 border border-indigo-200 dark:border-indigo-800 transition-colors cursor-pointer shrink-0"
+              >
+                <ShieldCheck className="w-4 h-4 sm:w-5 sm:h-5" />
+                {pendingCreciCount > 0 && (
+                  <span className="absolute -top-1 -right-1 min-w-4 h-4 sm:min-w-5 sm:h-5 px-1 rounded-full bg-rose-600 text-white text-[9px] sm:text-[10px] font-extrabold flex items-center justify-center shadow-sm animate-pulse">
+                    {pendingCreciCount > 99 ? '99+' : pendingCreciCount}
+                  </span>
+                )}
+              </button>
+            )}
 
             {/* Anunciar CTA */}
             <Button

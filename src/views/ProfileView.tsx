@@ -26,7 +26,6 @@ import {
   Layers,
   HelpCircle,
   RefreshCw,
-  FileCheck,
   Trash2,
   AlertTriangle
 } from 'lucide-react';
@@ -34,13 +33,14 @@ import { useApp } from '../context/AppContext';
 import { UserProfile, PropertyType, PropertyPurpose } from '../types';
 import { 
   BRAZILIAN_CRECI_REGIONS, 
-  formatCreciInput, 
-  verifyCreciNational,
-  CreciVerificationResult 
+  formatCreciInput,
+  verifyCreciNational
 } from '../lib/creciVerification';
 import { formatCurrency } from '../lib/utils';
 import { BRAZILIAN_STATES } from '../lib/brazilianStates';
 import { CreciDocumentManager } from '../components/profile/CreciDocumentManager';
+import { CreciDocument } from '../lib/creciDocuments';
+import { UserAvatar } from '../components/ui/UserAvatar';
 
 export const ProfileView: React.FC = () => {
   const { 
@@ -57,10 +57,8 @@ export const ProfileView: React.FC = () => {
 
   const [activeTab, setActiveTab] = useState<'general' | 'role_specific' | 'security'>('general');
   const [isSaving, setIsSaving] = useState(false);
-  const [isVerifyingCreci, setIsVerifyingCreci] = useState(false);
   const [isRequestingCreciReview, setIsRequestingCreciReview] = useState(false);
-  const [creciDocumentCount, setCreciDocumentCount] = useState(0);
-  const [creciResult, setCreciResult] = useState<CreciVerificationResult | null>(null);
+  const [creciDocuments, setCreciDocuments] = useState<CreciDocument[]>([]);
 
   // Delete account confirmation state
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -84,6 +82,10 @@ export const ProfileView: React.FC = () => {
   useEffect(() => {
     setFormData({ ...currentUser });
   }, [currentUser]);
+
+  useEffect(() => {
+    if (currentUser.role === 'admin' && activeTab === 'role_specific') setActiveTab('general');
+  }, [activeTab, currentUser.role]);
 
   // Handle avatar upload
   const handleAvatarFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -114,72 +116,33 @@ export const ProfileView: React.FC = () => {
     }
   };
 
-  // Run CRECI national verification
-  const handleVerifyCreci = async () => {
-    const creciToVerify = formData.creci || '';
-    const ufToVerify = formData.creciUf || formData.state || 'SP';
-
-    if (!creciToVerify.trim()) {
-      addToast({ type: 'warning', title: 'CRECI Não Informado', message: 'Digite o número do CRECI antes de verificar.' });
-      return;
-    }
-
-    setIsVerifyingCreci(true);
-    try {
-      const result = await verifyCreciNational(creciToVerify, ufToVerify, formData.name);
-      // Do not render simulated protocol/council data as an official result.
-      setCreciResult(null);
-
-      if (result.isValid && result.isAccredited) {
-        setFormData(prev => ({
-          ...prev,
-          creci: result.creciNumber,
-          creciUf: result.creciUf,
-          creciType: result.category,
-          // This browser check only validates formatting and regional mapping.
-          // It is not an official COFECI/CRECI integration and must never grant
-          // a verified badge or persist a fabricated protocol.
-          creciStatus: 'pending',
-          creciVerifiedAt: undefined,
-          creciProtocol: undefined,
-          verified: false
-        }));
-        addToast({
-          type: 'success',
-          title: 'Dados do CRECI preparados',
-          message: 'O registro ficará pendente de análise oficial antes de receber o selo de verificação.'
-        });
-      } else {
-        setFormData(prev => ({
-          ...prev,
-          creciStatus: 'invalid'
-        }));
-        addToast({
-          type: 'error',
-          title: 'Falha na Validação do CRECI',
-          message: result.message
-        });
-      }
-    } catch (err: any) {
-      addToast({ type: 'error', title: 'Erro de Verificação', message: err.message || 'Falha ao consultar conselho.' });
-    } finally {
-      setIsVerifyingCreci(false);
-    }
-  };
-
   const handleRequestCreciReview = async () => {
     if (!formData.creci || !formData.creciUf) {
       addToast({ type: 'warning', title: 'Dados incompletos', message: 'Informe o número e a UF do CRECI antes de solicitar análise.' });
       return;
     }
-    if (creciDocumentCount < 1) {
-      addToast({ type: 'warning', title: 'Documento obrigatório', message: 'Anexe a CIRP ou uma certidão de regularidade antes de solicitar a análise.' });
+    if (!creciDocuments.some(document => document.documentKind === 'cirp')) {
+      addToast({ type: 'warning', title: 'CIRP obrigatória', message: 'Anexe uma foto ou PDF da sua CIRP antes de solicitar a análise.' });
       return;
     }
     setIsRequestingCreciReview(true);
     try {
+      const validation = await verifyCreciNational(formData.creci, formData.creciUf, formData.name);
+      if (!validation.isValid || !validation.isAccredited) {
+        addToast({ type: 'error', title: 'CRECI inválido', message: validation.message });
+        return;
+      }
+      const profileToReview = {
+        ...formData,
+        creci: validation.creciNumber,
+        creciUf: validation.creciUf,
+        creciType: validation.category,
+        creciStatus: 'pending' as const,
+        verified: false
+      };
+      setFormData(profileToReview);
       // Save edited registration data before asking the team to review it.
-      await updateUserProfile(formData);
+      await updateUserProfile(profileToReview);
       await requestCreciReview();
       addToast({ type: 'success', title: 'Análise solicitada', message: 'Seu registro ficará pendente até a conferência em fonte oficial.' });
     } catch (err: any) {
@@ -284,6 +247,8 @@ export const ProfileView: React.FC = () => {
   const ufList = Object.keys(BRAZILIAN_CRECI_REGIONS);
 
   const isBroker = formData.role === 'broker' || formData.role === 'agency';
+  const isAdmin = formData.role === 'admin';
+  const hasCirpDocument = creciDocuments.some(document => document.documentKind === 'cirp');
 
   // Visitor Gating: If user is not authenticated, show professional signup/login prompt instead of edit form
   if (!isAuthenticated) {
@@ -350,7 +315,7 @@ export const ProfileView: React.FC = () => {
               <span className="font-semibold text-slate-800 dark:text-slate-200">Gerenciar Perfil</span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
-              Meu Perfil {isBroker ? 'Profissional' : 'de Cliente'}
+              {isAdmin ? 'Meu Perfil Administrativo' : `Meu Perfil ${isBroker ? 'Profissional' : 'de Cliente'}`}
             </h1>
           </div>
 
@@ -373,11 +338,7 @@ export const ProfileView: React.FC = () => {
           <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6 relative z-10">
             {/* Avatar with upload trigger */}
             <div className="relative group shrink-0">
-              <img
-                src={formData.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=256&q=80'}
-                alt={formData.name}
-                className="w-24 h-24 sm:w-28 sm:h-28 rounded-3xl object-cover ring-4 ring-rose-500/20 shadow-md"
-              />
+              <UserAvatar name={formData.name} src={formData.avatarUrl} className="w-24 h-24 sm:w-28 sm:h-28 rounded-3xl ring-4 ring-rose-500/20 shadow-md text-2xl" />
               <button
                 id="btn-upload-avatar"
                 type="button"
@@ -406,15 +367,17 @@ export const ProfileView: React.FC = () => {
                 
                 {/* Role badge */}
                 <span className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full ${
-                  isBroker 
+                  isAdmin
+                    ? 'bg-indigo-100 text-indigo-800 dark:bg-indigo-950 dark:text-indigo-300'
+                    : isBroker
                     ? 'bg-indigo-100 text-indigo-800 dark:bg-indigo-950 dark:text-indigo-300'
                     : 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300'
                 }`}>
-                  {isBroker ? 'Corretor Credenciado' : 'Comprador / Inquilino'}
+                  {isAdmin ? 'Administrador' : isBroker ? 'Corretor Credenciado' : 'Comprador / Inquilino'}
                 </span>
 
                 {/* Verified badge */}
-                {formData.verified && (
+                {isBroker && formData.verified && (
                   <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 flex items-center gap-1">
                     <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
                     CRECI Verificado
@@ -427,13 +390,13 @@ export const ProfileView: React.FC = () => {
                   <Mail className="w-3.5 h-3.5" />
                   {formData.email}
                 </span>
-                {formData.phone && (
+                {!isAdmin && formData.phone && (
                   <span className="flex items-center gap-1">
                     <Phone className="w-3.5 h-3.5" />
                     {formData.phone}
                   </span>
                 )}
-                {(formData.city || formData.state) && (
+                {!isAdmin && (formData.city || formData.state) && (
                   <span className="flex items-center gap-1">
                     <MapPin className="w-3.5 h-3.5" />
                     {formData.city ? `${formData.city} - ${formData.state || 'SP'}` : formData.state}
@@ -469,7 +432,7 @@ export const ProfileView: React.FC = () => {
             <span>Dados Gerais & Contato</span>
           </button>
 
-          <button
+          {!isAdmin && <button
             id="tab-profile-role-specific"
             onClick={() => setActiveTab('role_specific')}
             className={`pb-3 px-4 text-xs font-bold border-b-2 transition-colors flex items-center gap-2 cursor-pointer ${
@@ -480,7 +443,7 @@ export const ProfileView: React.FC = () => {
           >
             {isBroker ? <Award className="w-4 h-4" /> : <Heart className="w-4 h-4" />}
             <span>{isBroker ? 'CRECI & Perfil Profissional' : 'Preferências & Alertas'}</span>
-          </button>
+          </button>}
 
           <button
             id="tab-profile-security"
@@ -526,11 +489,13 @@ export const ProfileView: React.FC = () => {
                   type="email"
                   value={formData.email || ''}
                   onChange={e => setFormData(prev => ({ ...prev, email: e.target.value }))}
-                  className="w-full px-3.5 py-2.5 rounded-2xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500"
+                  disabled={isAdmin}
+                  title={isAdmin ? 'O e-mail é gerenciado pela autenticação da conta.' : undefined}
+                  className="w-full px-3.5 py-2.5 rounded-2xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 disabled:opacity-70 disabled:cursor-not-allowed"
                 />
               </div>
 
-              <div>
+              {!isAdmin && <div>
                 <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
                   Telefone de Contato
                 </label>
@@ -542,9 +507,9 @@ export const ProfileView: React.FC = () => {
                   onChange={e => setFormData(prev => ({ ...prev, phone: e.target.value }))}
                   className="w-full px-3.5 py-2.5 rounded-2xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500"
                 />
-              </div>
+              </div>}
 
-              <div>
+              {!isAdmin && <div>
                 <div className="flex items-center justify-between mb-1">
                   <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
                     WhatsApp (com DDD)
@@ -567,9 +532,9 @@ export const ProfileView: React.FC = () => {
                   onChange={e => setFormData(prev => ({ ...prev, whatsapp: e.target.value }))}
                   className="w-full px-3.5 py-2.5 rounded-2xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500"
                 />
-              </div>
+              </div>}
 
-              <div>
+              {!isAdmin && <div>
                 <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
                   {isBroker ? 'Cidade de atuação' : 'Cidade'}
                 </label>
@@ -581,9 +546,9 @@ export const ProfileView: React.FC = () => {
                   onChange={e => setFormData(prev => ({ ...prev, city: e.target.value }))}
                   className="w-full px-3.5 py-2.5 rounded-2xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500"
                 />
-              </div>
+              </div>}
 
-              <div>
+              {!isAdmin && <div>
                 <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
                   Estado (UF)
                 </label>
@@ -600,7 +565,7 @@ export const ProfileView: React.FC = () => {
                     </option>
                   ))}
                 </select>
-              </div>
+              </div>}
             </div>
           </div>
         )}
@@ -618,7 +583,7 @@ export const ProfileView: React.FC = () => {
                     <span>Análise de Registro CRECI</span>
                   </h3>
                   <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                    Confira o formato do registro e solicite análise em fonte oficial. O selo só é liberado após aprovação da equipe.
+                    Anexe sua CIRP e solicite a conferência da equipe. O selo só é liberado após aprovação.
                   </p>
                 </div>
 
@@ -668,49 +633,17 @@ export const ProfileView: React.FC = () => {
                   </select>
                 </div>
 
-                <div className="sm:col-span-3 space-y-2">
-                  <button id="btn-trigger-creci-verify" type="button" onClick={handleVerifyCreci} disabled={isVerifyingCreci}
-                    className="w-full py-2.5 px-4 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-md shadow-indigo-500/20 flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-60">
-                    {isVerifyingCreci ? <RefreshCw className="w-4 h-4 animate-spin" /> : <FileCheck className="w-4 h-4" />}
-                    <span>{isVerifyingCreci ? 'Conferindo...' : 'Conferir formato'}</span>
-                  </button>
+                <div className="sm:col-span-3">
                   <button type="button" onClick={handleRequestCreciReview}
-                    disabled={isRequestingCreciReview || formData.creciReviewStatus === 'pending' || formData.creciReviewStatus === 'approved'}
-                    className="w-full py-2.5 px-4 rounded-2xl border border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-50 dark:hover:bg-indigo-950/30 text-xs font-bold flex items-center justify-center gap-2 transition-colors disabled:opacity-50">
+                    disabled={!hasCirpDocument || !formData.creci || !formData.creciUf || isRequestingCreciReview || formData.creciReviewStatus === 'pending' || formData.creciReviewStatus === 'approved'}
+                    className="w-full py-2.5 px-4 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-md shadow-indigo-500/20 flex items-center justify-center gap-2 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
                     {isRequestingCreciReview ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
                     <span>{isRequestingCreciReview ? 'Enviando...' : 'Solicitar análise'}</span>
                   </button>
                 </div>
               </div>
 
-              <CreciDocumentManager user={formData} addToast={addToast} onCountChange={setCreciDocumentCount} />
-
-              {creciResult && (
-                <div className="mt-4 p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/80 space-y-2 text-xs">
-                  <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-700 pb-2">
-                    <span className="font-bold text-slate-700 dark:text-slate-300">
-                      Conferência de preenchimento
-                    </span>
-                    <span className="text-[11px] font-bold text-amber-600 dark:text-amber-400">
-                      NÃO É VALIDAÇÃO OFICIAL
-                    </span>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1 text-slate-600 dark:text-slate-400">
-                    <div>
-                      <span className="block text-[10px] uppercase font-bold text-slate-400">Conselho informado</span>
-                      <strong className="text-slate-800 dark:text-slate-200">
-                        {BRAZILIAN_CRECI_REGIONS[formData.creciUf || 'SP']?.name}
-                      </strong>
-                    </div>
-
-                    <div>
-                      <span className="block text-[10px] uppercase font-bold text-slate-400">Próxima etapa</span>
-                      <strong className="text-slate-800 dark:text-slate-200">Solicite análise para conferência oficial.</strong>
-                    </div>
-                  </div>
-                </div>
-              )}
+              <CreciDocumentManager user={formData} addToast={addToast} onDocumentsChange={setCreciDocuments} />
             </div>
 
             {/* Box 2: Apresentação Profissional & Imobiliária */}
@@ -819,7 +752,7 @@ export const ProfileView: React.FC = () => {
         )}
 
         {/* TAB 2: Se Cliente - Preferências de Imóveis & Alertas */}
-        {activeTab === 'role_specific' && !isBroker && (
+        {activeTab === 'role_specific' && !isBroker && !isAdmin && (
           <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200 dark:border-slate-800 shadow-sm space-y-6">
             <div>
               <h3 className="text-base font-extrabold text-slate-900 dark:text-white">

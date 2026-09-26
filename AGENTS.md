@@ -35,3 +35,9 @@
 - Não introduzir funções alternativas, campos, integrações ou mudanças de arquitetura que não tenham sido descritas e aprovadas.
 - Caso a investigação revele a necessidade de ampliar ou modificar o escopo aprovado, interromper a implementação, explicar a descoberta e solicitar nova confirmação.
 
+## 6. Consistência Visual e Linguagem do Produto
+- Toda página, componente ou fluxo novo ou alterado deve reutilizar o padrão visual vigente do Web Imóvel: paleta, tipografia, espaçamentos, bordas, sombras, ícones, botões, estados de carregamento, estados vazios e comportamento responsivo.
+- Áreas administrativas devem parecer parte do mesmo produto e não podem adotar uma interface técnica ou visual desconectada do restante do portal.
+- Todo texto visível deve estar em português do Brasil e ser compreensível para o usuário final. Não exibir nomes de tabelas, mensagens SQL, nomes internos de funções ou detalhes de infraestrutura.
+- Antes de criar uma experiência sem referência visual ou funcional suficiente no projeto, interromper o trabalho e solicitar orientação ao usuário.
+
