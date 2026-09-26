@@ -125,13 +125,13 @@ export const CrmLeadsTable: React.FC<CrmLeadsTableProps> = ({
         </div>
 
         {/* Filter Dropdowns */}
-        <div className="flex items-center gap-2 flex-wrap w-full md:w-auto">
+        <div className="grid grid-cols-2 sm:flex items-center gap-2 w-full md:w-auto">
           
           {/* Estágio */}
           <select
             value={stageFilter}
             onChange={(e) => setStageFilter(e.target.value)}
-            className="px-3 py-2 rounded-xl text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-medium"
+            className="w-full sm:w-auto px-3 py-2 rounded-xl text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-medium"
           >
             <option value="all">Todos os Estágios</option>
             {KANBAN_STAGES.map(s => (
@@ -143,7 +143,7 @@ export const CrmLeadsTable: React.FC<CrmLeadsTableProps> = ({
           <select
             value={priorityFilter}
             onChange={(e) => setPriorityFilter(e.target.value)}
-            className="px-3 py-2 rounded-xl text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-medium"
+            className="w-full sm:w-auto px-3 py-2 rounded-xl text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-medium"
           >
             <option value="all">Todas as Prioridades</option>
             <option value="urgent">Urgente</option>
@@ -157,7 +157,7 @@ export const CrmLeadsTable: React.FC<CrmLeadsTableProps> = ({
           <select
             value={originFilter}
             onChange={(e) => setOriginFilter(e.target.value)}
-            className="px-3 py-2 rounded-xl text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-medium"
+            className="col-span-2 sm:col-span-1 w-full sm:w-auto px-3 py-2 rounded-xl text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-medium"
           >
             <option value="all">Todas as Origens</option>
             <option value="portal_form">Formulário do portal</option>
@@ -171,8 +171,52 @@ export const CrmLeadsTable: React.FC<CrmLeadsTableProps> = ({
 
       </div>
 
+      {/* Mobile lead cards keep every table action accessible without squeezing columns. */}
+      <div className="md:hidden space-y-3">
+        {filteredLeads.length === 0 ? (
+          <div className="rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-8 text-center text-xs text-slate-400">
+            Nenhum cliente ou lead encontrado com os filtros selecionados.
+          </div>
+        ) : filteredLeads.map(lead => {
+          const matchedProp = properties.find(property => property.id === lead.propertyId);
+          const matchResult = matchedProp ? calculatePropertyMatchScore(lead, matchedProp) : null;
+          const nextTask = lead.tasks?.find(task => !task.completed);
+          return (
+            <article key={lead.id} onClick={() => onOpenLead(lead)} className="rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs overflow-hidden active:bg-slate-50 dark:active:bg-slate-800/60">
+              <div className="p-4 space-y-4">
+                <div className="flex items-start gap-3">
+                  <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-rose-500 to-rose-700 text-white flex items-center justify-center font-bold shrink-0">{lead.buyerName.charAt(0).toUpperCase()}</div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-1.5"><h3 className="text-sm font-bold truncate">{lead.buyerName}</h3>{lead.accessRestricted && <ShieldCheck className="w-3.5 h-3.5 text-indigo-500 shrink-0" />}</div>
+                    <p className="text-[11px] text-slate-500 truncate">{lead.buyerPhone || lead.buyerEmail}</p>
+                    <span className="inline-flex mt-1 px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-[9px] text-slate-500">{getOriginLabel(lead.origin)}</span>
+                  </div>
+                  {matchResult && <span className={`px-2 py-1 rounded-lg text-xs font-mono font-black flex items-center gap-1 shrink-0 ${matchResult.score >= 80 ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300' : matchResult.score >= 60 ? 'bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300' : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300'}`}><Sparkles className="w-3 h-3" />{matchResult.score}%</span>}
+                </div>
+
+                <button type="button" onClick={event => { event.stopPropagation(); if (lead.propertyId) onOpenProperty(lead.propertyId); }} className="w-full text-left rounded-2xl bg-slate-50 dark:bg-slate-800/60 p-3 flex items-center justify-between gap-3">
+                  <div className="min-w-0"><p className="text-[10px] uppercase font-bold text-slate-400">Imóvel & orçamento</p><p className="text-xs font-bold truncate mt-0.5">{lead.propertyTitle}</p><p className="text-[11px] font-mono text-slate-500">{formatCurrency(lead.budget || lead.propertyPrice)}</p></div><ExternalLink className="w-4 h-4 text-slate-400 shrink-0" />
+                </button>
+
+                <div className="grid grid-cols-1 gap-3">
+                  <div onClick={event => event.stopPropagation()}><label className="block text-[10px] uppercase font-bold text-slate-400 mb-1">Estágio no funil</label><select value={lead.status} onChange={event => void onUpdateStatus(lead.id, event.target.value as LeadStatus)} className="w-full px-3 py-2.5 rounded-xl text-xs font-bold bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700"><>{KANBAN_STAGES.map(stage => <option key={stage.id} value={stage.id}>{stage.title}</option>)}</></select></div>
+                  <div><p className="text-[10px] uppercase font-bold text-slate-400">Próximo acompanhamento</p>{nextTask ? <p className="mt-1 text-[11px] text-amber-600 dark:text-amber-400 font-semibold flex items-center gap-1"><Clock className="w-3.5 h-3.5" /><span className="truncate">{nextTask.title} ({nextTask.dueDate})</span></p> : <p className="mt-1 text-[11px] text-slate-400">Nenhum agendado</p>}</div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-4 gap-1.5 p-3 border-t border-slate-100 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-950/20" onClick={event => event.stopPropagation()}>
+                <button type="button" onClick={event => handleWhatsAppClick(event, lead)} className="min-h-11 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 flex items-center justify-center" aria-label={`Abrir WhatsApp de ${lead.buyerName}`}><MessageSquare className="w-4 h-4" /></button>
+                <button type="button" onClick={() => void openConversation(lead)} className="min-h-11 rounded-xl bg-rose-50 dark:bg-rose-950/50 text-rose-600 flex items-center justify-center" aria-label={`Abrir conversa com ${lead.buyerName}`}><MessageSquare className="w-4 h-4" /></button>
+                <button type="button" onClick={() => onOpenLead(lead)} className="min-h-11 rounded-xl bg-slate-200/70 dark:bg-slate-800 text-slate-700 dark:text-slate-300 flex items-center justify-center" aria-label={`Ver dossiê de ${lead.buyerName}`}><Eye className="w-4 h-4" /></button>
+                <button type="button" onClick={() => onDeleteLead(lead)} className="min-h-11 rounded-xl bg-rose-100 dark:bg-rose-950 text-rose-600 flex items-center justify-center" aria-label={`Excluir lead ${lead.buyerName}`}><Trash2 className="w-4 h-4" /></button>
+              </div>
+            </article>
+          );
+        })}
+      </div>
+
       {/* Leads Table */}
-      <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-xs overflow-hidden">
+      <div className="hidden md:block bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-xs overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
             

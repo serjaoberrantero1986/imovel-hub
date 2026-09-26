@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   Users, 
   Search, 
@@ -54,11 +54,17 @@ export const CrmLeadsView: React.FC = () => {
   }, [isAuthenticated, currentUser.id, currentUser.role, refreshLeads]);
 
   const [activeTab, setActiveTab] = useState<'kanban' | 'dashboard' | 'table' | 'tasks'>('kanban');
+  const tabsRef = useRef<HTMLDivElement>(null);
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [isNewLeadModalOpen, setIsNewLeadModalOpen] = useState(false);
   const [leadToDelete, setLeadToDelete] = useState<Lead | null>(null);
   const [isDeletingLead, setIsDeletingLead] = useState(false);
+
+  useEffect(() => {
+    const activeButton = tabsRef.current?.querySelector<HTMLElement>(`[data-crm-tab="${activeTab}"]`);
+    activeButton?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+  }, [activeTab]);
 
   // Authentication gating
   if (!isAuthenticated) {
@@ -217,12 +223,14 @@ export const CrmLeadsView: React.FC = () => {
         </div>
 
         {/* CRM Nav Tabs */}
-        <div className="p-1.5 rounded-2xl bg-slate-200/70 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex items-center gap-1 overflow-x-auto scrollbar-none text-xs font-bold">
+        <div className="relative after:pointer-events-none after:absolute after:right-0 after:top-0 after:bottom-0 after:w-6 after:rounded-r-2xl after:bg-gradient-to-l after:from-slate-200/90 dark:after:from-slate-900 after:to-transparent md:after:hidden">
+        <div ref={tabsRef} className="p-1.5 pr-7 md:pr-1.5 rounded-2xl bg-slate-200/70 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex items-center gap-1 overflow-x-auto snap-x snap-mandatory [scrollbar-width:thin] [scrollbar-color:rgb(148_163_184)_transparent] text-xs font-bold">
           
           {/* Tab 1: Cards */}
           <button
+            data-crm-tab="kanban"
             onClick={() => setActiveTab('kanban')}
-            className={`px-4 py-2 rounded-xl transition-all flex items-center gap-2 cursor-pointer ${
+            className={`px-4 py-2 rounded-xl transition-all flex items-center gap-2 cursor-pointer shrink-0 whitespace-nowrap snap-center ${
               activeTab === 'kanban'
                 ? 'bg-white dark:bg-slate-800 text-rose-600 dark:text-rose-400 shadow-xs'
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
@@ -234,8 +242,9 @@ export const CrmLeadsView: React.FC = () => {
 
           {/* Tab 2: Dashboard */}
           <button
+            data-crm-tab="dashboard"
             onClick={() => setActiveTab('dashboard')}
-            className={`px-4 py-2 rounded-xl transition-all flex items-center gap-2 cursor-pointer ${
+            className={`px-4 py-2 rounded-xl transition-all flex items-center gap-2 cursor-pointer shrink-0 whitespace-nowrap snap-center ${
               activeTab === 'dashboard'
                 ? 'bg-white dark:bg-slate-800 text-rose-600 dark:text-rose-400 shadow-xs'
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
@@ -247,8 +256,9 @@ export const CrmLeadsView: React.FC = () => {
 
           {/* Tab 3: Table */}
           <button
+            data-crm-tab="table"
             onClick={() => setActiveTab('table')}
-            className={`px-4 py-2 rounded-xl transition-all flex items-center gap-2 cursor-pointer ${
+            className={`px-4 py-2 rounded-xl transition-all flex items-center gap-2 cursor-pointer shrink-0 whitespace-nowrap snap-center ${
               activeTab === 'table'
                 ? 'bg-white dark:bg-slate-800 text-rose-600 dark:text-rose-400 shadow-xs'
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
@@ -260,8 +270,9 @@ export const CrmLeadsView: React.FC = () => {
 
           {/* Tab 4: Tasks */}
           <button
+            data-crm-tab="tasks"
             onClick={() => setActiveTab('tasks')}
-            className={`px-4 py-2 rounded-xl transition-all flex items-center gap-2 cursor-pointer ${
+            className={`px-4 py-2 rounded-xl transition-all flex items-center gap-2 cursor-pointer shrink-0 whitespace-nowrap snap-center ${
               activeTab === 'tasks'
                 ? 'bg-white dark:bg-slate-800 text-rose-600 dark:text-rose-400 shadow-xs'
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
@@ -271,6 +282,7 @@ export const CrmLeadsView: React.FC = () => {
             <span>Tarefas & Agenda ({displayedLeads.reduce((acc, l) => acc + (l.tasks?.filter(t => !t.completed).length || 0), 0)})</span>
           </button>
 
+        </div>
         </div>
 
         {/* View Switcher */}
