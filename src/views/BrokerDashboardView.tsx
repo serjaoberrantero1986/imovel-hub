@@ -240,7 +240,7 @@ export const BrokerDashboardView: React.FC = () => {
               <span>CRM & Leads ({myLeads.length})</span>
             </button>
 
-            <button
+            {currentUser.role !== 'admin' && <button
               onClick={() => {
                 setEditingProperty(null);
                 setIsWizardOpen(true);
@@ -249,7 +249,7 @@ export const BrokerDashboardView: React.FC = () => {
             >
               <PlusCircle className="w-4 h-4" />
               <span>Novo Anúncio</span>
-            </button>
+            </button>}
           </div>
         </div>
 

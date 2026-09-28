@@ -62,7 +62,7 @@ export const Navbar: React.FC = () => {
       openAuthModal('login');
       return;
     }
-    if (currentUser?.role === 'buyer') {
+    if (currentUser?.role !== 'broker' && currentUser?.role !== 'agency') {
       addToast({
         type: 'warning',
         title: 'Recurso Exclusivo',
@@ -233,7 +233,7 @@ export const Navbar: React.FC = () => {
             )}
 
             {/* Anunciar CTA */}
-            <Button
+            {currentUser.role !== 'admin' && <Button
               id="cta-anunciar-imovel"
               variant="primary"
               size="sm"
@@ -242,7 +242,7 @@ export const Navbar: React.FC = () => {
               className="h-8 sm:h-10 px-2.5 sm:px-3.5 py-0 text-xs sm:text-sm font-bold shrink-0 rounded-xl whitespace-nowrap"
             >
               Anunciar
-            </Button>
+            </Button>}
 
             {/* Dedicated User Menu Dropdown */}
             <UserMenu />

@@ -119,7 +119,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       </div>
 
       {/* Action CTA: Anunciar Imóvel */}
-      <div className="p-3">
+      {currentUser.role !== 'admin' && <div className="p-3">
         <Button
           variant="primary"
           size={isCollapsed ? 'sm' : 'md'}
@@ -145,7 +145,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         >
           {!isCollapsed && <span>Novo Anúncio</span>}
         </Button>
-      </div>
+      </div>}
 
       {/* Nav List */}
       <div className="flex-1 overflow-y-auto px-3 py-2 space-y-6">

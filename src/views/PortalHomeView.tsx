@@ -415,13 +415,13 @@ export const PortalHomeView: React.FC = () => {
             </p>
           </div>
 
-          <button
+          {currentUser.role !== 'admin' && <button
             onClick={() => {
               if (!isAuthenticated) {
                 openAuthModal('login');
                 return;
               }
-              if (currentUser?.role === 'buyer') {
+              if (currentUser?.role !== 'broker' && currentUser?.role !== 'agency') {
                 addToast({
                   type: 'warning',
                   title: 'Recurso Exclusivo',
@@ -435,7 +435,7 @@ export const PortalHomeView: React.FC = () => {
             className="px-8 py-4 rounded-2xl bg-white text-rose-700 hover:bg-slate-100 font-extrabold text-sm shadow-xl hover:scale-105 active:scale-95 transition-all shrink-0 cursor-pointer"
           >
             Anunciar Imóvel Agora
-          </button>
+          </button>}
         </section>
 
       </div>

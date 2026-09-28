@@ -417,14 +417,14 @@ export const MyPropertiesView: React.FC = () => {
             </button>
 
             {/* New Property Button */}
-            <button
+            {currentUser.role !== 'admin' && <button
               id="btn-create-new-property"
               onClick={handleCreateNew}
               className="px-5 py-2.5 rounded-2xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold flex items-center gap-2 shadow-md shadow-rose-600/20 active:scale-98 transition-all cursor-pointer"
             >
               <PlusCircle className="w-4 h-4" />
               <span>Publicar Novo Imóvel</span>
-            </button>
+            </button>}
           </div>
         </div>
 
@@ -674,12 +674,14 @@ export const MyPropertiesView: React.FC = () => {
                 </p>
               </div>
               {rawMyProperties.length === 0 ? (
-                <button
-                  onClick={handleCreateNew}
-                  className="px-5 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-2xl text-xs font-bold shadow-md shadow-rose-600/20 active:scale-98 transition-all"
-                >
-                  Publicar Primeiro Imóvel
-                </button>
+                currentUser.role !== 'admin' ? (
+                  <button
+                    onClick={handleCreateNew}
+                    className="px-5 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-2xl text-xs font-bold shadow-md shadow-rose-600/20 active:scale-98 transition-all"
+                  >
+                    Publicar Primeiro Imóvel
+                  </button>
+                ) : null
               ) : (
                 <button
                   onClick={() => { setFilterStatus('all'); setSearchTerm(''); }}
