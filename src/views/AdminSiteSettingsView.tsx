@@ -4,6 +4,7 @@ import { useApp, useCatalog } from '../context/AppContext';
 import { AmenityCatalogItem, AmenityCategory, AmenityInput, createAmenity, deleteAmenity, setAmenityActive, updateAmenity } from '../lib/amenitiesCatalog';
 import { AdminPropertyTypesPanel } from '../components/admin/AdminPropertyTypesPanel';
 import { AdminCatalogSection } from '../components/admin/AdminCatalogSection';
+import { AdminFooterSettingsPanel } from '../components/admin/AdminFooterSettingsPanel';
 import { Switch } from '../components/ui/Switch';
 import { CATALOG_ICON_OPTIONS } from '../lib/iconOptions';
 
@@ -28,7 +29,7 @@ export const AdminSiteSettingsView: React.FC = () => {
   const [modalOpen, setModalOpen] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
-  const [openCatalog, setOpenCatalog] = useState<'amenities' | 'propertyTypes' | null>('amenities');
+  const [openCatalog, setOpenCatalog] = useState<'amenities' | 'propertyTypes' | 'footer' | null>('amenities');
   const [dragAmenityId, setDragAmenityId] = useState<string | null>(null);
 
   const filtered = useMemo(() => amenities.filter(item =>
@@ -104,6 +105,7 @@ export const AdminSiteSettingsView: React.FC = () => {
     </div>
     </AdminCatalogSection>
     <AdminPropertyTypesPanel open={openCatalog==='propertyTypes'} onToggle={()=>setOpenCatalog(current=>current==='propertyTypes'?null:'propertyTypes')} />
+    <AdminFooterSettingsPanel open={openCatalog==='footer'} onToggle={()=>setOpenCatalog(current=>current==='footer'?null:'footer')} />
   </div>
 
   {modalOpen && <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4"><div className="w-full max-w-lg rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl p-6 space-y-5"><div><h2 className="text-xl font-black font-['Outfit']">{editing ? 'Editar comodidade' : 'Nova comodidade'}</h2><p className="text-xs text-slate-500 mt-1">As alterações salvas serão atualizadas automaticamente no portal.</p></div><div className="grid sm:grid-cols-2 gap-4"><label className="sm:col-span-2 text-xs font-bold">Nome<input value={form.name} onChange={event => setForm(current => ({ ...current, name: event.target.value }))} maxLength={100} className="mt-1.5 w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700" /></label><label className="sm:col-span-2 text-xs font-bold">Categoria<select value={form.category} onChange={event => setForm(current => ({ ...current, category: event.target.value as AmenityCategory }))} className="mt-1.5 w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">{CATEGORIES.map(item => <option key={item.id} value={item.id}>{item.label}</option>)}</select></label><label className="sm:col-span-2 text-xs font-bold">Ícone<select value={form.icon} onChange={event => setForm(current => ({ ...current, icon: event.target.value }))} className="mt-1.5 w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">{CATALOG_ICON_OPTIONS.filter(item=>ICON_NAMES.includes(item.value)).map(item => <option key={item.value} value={item.value}>{item.label}</option>)}</select></label></div><div className="flex justify-end gap-2"><button onClick={() => setModalOpen(false)} className="px-5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold">Cancelar</button><button disabled={busyId !== null} onClick={() => void save()} className="px-5 py-2.5 rounded-xl bg-rose-600 text-white text-xs font-bold flex items-center gap-2 disabled:opacity-50">{busyId && <Loader2 className="w-4 h-4 animate-spin" />} Salvar alterações</button></div></div></div>}

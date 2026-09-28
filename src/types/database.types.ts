@@ -371,6 +371,23 @@ export interface Database {
         Insert: never;
         Update: never;
       };
+      portal_settings: {
+        Row: {
+          id: string;
+          owner_profile_id: string | null;
+          footer: Json;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id: string;
+          owner_profile_id?: string | null;
+          footer?: Json;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<Database['public']['Tables']['portal_settings']['Insert']>;
+      };
       property_features: {
         Row: {
           property_id: string;

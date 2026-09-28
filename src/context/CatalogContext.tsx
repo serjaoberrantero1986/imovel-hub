@@ -2,6 +2,7 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useS
 import { AmenityCatalogItem, fetchAmenitiesCatalog } from '../lib/amenitiesCatalog';
 import { fetchPropertyTypesCatalog, PropertyTypeCatalogItem } from '../lib/propertyTypesCatalog';
 import { supabase } from '../lib/supabaseClient';
+import { DEFAULT_FOOTER_SETTINGS, fetchFooterSettings, FooterSettings } from '../lib/portalSettings';
 
 interface CatalogContextType {
   amenities: AmenityCatalogItem[];
@@ -14,6 +15,10 @@ interface CatalogContextType {
   loadingPropertyTypes: boolean;
   propertyTypesError: string | null;
   refreshPropertyTypes: () => Promise<void>;
+  footerSettings: FooterSettings;
+  loadingFooterSettings: boolean;
+  footerSettingsError: string | null;
+  refreshFooterSettings: () => Promise<void>;
 }
 
 const CatalogContext = createContext<CatalogContextType | undefined>(undefined);
@@ -25,6 +30,9 @@ export const CatalogProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [propertyTypes, setPropertyTypes] = useState<PropertyTypeCatalogItem[]>([]);
   const [loadingPropertyTypes, setLoadingPropertyTypes] = useState(true);
   const [propertyTypesError, setPropertyTypesError] = useState<string | null>(null);
+  const [footerSettings, setFooterSettings] = useState<FooterSettings>(DEFAULT_FOOTER_SETTINGS);
+  const [loadingFooterSettings, setLoadingFooterSettings] = useState(true);
+  const [footerSettingsError, setFooterSettingsError] = useState<string | null>(null);
 
   const refreshAmenities = useCallback(async () => {
     setLoadingAmenities(true);
@@ -46,9 +54,17 @@ export const CatalogProvider: React.FC<{ children: React.ReactNode }> = ({ child
     finally { setLoadingPropertyTypes(false); }
   }, []);
 
+  const refreshFooterSettings = useCallback(async () => {
+    setLoadingFooterSettings(true);
+    try { setFooterSettings(await fetchFooterSettings()); setFooterSettingsError(null); }
+    catch { setFooterSettingsError('Não foi possível atualizar o rodapé. O conteúdo padrão foi preservado.'); }
+    finally { setLoadingFooterSettings(false); }
+  }, []);
+
   useEffect(() => {
     void refreshAmenities();
     void refreshPropertyTypes();
+    void refreshFooterSettings();
     if (!supabase) return;
     const channel = supabase.channel('features-catalog-updates')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'features' }, () => void refreshAmenities())
@@ -56,20 +72,25 @@ export const CatalogProvider: React.FC<{ children: React.ReactNode }> = ({ child
     const propertyTypesChannel = supabase.channel('property-types-catalog-updates')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'property_types_catalog' }, () => void refreshPropertyTypes())
       .subscribe();
+    const portalSettingsChannel = supabase.channel('portal-settings-updates')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'portal_settings' }, () => void refreshFooterSettings())
+      .subscribe();
     const { data: authListener } = supabase.auth.onAuthStateChange(() => {
       window.setTimeout(() => void refreshAmenities(), 0);
       window.setTimeout(() => void refreshPropertyTypes(), 0);
+      window.setTimeout(() => void refreshFooterSettings(), 0);
     });
     return () => {
       authListener.subscription.unsubscribe();
       void supabase.removeChannel(channel);
       void supabase.removeChannel(propertyTypesChannel);
+      void supabase.removeChannel(portalSettingsChannel);
     };
-  }, [refreshAmenities, refreshPropertyTypes]);
+  }, [refreshAmenities, refreshPropertyTypes, refreshFooterSettings]);
 
   const activeAmenities = useMemo(() => amenities.filter(item => item.isActive), [amenities]);
   const activePropertyTypes = useMemo(() => propertyTypes.filter(item => item.isActive), [propertyTypes]);
-  return <CatalogContext.Provider value={{ amenities, activeAmenities, loadingAmenities, amenitiesError, refreshAmenities, propertyTypes, activePropertyTypes, loadingPropertyTypes, propertyTypesError, refreshPropertyTypes }}>{children}</CatalogContext.Provider>;
+  return <CatalogContext.Provider value={{ amenities, activeAmenities, loadingAmenities, amenitiesError, refreshAmenities, propertyTypes, activePropertyTypes, loadingPropertyTypes, propertyTypesError, refreshPropertyTypes, footerSettings, loadingFooterSettings, footerSettingsError, refreshFooterSettings }}>{children}</CatalogContext.Provider>;
 };
 
 export const useCatalog = () => {
