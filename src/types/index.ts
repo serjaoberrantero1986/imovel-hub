@@ -1,16 +1,6 @@
 export type PropertyPurpose = 'sale' | 'rent' | 'seasonal' | 'launch';
 
-export type PropertyType = 
-  | 'apartment' 
-  | 'house' 
-  | 'condo_house' 
-  | 'penthouse' 
-  | 'commercial' 
-  | 'land' 
-  | 'rural'
-  | 'chacara'
-  | 'farm'
-  | 'launch';
+export type PropertyType = string;
 
 export type PropertyStatus = 
   | 'draft' 

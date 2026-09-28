@@ -24,6 +24,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { useApp, useCatalog } from '../../context/AppContext';
 import { PropertyType, PropertyPurpose } from '../../types';
 import { HeroPropertyScene } from './HeroPropertyScene';
+import { getPropertyTypeIcon } from '../ui/propertyTypeIcons';
 
 const HERO_BACKGROUNDS = [
   { src: '/assets/hero-city-sunset.jpg', width: 1739, height: 608, desktopPosition: '62% center', mobilePosition: '70% center' },
@@ -33,7 +34,7 @@ const HERO_BACKGROUNDS = [
 ];
 
 export const HeroLuxurySection: React.FC = () => {
-  const { activeAmenities } = useCatalog();
+  const { activeAmenities, activePropertyTypes, propertyTypesError } = useCatalog();
   const { 
     properties, 
     filters, 
@@ -77,7 +78,7 @@ export const HeroLuxurySection: React.FC = () => {
   }, [filters.propertyCode]);
 
   // Property types list with icons and labels
-  const propertyTypes: { id: PropertyType; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
+  const fallbackPropertyTypes: { id: PropertyType; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
     { id: 'apartment', label: 'Apartamento', icon: Building },
     { id: 'house', label: 'Casa de Bairro', icon: Home },
     { id: 'condo_house', label: 'Casa em Condomínio', icon: Home },
@@ -87,6 +88,7 @@ export const HeroLuxurySection: React.FC = () => {
     { id: 'commercial', label: 'Comercial', icon: Store },
     { id: 'launch', label: 'Lançamento', icon: Sparkles }
   ];
+  const propertyTypes = propertyTypesError ? fallbackPropertyTypes : activePropertyTypes.map(item => ({ id:item.id, label:item.name, icon:getPropertyTypeIcon(item.icon) }));
 
   // Helper for property type label
   const getPropertyTypeLabel = (type: string): string => {

@@ -26,7 +26,7 @@ import {
   ArrowRight,
   LogIn
 } from 'lucide-react';
-import { useApp } from '../context/AppContext';
+import { useApp, useCatalog } from '../context/AppContext';
 import { Property, PropertyStatus, PropertyMedia } from '../types';
 import { formatCurrency, formatDate, getPropertyTypeLabel, getPropertyPurposeLabel } from '../lib/utils';
 import { PropertyImageManager } from '../components/media/PropertyImageManager';
@@ -108,6 +108,8 @@ export const STATUS_CONFIG: Record<PropertyStatus, {
 };
 
 export const MyPropertiesView: React.FC = () => {
+  const { propertyTypes } = useCatalog();
+  const propertyTypeLabel = (value: string) => propertyTypes.find(item => item.id === value)?.name || getPropertyTypeLabel(value);
   const { 
     properties, 
     currentUser, 
@@ -513,7 +515,7 @@ export const MyPropertiesView: React.FC = () => {
                         #{prop.code}
                       </span>
                       <span className="text-[10px] uppercase font-bold text-rose-600 dark:text-rose-400 shrink-0">
-                        {getPropertyPurposeLabel(prop.purpose)} • {getPropertyTypeLabel(prop.type)}
+                        {getPropertyPurposeLabel(prop.purpose)} • {propertyTypeLabel(prop.type)}
                       </span>
 
                       {/* Interactive Status Selector Dropdown */}

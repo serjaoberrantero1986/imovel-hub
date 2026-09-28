@@ -22,7 +22,7 @@ import {
   Mail,
   LogIn
 } from 'lucide-react';
-import { useApp, DEFAULT_FILTERS } from '../context/AppContext';
+import { useApp, useCatalog, DEFAULT_FILTERS } from '../context/AppContext';
 import { SavedSearch, Property } from '../types';
 import { filterProperties } from '../lib/propertyFilters';
 import { PropertyCard } from '../components/properties/PropertyCard';
@@ -72,6 +72,8 @@ const FREQUENCY_LABELS: Record<SavedSearch['alertFrequency'], { label: string; d
 };
 
 export const SavedSearchesView: React.FC = () => {
+  const { propertyTypes } = useCatalog();
+  const typeLabel = (value: string) => propertyTypes.find(item => item.id === value)?.name || TYPE_LABELS[value] || value;
   const { 
     savedSearches, 
     deleteSavedSearch, 
@@ -393,7 +395,7 @@ export const SavedSearchesView: React.FC = () => {
                       {/* Types */}
                       {f.types && f.types.length > 0 && (
                         <span className="px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-medium flex items-center gap-1.5">
-                          <strong>Tipos:</strong> {f.types.map(t => TYPE_LABELS[t] || t).join(', ')}
+                          <strong>Tipos:</strong> {f.types.map(typeLabel).join(', ')}
                         </span>
                       )}
 

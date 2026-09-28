@@ -1,9 +1,11 @@
 import React from 'react';
 import { Building2, Phone, Mail, MapPin, Instagram, Facebook, Youtube, Linkedin, ShieldCheck } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
+import { useCatalog } from '../../context/CatalogContext';
 
 export const Footer: React.FC = () => {
   const { properties, setCurrentView, setFilters, openLegalPage } = useApp();
+  const { activePropertyTypes, propertyTypesError } = useCatalog();
 
   const availableCities = React.useMemo(() => {
     return Array.from(new Set(properties.map(p => p.city?.trim()).filter(Boolean) as string[])).sort();
@@ -36,7 +38,7 @@ export const Footer: React.FC = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const portalPropertyTypes = [
+  const fallbackPropertyTypes = [
     { id: 'apartment', label: 'Apartamento' },
     { id: 'house', label: 'Casa de Bairro' },
     { id: 'condo_house', label: 'Casa em Condomínio' },
@@ -46,6 +48,7 @@ export const Footer: React.FC = () => {
     { id: 'commercial', label: 'Comercial' },
     { id: 'launch', label: 'Lançamento' }
   ];
+  const portalPropertyTypes = propertyTypesError ? fallbackPropertyTypes : activePropertyTypes.map(item => ({ id:item.id, label:item.name }));
 
   return (
     <footer className="bg-slate-900 text-slate-300 pt-16 pb-12 border-t border-slate-800">

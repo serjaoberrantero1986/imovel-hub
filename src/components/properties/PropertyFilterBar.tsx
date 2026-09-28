@@ -22,17 +22,19 @@ import {
 import { useApp, useCatalog } from '../../context/AppContext';
 import { PropertyType, PropertyPurpose } from '../../types';
 import { formatCurrency } from '../../lib/utils';
+import { DEFAULT_PROPERTY_TYPES } from '../../lib/propertyTypesCatalog';
+import { getPropertyTypeIcon } from '../ui/propertyTypeIcons';
 
 export const PropertyFilterBar: React.FC = () => {
   const { filters, setFilters, resetFilters, saveCurrentSearch, properties, openPropertyDetail } = useApp();
-  const { activeAmenities } = useCatalog();
+  const { activeAmenities, activePropertyTypes, propertyTypesError } = useCatalog();
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [saveSearchModalOpen, setSaveSearchModalOpen] = useState(false);
   const [codeModalOpen, setCodeModalOpen] = useState(false);
   const [searchTitleInput, setSearchTitleInput] = useState('');
   const [codeQuery, setCodeQuery] = useState(filters.propertyCode || '');
 
-  const propertyTypes: { id: PropertyType; label: string; icon: any }[] = [
+  const fallbackPropertyTypes: { id: PropertyType; label: string; icon: any }[] = [
     { id: 'apartment', label: 'Apartamento', icon: Building },
     { id: 'house', label: 'Casa de Bairro', icon: Home },
     { id: 'condo_house', label: 'Casa em Condomínio', icon: Home },
@@ -42,6 +44,7 @@ export const PropertyFilterBar: React.FC = () => {
     { id: 'commercial', label: 'Comercial', icon: Store },
     { id: 'launch', label: 'Lançamento', icon: Sparkles }
   ];
+  const propertyTypes = propertyTypesError ? fallbackPropertyTypes : (activePropertyTypes.length ? activePropertyTypes.map(item => ({ id:item.id, label:item.name, icon:getPropertyTypeIcon(item.icon) })) : DEFAULT_PROPERTY_TYPES.map(item => ({ id:item.id, label:item.name, icon:getPropertyTypeIcon(item.icon) })));
 
   const handlePurposeChange = (purpose: PropertyPurpose | 'all') => {
     setFilters(prev => ({ ...prev, purpose }));

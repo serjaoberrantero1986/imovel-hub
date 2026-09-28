@@ -13,20 +13,7 @@ export type Json =
 
 export type UserRole = 'buyer' | 'owner' | 'broker' | 'agency' | 'admin';
 export type PropertyPurpose = 'sale' | 'rent' | 'seasonal' | 'launch';
-export type PropertyType =
-  | 'apartment'
-  | 'house'
-  | 'condo_house'
-  | 'penthouse'
-  | 'commercial'
-  | 'land'
-  | 'rural'
-  | 'chacara'
-  | 'farm'
-  | 'launch'
-  | 'studio'
-  | 'loft'
-  | 'warehouse';
+export type PropertyType = string;
 export type PropertyStatus =
   | 'draft'
   | 'pending_moderation'

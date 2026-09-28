@@ -26,6 +26,7 @@ import { Property, PropertyType, PropertyPurpose, PropertyMedia } from '../../ty
 import { formatCurrency, getPropertyTypeLabel, getPropertyPurposeLabel, generatePropertyCode } from '../../lib/utils';
 import { PropertyImageManager } from '../media/PropertyImageManager';
 import { geocodeAddress, resolvePropertyCoordinates } from '../../lib/geocoding';
+import { DEFAULT_PROPERTY_TYPES } from '../../lib/propertyTypesCatalog';
 
 // Tipos oficiais cadastrados no banco de dados e no portal
 const PORTAL_PROPERTY_TYPES: { id: PropertyType; label: string; desc: string }[] = [
@@ -40,7 +41,7 @@ const PORTAL_PROPERTY_TYPES: { id: PropertyType; label: string; desc: string }[]
 ];
 
 export const PropertyWizardModal: React.FC = () => {
-  const { activeAmenities } = useCatalog();
+  const { activeAmenities, propertyTypes, activePropertyTypes, propertyTypesError } = useCatalog();
   const { 
     isWizardOpen, 
     setIsWizardOpen, 
@@ -50,6 +51,9 @@ export const PropertyWizardModal: React.FC = () => {
     updateProperty,
     openPropertyDetail 
   } = useApp();
+  const currentInactiveType = editingProperty ? propertyTypes.find(item => item.id === editingProperty.type && !item.isActive) : undefined;
+  const availablePropertyTypes = propertyTypesError ? DEFAULT_PROPERTY_TYPES : currentInactiveType ? [...activePropertyTypes, currentInactiveType] : activePropertyTypes;
+  const propertyTypeLabel = (value: string) => propertyTypes.find(item => item.id === value)?.name || getPropertyTypeLabel(value);
 
   const [currentStep, setCurrentStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -564,7 +568,7 @@ export const PropertyWizardModal: React.FC = () => {
                   <span className="text-rose-500 font-bold">*</span>
                 </label>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                  {PORTAL_PROPERTY_TYPES.map(item => (
+                  {availablePropertyTypes.map(item => (
                     <button
                       key={item.id}
                       type="button"
@@ -575,8 +579,8 @@ export const PropertyWizardModal: React.FC = () => {
                           : 'border-slate-200 dark:border-slate-800 hover:border-slate-300'
                       }`}
                     >
-                      <div className="font-bold text-sm text-slate-900 dark:text-white">{item.label}</div>
-                      <div className="text-[11px] text-slate-500 mt-1 line-clamp-1">{item.desc}</div>
+                      <div className="font-bold text-sm text-slate-900 dark:text-white">{item.name}</div>
+                      <div className="text-[11px] text-slate-500 mt-1 line-clamp-1">{item.description}</div>
                     </button>
                   ))}
                 </div>
@@ -1002,7 +1006,7 @@ export const PropertyWizardModal: React.FC = () => {
                   <div>
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="text-[10px] font-mono uppercase bg-slate-200 dark:bg-slate-700 px-2 py-0.5 rounded font-bold">
-                        {getPropertyPurposeLabel(purpose)} • {getPropertyTypeLabel(type)}
+                        {getPropertyPurposeLabel(purpose)} • {propertyTypeLabel(type)}
                       </span>
                       <span className="text-[10px] font-mono font-bold bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-900/60 px-2 py-0.5 rounded">
                         {editingProperty ? `Cód: ${editingProperty.code}` : `Cód. Inteligente: ${generatePropertyCode({ type, purpose, state, city })}`}
