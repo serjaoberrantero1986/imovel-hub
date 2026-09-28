@@ -197,10 +197,6 @@ export const PortalHomeView: React.FC = () => {
             <div className="space-y-6">
               <div className="flex flex-wrap items-end justify-between gap-4">
                 <div>
-                  <span className="text-xs font-extrabold uppercase tracking-wider text-rose-600 dark:text-rose-400 flex items-center gap-1">
-                    <Sparkles className="w-3.5 h-3.5" />
-                    <span>Seleção Exclusiva</span>
-                  </span>
                   <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white font-['Outfit']">
                     Imóveis em Destaque
                   </h2>

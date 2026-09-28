@@ -40,6 +40,7 @@
 - Áreas administrativas devem parecer parte do mesmo produto e não podem adotar uma interface técnica ou visual desconectada do restante do portal.
 - Todo texto visível deve estar em português do Brasil e ser compreensível para o usuário final. Não exibir nomes de tabelas, mensagens SQL, nomes internos de funções ou detalhes de infraestrutura.
 - Antes de criar uma experiência sem referência visual ou funcional suficiente no projeto, interromper o trabalho e solicitar orientação ao usuário.
+- Quando já existir no projeto uma página, modal, formulário, tabela ou estado equivalente aprovado, novas implementações devem reutilizar fielmente sua composição visual e responsiva; não criar uma variação paralela para a mesma função.
 
 ## 7. Dados de Teste Durante o Desenvolvimento
 - Registros que o usuário identificar explicitamente como dados de teste podem ser limpos durante a evolução do produto, desde que o alcance exato e os efeitos em relacionamentos sejam informados antes da exclusão.
