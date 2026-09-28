@@ -21,9 +21,8 @@ import {
   AlertCircle,
   Search
 } from 'lucide-react';
-import { useApp } from '../../context/AppContext';
+import { useApp, useCatalog } from '../../context/AppContext';
 import { Property, PropertyType, PropertyPurpose, PropertyMedia } from '../../types';
-import { AMENITIES_LIST } from '../../lib/mockData';
 import { formatCurrency, getPropertyTypeLabel, getPropertyPurposeLabel, generatePropertyCode } from '../../lib/utils';
 import { PropertyImageManager } from '../media/PropertyImageManager';
 import { geocodeAddress, resolvePropertyCoordinates } from '../../lib/geocoding';
@@ -41,6 +40,7 @@ const PORTAL_PROPERTY_TYPES: { id: PropertyType; label: string; desc: string }[]
 ];
 
 export const PropertyWizardModal: React.FC = () => {
+  const { activeAmenities } = useCatalog();
   const { 
     isWizardOpen, 
     setIsWizardOpen, 
@@ -971,7 +971,7 @@ export const PropertyWizardModal: React.FC = () => {
               <div className="space-y-2">
                 <label className="text-xs font-bold uppercase tracking-wider text-slate-500">Marque as Comodidades Presentes</label>
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
-                  {AMENITIES_LIST.map(amenity => {
+                  {activeAmenities.map(amenity => {
                     const isSelected = selectedAmenities.includes(amenity.id);
                     return (
                       <button

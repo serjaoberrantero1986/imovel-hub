@@ -18,6 +18,7 @@ import { PropertyProvider, useProperties, PropertyContextType } from './Property
 import { CrmProvider, useCrm, CrmContextType } from './CrmContext';
 import { ChatProvider, useChat, ChatContextType } from './ChatContext';
 import { SearchPreferencesProvider, useSearchPreferences, SearchPreferencesContextType } from './SearchPreferencesContext';
+import { CatalogProvider } from './CatalogContext';
 
 export type { AppView, LegalTab, Toast };
 export { DEFAULT_FILTERS };
@@ -309,11 +310,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, [removeToast]);
 
   return (
-    <AuthProvider addToast={addToast}>
-      <InnerLayers toasts={toasts} addToast={addToast} removeToast={removeToast}>
-        {children}
-      </InnerLayers>
-    </AuthProvider>
+    <CatalogProvider>
+      <AuthProvider addToast={addToast}>
+        <InnerLayers toasts={toasts} addToast={addToast} removeToast={removeToast}>
+          {children}
+        </InnerLayers>
+      </AuthProvider>
+    </CatalogProvider>
   );
 };
 
@@ -327,3 +330,4 @@ export const useApp = () => {
 
 // Re-export slice hooks for components that only need specific domains
 export { useAuth, useProperties, useCrm, useChat, useSearchPreferences };
+export { useCatalog } from './CatalogContext';

@@ -19,13 +19,13 @@ import {
   Hash,
   ArrowRight
 } from 'lucide-react';
-import { useApp } from '../../context/AppContext';
+import { useApp, useCatalog } from '../../context/AppContext';
 import { PropertyType, PropertyPurpose } from '../../types';
-import { AMENITIES_LIST } from '../../lib/mockData';
 import { formatCurrency } from '../../lib/utils';
 
 export const PropertyFilterBar: React.FC = () => {
   const { filters, setFilters, resetFilters, saveCurrentSearch, properties, openPropertyDetail } = useApp();
+  const { activeAmenities } = useCatalog();
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [saveSearchModalOpen, setSaveSearchModalOpen] = useState(false);
   const [codeModalOpen, setCodeModalOpen] = useState(false);
@@ -406,7 +406,7 @@ export const PropertyFilterBar: React.FC = () => {
               Comodidades & Lazer
             </label>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2">
-              {AMENITIES_LIST.map(amenity => {
+              {activeAmenities.map(amenity => {
                 const isSelected = filters.amenities.includes(amenity.id);
                 return (
                   <button

@@ -13,10 +13,11 @@ import {
   ArrowRight
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
-import { AMENITIES_LIST } from '../lib/mockData';
+import { useCatalog } from '../context/CatalogContext';
 import { formatCurrency, formatArea } from '../lib/utils';
 
 export const ComparatorView: React.FC = () => {
+  const { amenities } = useCatalog();
   const { 
     properties, 
     comparisonIds, 
@@ -197,7 +198,7 @@ export const ComparatorView: React.FC = () => {
                   {comparedProperties.map(p => (
                     <td key={p.id} className="p-4 text-slate-800 dark:text-slate-200 space-y-1">
                       {p.amenities.slice(0, 4).map(a => {
-                        const am = AMENITIES_LIST.find(x => x.id === a);
+                        const am = amenities.find(x => x.id === a);
                         return (
                           <div key={a} className="flex items-center gap-1.5 text-[11px]">
                             <Check className="w-3.5 h-3.5 text-emerald-500 shrink-0" />

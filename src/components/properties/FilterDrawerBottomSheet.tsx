@@ -16,9 +16,8 @@ import {
   Store,
   ChevronDown
 } from 'lucide-react';
-import { useApp } from '../../context/AppContext';
+import { useApp, useCatalog } from '../../context/AppContext';
 import { PropertyType, PropertyPurpose } from '../../types';
-import { AMENITIES_LIST } from '../../lib/mockData';
 import { formatCurrency } from '../../lib/utils';
 import { Button } from '../ui/Button';
 
@@ -34,6 +33,7 @@ export const FilterDrawerBottomSheet: React.FC<FilterDrawerBottomSheetProps> = (
   filteredCount
 }) => {
   const { filters, setFilters, resetFilters } = useApp();
+  const { activeAmenities } = useCatalog();
   const [touchStart, setTouchStart] = useState<number | null>(null);
 
   if (!isOpen) return null;
@@ -310,7 +310,7 @@ export const FilterDrawerBottomSheet: React.FC<FilterDrawerBottomSheetProps> = (
               Comodidades e Infraestrutura
             </label>
             <div className="grid grid-cols-2 gap-2">
-              {AMENITIES_LIST.map(amenity => {
+              {activeAmenities.map(amenity => {
                 const isChecked = filters.amenities.includes(amenity.id);
                 return (
                   <button

@@ -26,8 +26,7 @@ import {
   Sparkles,
   Video
 } from 'lucide-react';
-import { useApp } from '../../context/AppContext';
-import { AMENITIES_LIST } from '../../lib/mockData';
+import { useApp, useCatalog } from '../../context/AppContext';
 import { formatCurrency, formatArea, formatDateTime } from '../../lib/utils';
 import { parseYouTubeUrl } from '../../lib/imageProcessing';
 import { PropertyCard } from './PropertyCard';
@@ -51,6 +50,7 @@ interface PendingPropertyContact {
 }
 
 export const PropertyDetailView: React.FC = () => {
+  const { amenities } = useCatalog();
   const { 
     properties, 
     selectedPropertyId, 
@@ -482,7 +482,7 @@ export const PropertyDetailView: React.FC = () => {
               
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
                 {property.amenities.map(amenityId => {
-                  const item = AMENITIES_LIST.find(a => a.id === amenityId);
+                  const item = amenities.find(a => a.id === amenityId);
                   return (
                     <div
                       key={amenityId}

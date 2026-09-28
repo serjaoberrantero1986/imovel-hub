@@ -21,10 +21,9 @@ import {
   Car
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { useApp } from '../../context/AppContext';
+import { useApp, useCatalog } from '../../context/AppContext';
 import { PropertyType, PropertyPurpose } from '../../types';
 import { HeroPropertyScene } from './HeroPropertyScene';
-import { AMENITIES_LIST } from '../../lib/mockData';
 
 const HERO_BACKGROUNDS = [
   { src: '/assets/hero-city-sunset.jpg', width: 1739, height: 608, desktopPosition: '62% center', mobilePosition: '70% center' },
@@ -34,6 +33,7 @@ const HERO_BACKGROUNDS = [
 ];
 
 export const HeroLuxurySection: React.FC = () => {
+  const { activeAmenities } = useCatalog();
   const { 
     properties, 
     filters, 
@@ -556,7 +556,7 @@ export const HeroLuxurySection: React.FC = () => {
                     Comodidades & Lazer
                   </label>
                   <div className="flex flex-wrap items-center gap-1.5">
-                    {AMENITIES_LIST.slice(0, 8).map(amenity => {
+                    {activeAmenities.slice(0, 8).map(amenity => {
                       const isSelected = filters.amenities.includes(amenity.id);
                       return (
                         <button

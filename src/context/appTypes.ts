@@ -14,6 +14,7 @@ export type AppView =
   | 'design_system'
   | 'profile'
   | 'admin_creci'
+  | 'admin_settings'
   | 'legal';
 
 export type LegalTab = 'terms' | 'privacy' | 'consumer' | 'security' | 'cookies';

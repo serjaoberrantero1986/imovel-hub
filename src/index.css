@@ -51,6 +51,19 @@
   width: 32px;
   height: 32px;
 }
+
+/* Accessible administrative switches keep a stable thumb position in both states. */
+button[role='switch'] > span {
+  left: 0.25rem;
+}
+
+button[role='switch'][aria-checked='false'] > span {
+  transform: translateX(0) !important;
+}
+
+button[role='switch'][aria-checked='true'] > span {
+  transform: translateX(1.25rem) !important;
+}
 .member-profile-details {
   position: absolute;
   left: 44px;

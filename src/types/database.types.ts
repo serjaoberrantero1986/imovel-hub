@@ -353,16 +353,36 @@ export interface Database {
           name: string;
           category: string;
           icon: string;
+          is_active: boolean;
+          display_order: number;
           created_at: string;
+          updated_at: string;
         };
         Insert: {
           id: string;
           name: string;
           category: string;
           icon: string;
+          is_active?: boolean;
+          display_order?: number;
           created_at?: string;
+          updated_at?: string;
         };
         Update: Partial<Database['public']['Tables']['features']['Insert']>;
+      };
+      admin_configuration_audit: {
+        Row: {
+          id: string;
+          administrator_id: string | null;
+          resource_type: string;
+          resource_id: string;
+          action: 'created' | 'updated' | 'enabled' | 'disabled' | 'deleted';
+          previous_value: Json | null;
+          new_value: Json | null;
+          created_at: string;
+        };
+        Insert: never;
+        Update: never;
       };
       property_features: {
         Row: {
