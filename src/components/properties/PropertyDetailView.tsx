@@ -33,7 +33,6 @@ import { PropertyCard } from './PropertyCard';
 import { PropertyMap } from './PropertyMap';
 import { verifyHoneypot, sanitizeHtml, auditService } from '../../lib/security';
 import { SwipeableImageGallery } from './SwipeableImageGallery';
-import { PropertyMortgageCalculator } from './PropertyMortgageCalculator';
 import { PropertyLeadContactForm } from './PropertyLeadContactForm';
 import { UserAvatar } from '../ui/UserAvatar';
 
@@ -569,9 +568,6 @@ export const PropertyDetailView: React.FC = () => {
                 </a>}
               </div>
             </div>
-
-            {/* Mortgage Simulator */}
-            <PropertyMortgageCalculator propertyPrice={property.price} />
 
           </div>
 
