@@ -148,6 +148,7 @@ export function HeroPropertyScene({ properties, onOpenProperty, getTypeLabel }: 
                 '--anchor-y': anchor.y,
                 '--pin-color': anchor.color,
                 '--slot': index,
+                '--mobile-x': `${((index + 0.5) / listings.length) * 100}%`,
                 '--arrival-delay': `${index * 2.4}s`,
               } as React.CSSProperties}
             >

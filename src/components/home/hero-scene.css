@@ -173,9 +173,49 @@
   .hero-property-scene[data-empty='true'] { display: none; }
 }
 @media (max-width: 639px) {
-  .portal-hero-composition { padding: 0 16px; }
-  .portal-hero-title { font-size: clamp(29px, 7.9vw, 43px); }
-  .portal-hero-subtitle { font-size: 15px; max-width: 360px; }
+  .portal-hero { padding: 26px 0 22px; }
+  .portal-hero-background { background: #10152b; }
+  .portal-hero-background img {
+    width: 100%;
+    height: auto;
+    max-height: none;
+    object-fit: contain;
+    object-position: center top;
+  }
+  .portal-hero-background::after {
+    background: linear-gradient(180deg, rgba(13,18,40,.42) 0%, rgba(13,18,40,.72) 38%, rgba(13,18,40,.96) 78%, #0d1228 100%);
+  }
+  .portal-hero-composition { padding: 0 16px; gap: 4px; }
+  .portal-hero-title { font-size: clamp(27px, 7.35vw, 36px); line-height: 1.08; }
+  .portal-hero-subtitle { margin-top: 12px; font-size: 13px; line-height: 1.55; max-width: 330px; }
+  .hero-property-scene { overflow: visible; }
+  .hero-property-stage { width: 100%; height: 226px; }
+  .hero-property-node,
+  .hero-property-node[data-prominent='true'] {
+    left: var(--mobile-x);
+    top: 190px;
+    width: 29%;
+  }
+  .hero-property-stage[data-count='1'] .hero-property-node { width: 54%; left: 50%; }
+  .hero-property-stage[data-count='2'] .hero-property-node { width: 43%; }
+  .hero-property-photo,
+  .hero-property-node[data-prominent='true'] .hero-property-photo { aspect-ratio: 1.48; }
+  .hero-property-info,
+  .hero-property-node[data-prominent='true'] .hero-property-info { padding: 7px 15px 8px 8px; }
+  .hero-property-type,
+  .hero-property-node[data-prominent='true'] .hero-property-type { font-size: 10px; }
+  .hero-property-location,
+  .hero-property-node[data-prominent='true'] .hero-property-location { font-size: 8px; margin-top: 1px; }
+  .hero-property-price,
+  .hero-property-node[data-prominent='true'] .hero-property-price { margin-top: 2px; font-size: 11px; }
+  .hero-property-price small { font-size: 7px; }
+  .hero-property-featured { top: 5px; left: 5px; gap: 2px; padding: 2px 5px; font-size: 7px; }
+  .hero-property-featured svg { width: 8px; height: 8px; }
+  .hero-property-card { border-radius: 12px; }
+  .hero-property-arrow { right: 3px; width: 12px; height: 12px; }
+  .hero-property-pin,
+  .hero-property-node[data-prominent='true'] .hero-property-pin { width: 19px; height: 27px; margin-top: 4px; }
+  .hero-pin-halo { width: 24px; height: 7px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .hero-route-light { display: none; }
