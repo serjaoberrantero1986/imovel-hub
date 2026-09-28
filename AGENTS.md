@@ -41,3 +41,8 @@
 - Todo texto visível deve estar em português do Brasil e ser compreensível para o usuário final. Não exibir nomes de tabelas, mensagens SQL, nomes internos de funções ou detalhes de infraestrutura.
 - Antes de criar uma experiência sem referência visual ou funcional suficiente no projeto, interromper o trabalho e solicitar orientação ao usuário.
 
+## 7. Dados de Teste Durante o Desenvolvimento
+- Registros que o usuário identificar explicitamente como dados de teste podem ser limpos durante a evolução do produto, desde que o alcance exato e os efeitos em relacionamentos sejam informados antes da exclusão.
+- Esta autorização não se estende automaticamente a contas, autenticação, documentos privados, leads, conversas ou quaisquer registros reais que não tenham sido identificados como testes.
+- Limpezas de catálogos devem preservar tabelas, políticas, auditoria e a capacidade de reconstruir os registros pelo painel administrativo.
+
