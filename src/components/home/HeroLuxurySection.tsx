@@ -34,7 +34,7 @@ const HERO_BACKGROUNDS = [
 ];
 
 export const HeroLuxurySection: React.FC = () => {
-  const { activeAmenities, activePropertyTypes, propertyTypesError } = useCatalog();
+  const { activeAmenities, activePropertyTypes, propertyTypesError, portalIdentity } = useCatalog();
   const { 
     properties, 
     filters, 
@@ -179,7 +179,7 @@ export const HeroLuxurySection: React.FC = () => {
         } as React.CSSProperties}
       >
         <img
-          src={background.src}
+          src={portalIdentity.heroImageUrl || background.src}
           alt=""
           width={background.width}
           height={background.height}

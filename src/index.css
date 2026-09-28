@@ -2,6 +2,28 @@
 
 @custom-variant dark (&:where(.dark, .dark *));
 
+:root {
+  --portal-primary: #e11d48;
+  --portal-secondary: #4f46e5;
+  --portal-accent: #d97706;
+}
+
+/* Administrative brand colors mapped over the existing design system. */
+.bg-rose-600 { background-color: var(--portal-primary) !important; }
+.text-rose-600 { color: var(--portal-primary) !important; }
+.border-rose-600 { border-color: var(--portal-primary) !important; }
+.accent-rose-500 { accent-color: var(--portal-primary) !important; }
+.from-rose-600 { --tw-gradient-from: var(--portal-primary) !important; }
+.to-rose-600 { --tw-gradient-to: var(--portal-primary) !important; }
+.bg-indigo-600 { background-color: var(--portal-secondary) !important; }
+.text-indigo-600 { color: var(--portal-secondary) !important; }
+.from-indigo-600 { --tw-gradient-from: var(--portal-secondary) !important; }
+.to-indigo-600 { --tw-gradient-to: var(--portal-secondary) !important; }
+.bg-amber-600 { background-color: var(--portal-accent) !important; }
+.text-amber-600 { color: var(--portal-accent) !important; }
+.from-amber-600 { --tw-gradient-from: var(--portal-accent) !important; }
+.to-amber-600 { --tw-gradient-to: var(--portal-accent) !important; }
+
 /* Width participates in the right-aligned navbar layout, pushing its neighbours
    left instead of covering them. Touch devices keep the compact clickable key. */
 .guest-key-login {

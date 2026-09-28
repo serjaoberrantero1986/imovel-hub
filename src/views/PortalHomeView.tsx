@@ -396,7 +396,7 @@ export const PortalHomeView: React.FC = () => {
               <Award className="w-6 h-6" />
             </div>
             <h3 className="text-base font-bold text-slate-900 dark:text-white font-['Outfit']">
-              Fotos em Alta Resolução & Tour
+              Fotos em Alta Resolução & Tour em Vídeo
             </h3>
             <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
               Apresentação impecável com galerias otimizadas para mobile e desktop, gerando até 3x mais contatos qualificados por anúncio.

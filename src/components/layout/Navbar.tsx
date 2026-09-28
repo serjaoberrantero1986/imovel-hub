@@ -17,7 +17,7 @@ import {
   RefreshCw,
   ShieldCheck
 } from 'lucide-react';
-import { useApp } from '../../context/AppContext';
+import { useApp, useCatalog } from '../../context/AppContext';
 import { UserMenu } from './UserMenu';
 import { Button } from '../ui/Button';
 import { formatCurrency } from '../../lib/utils';
@@ -25,6 +25,7 @@ import { SupabaseSqlModal } from '../modals/SupabaseSqlModal';
 import { useAdminCreciNotifications } from '../../hooks/useAdminCreciNotifications';
 
 export const Navbar: React.FC = () => {
+  const { portalIdentity } = useCatalog();
   const { 
     currentUser,
     isAuthenticated,
@@ -109,17 +110,15 @@ export const Navbar: React.FC = () => {
               onClick={() => handleNavigate('portal')}
               className="flex items-center gap-3 group text-left focus:outline-none cursor-pointer"
             >
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-amber-600 via-rose-600 to-indigo-600 flex items-center justify-center text-white shadow-md shadow-rose-500/20 group-hover:scale-105 transition-transform duration-200">
-                <Building2 className="w-6 h-6 stroke-[2.2]" />
-              </div>
+              {portalIdentity.logoUrl ? <img src={portalIdentity.logoUrl} alt={`Logotipo ${portalIdentity.portalName}`} className="w-10 h-10 rounded-xl object-contain group-hover:scale-105 transition-transform duration-200" /> : <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white shadow-md group-hover:scale-105 transition-transform duration-200" style={{background:`linear-gradient(135deg,${portalIdentity.accentColor},${portalIdentity.primaryColor},${portalIdentity.secondaryColor})`}}><Building2 className="w-6 h-6 stroke-[2.2]" /></div>}
               <div className="hidden sm:block">
                 <div className="flex items-center gap-1.5">
                   <span className="font-extrabold text-xl tracking-tight text-slate-900 dark:text-white font-['Outfit']">
-                    Web <span className="text-rose-600 dark:text-rose-500">Imóvel</span>
+                    {portalIdentity.portalName}
                   </span>
                 </div>
                 <span className="text-[11px] text-slate-500 dark:text-slate-400 font-medium hidden md:block">
-                  Classificados & Gestão Imobiliária
+                  {portalIdentity.slogan}
                 </span>
               </div>
             </button>
