@@ -188,7 +188,7 @@
   .portal-hero-composition { padding: 0 16px; gap: 4px; }
   .portal-hero-title { font-size: clamp(27px, 7.35vw, 36px); line-height: 1.08; }
   .portal-hero-subtitle { margin-top: 12px; font-size: 13px; line-height: 1.55; max-width: 330px; }
-  .hero-property-scene { overflow: visible; }
+  .hero-property-scene { display: none; }
   .hero-property-stage { width: 100%; height: 226px; }
   .hero-property-node,
   .hero-property-node[data-prominent='true'] {
