@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { 
-  ShieldCheck, 
   FileText, 
   Scale, 
   AlertTriangle, 
@@ -50,21 +49,18 @@ export const InstitutionalLegalView: React.FC<InstitutionalLegalViewProps> = ({ 
           </div>
         </div>
 
-        {/* Hero Header */}
-        <div className="bg-gradient-to-br from-slate-900 via-slate-900 to-indigo-950 rounded-3xl p-8 sm:p-12 text-white shadow-xl relative overflow-hidden mb-10">
-          <div className="absolute inset-0 bg-[radial-gradient(#ffffff0a_1px,transparent_1px)] [background-size:20px_20px] pointer-events-none opacity-50" />
-          <div className="relative z-10 max-w-3xl space-y-3">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-rose-500/20 border border-rose-500/30 text-rose-300 text-xs font-bold">
-              <ShieldCheck className="w-3.5 h-3.5" />
-              <span>Central Jurídica, Transparência & Segurança</span>
-            </div>
-            <h1 className="text-3xl sm:text-4xl font-extrabold font-['Outfit'] tracking-tight">
-              Termos Legais e Proteção ao Usuário
-            </h1>
-            <p className="text-sm sm:text-base text-slate-300 leading-relaxed">
-              O Web Imóvel Brasil atua com total rigor ético e em estrita conformidade com a Lei Geral de Proteção de Dados (LGPD), Marco Civil da Internet e Código de Defesa do Consumidor.
-            </p>
+        {/* Page Header */}
+        <div className="mb-10 max-w-4xl">
+          <div className="flex items-center gap-2">
+            <span className="px-2.5 py-0.5 rounded bg-rose-100 dark:bg-rose-950 text-rose-700 dark:text-rose-300 text-xs font-extrabold uppercase">Central Jurídica</span>
+            <span className="text-xs text-slate-400 font-medium">Transparência e segurança</span>
           </div>
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white font-['Outfit'] mt-1">
+            Termos Legais e Proteção ao Usuário
+          </h1>
+          <p className="text-xs sm:text-sm text-slate-500 leading-relaxed">
+            O Web Imóvel Brasil atua com total rigor ético e em estrita conformidade com a Lei Geral de Proteção de Dados (LGPD), Marco Civil da Internet e Código de Defesa do Consumidor.
+          </p>
         </div>
 
         {/* Grid Layout: Tabs Sidebar + Document Content */}

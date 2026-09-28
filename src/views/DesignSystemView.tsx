@@ -41,22 +41,22 @@ export const DesignSystemView: React.FC = () => {
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 py-8 px-4 sm:px-6 lg:px-8 transition-colors duration-200">
       <div className="max-w-7xl mx-auto space-y-8">
         
-        {/* Header Hero */}
-        <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-950 rounded-3xl p-6 sm:p-10 text-white shadow-xl border border-slate-700/50 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-          <div className="space-y-2">
+        {/* Page Header */}
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <div>
             <div className="flex items-center gap-2">
-              <span className="px-3 py-1 rounded-full text-xs font-bold bg-rose-600/90 text-white">
+              <span className="px-2.5 py-0.5 rounded bg-rose-100 dark:bg-rose-950 text-rose-700 dark:text-rose-300 text-xs font-extrabold uppercase">
                 Design System v2.0
               </span>
-              <span className="text-xs text-amber-300 font-semibold flex items-center gap-1">
+              <span className="text-xs text-slate-400 font-medium flex items-center gap-1">
                 <Sparkles className="w-3.5 h-3.5" />
                 Web Imóvel Architecture
               </span>
             </div>
-            <h1 className="text-2xl sm:text-4xl font-extrabold tracking-tight font-['Outfit']">
+            <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white font-['Outfit'] mt-1">
               Guia Completo de Componentes & Tokens
             </h1>
-            <p className="text-sm text-slate-300 max-w-2xl">
+            <p className="text-xs sm:text-sm text-slate-500 max-w-2xl">
               Sistema de design moderno, modular e responsivo construído especialmente para marketplaces e CRMs imobiliários de alto padrão.
             </p>
           </div>
@@ -65,7 +65,6 @@ export const DesignSystemView: React.FC = () => {
             <Button
               variant="outline"
               size="sm"
-              className="text-white border-slate-600 hover:bg-slate-800"
               onClick={toggleTheme}
             >
               Tema: {theme === 'dark' ? '🌙 Modo Escuro' : '☀️ Modo Claro'}

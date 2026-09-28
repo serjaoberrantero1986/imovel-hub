@@ -46,3 +46,8 @@
 - Esta autorização não se estende automaticamente a contas, autenticação, documentos privados, leads, conversas ou quaisquer registros reais que não tenham sido identificados como testes.
 - Limpezas de catálogos devem preservar tabelas, políticas, auditoria e a capacidade de reconstruir os registros pelo painel administrativo.
 
+## 8. Cabeçalhos de Página
+- A seção superior de título de todas as páginas deve seguir o padrão visual do cabeçalho de “Imóveis Favoritados”: área sem fundo próprio, sem faixa, card ou gradiente envolvendo o texto; etiqueta contextual pequena, título escuro, descrição discreta e ações alinhadas à direita quando existirem.
+- Fundos, bordas e sombras permanecem permitidos em botões, indicadores e conteúdos abaixo do cabeçalho, mas não no contêiner do título da página.
+- Novas páginas devem reutilizar esse padrão. Qualquer exceção visual precisa ser apresentada e confirmada pelo usuário antes da implementação.
+

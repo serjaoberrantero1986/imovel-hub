@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Award, CalendarDays, CheckCircle2, ChevronRight, FileCheck, FileText, Image as ImageIcon, Loader2, Mail, ShieldAlert, ShieldCheck, UserRoundCheck, XCircle } from 'lucide-react';
+import { Award, CalendarDays, CheckCircle2, ChevronRight, FileCheck, FileText, Image as ImageIcon, Loader2, Mail, ShieldAlert, UserRoundCheck, XCircle } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { UserAvatar } from '../components/ui/UserAvatar';
 import { createCreciDocumentUrl, listPendingCreciReviews, PendingCreciReview, CreciDocument, reviewCreciRequest } from '../lib/creciDocuments';
@@ -99,17 +99,24 @@ export const AdminCreciReviewView: React.FC = () => {
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 py-8 px-4 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto space-y-6">
-        <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-950 via-indigo-950 to-rose-950 p-6 sm:p-8 text-white shadow-xl">
-          <div className="absolute -right-20 -top-24 w-80 h-80 rounded-full bg-rose-500/20 blur-3xl" />
-          <div className="relative flex flex-col sm:flex-row sm:items-center justify-between gap-5">
-            <div className="flex items-start gap-4"><div className="w-14 h-14 rounded-2xl bg-white/10 border border-white/15 flex items-center justify-center"><ShieldCheck className="w-7 h-7 text-rose-300" /></div><div><p className="text-[11px] font-bold uppercase tracking-[0.18em] text-rose-300">Administração</p><h1 className="text-2xl sm:text-3xl font-black font-['Outfit']">Análises de CRECI</h1><p className="text-sm text-slate-300 mt-1">Confira documentos privados e registre decisões auditadas.</p></div></div>
-            <div className="rounded-2xl bg-white/10 border border-white/15 px-5 py-3 backdrop-blur-sm"><p className="text-[10px] uppercase font-bold tracking-wider text-slate-300">Aguardando análise</p><p className="text-3xl font-black text-white">{reviews.length}</p></div>
+        <section className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="px-2.5 py-0.5 rounded bg-rose-100 dark:bg-rose-950 text-rose-700 dark:text-rose-300 text-xs font-extrabold uppercase">Administração</span>
+              <span className="text-xs text-slate-400 font-medium">Validação profissional</span>
+            </div>
+            <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white font-['Outfit'] mt-1">Análises de CRECI</h1>
+            <p className="text-xs sm:text-sm text-slate-500">Confira documentos privados e registre decisões auditadas.</p>
+          </div>
+          <div className="rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 px-5 py-3 shadow-sm">
+            <p className="text-[10px] uppercase font-bold tracking-wider text-slate-400">Aguardando análise</p>
+            <p className="text-2xl font-black text-slate-900 dark:text-white">{reviews.length}</p>
           </div>
         </section>
 
         <div className="grid lg:grid-cols-[350px_minmax(0,1fr)] gap-5 items-start">
           <aside className="rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
-            <div className="p-5 border-b border-slate-100 dark:border-slate-800"><h2 className="font-extrabold text-slate-900 dark:text-white">Solicitações pendentes</h2><p className="text-xs text-slate-500 mt-1">Atualização automática a cada 30 segundos</p></div>
+            <div className="p-5 border-b border-slate-100 dark:border-slate-800"><h2 className="font-extrabold text-slate-900 dark:text-white">Solicitações pendentes</h2><p className="text-xs text-slate-500 mt-1">Atualização automática em segundo plano</p></div>
             {loading && reviews.length === 0 ? <div className="p-10 flex justify-center"><Loader2 className="w-6 h-6 animate-spin text-rose-500" /></div> : reviews.length === 0 ? <div className="p-10 text-center"><UserRoundCheck className="w-10 h-10 mx-auto text-emerald-400 mb-3" /><p className="text-sm font-bold text-slate-700 dark:text-slate-200">Tudo em dia</p><p className="text-xs text-slate-500 mt-1">Não há solicitações aguardando análise.</p></div> : reviews.map(review => (
               <button key={review.profileId} onClick={() => setSelectedId(review.profileId)} className={`w-full p-4 border-b border-slate-100 dark:border-slate-800 text-left flex items-center gap-3 transition-colors ${selectedId === review.profileId ? 'bg-rose-50 dark:bg-rose-950/25' : 'hover:bg-slate-50 dark:hover:bg-slate-800/60'}`}><UserAvatar name={review.name} className="w-11 h-11 rounded-xl shrink-0" /><div className="min-w-0 flex-1"><p className="font-bold text-sm text-slate-900 dark:text-white truncate">{review.name}</p><p className="text-xs text-slate-500 truncate">CRECI {review.creci}/{review.creciUf}</p><p className="text-[10px] text-slate-400 mt-1">{formatDate(review.requestedAt)}</p></div><ChevronRight className={`w-4 h-4 shrink-0 ${selectedId === review.profileId ? 'text-rose-600' : 'text-slate-300'}`} /></button>
             ))}
