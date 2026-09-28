@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { listPendingCreciReviews } from '../lib/creciDocuments';
 
-const POLL_INTERVAL_MS = 30_000;
+const POLL_INTERVAL_MS = 5 * 60_000;
 
 const playAdministrativeAlert = () => {
   try {
@@ -34,6 +34,9 @@ export const useAdminCreciNotifications = (enabled: boolean) => {
     if (previousCount.current !== null && nextCount > previousCount.current) {
       playAdministrativeAlert();
     }
+    if (previousCount.current !== null && nextCount !== previousCount.current) {
+      window.dispatchEvent(new Event('creci-review-queue-changed'));
+    }
     previousCount.current = nextCount;
     setPendingCount(nextCount);
     return nextCount;
@@ -51,10 +54,15 @@ export const useAdminCreciNotifications = (enabled: boolean) => {
       void refreshPendingCount().catch(() => undefined);
     }, POLL_INTERVAL_MS);
     const handleQueueChange = () => void refreshPendingCount().catch(() => undefined);
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') void refreshPendingCount().catch(() => undefined);
+    };
     window.addEventListener('creci-review-updated', handleQueueChange);
+    document.addEventListener('visibilitychange', handleVisibility);
     return () => {
       window.clearInterval(timer);
       window.removeEventListener('creci-review-updated', handleQueueChange);
+      document.removeEventListener('visibilitychange', handleVisibility);
     };
   }, [enabled, refreshPendingCount]);
 

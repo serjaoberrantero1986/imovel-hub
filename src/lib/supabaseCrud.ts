@@ -613,7 +613,8 @@ export async function fetchLeadsFromSupabase(): Promise<Lead[] | null> {
     const { data: dbLeads, error } = await supabase
       .from('leads')
       .select(`
-        *,
+        id, property_id, advertiser_id, buyer_id, name, email, phone, message,
+        origin, status, contact_key, created_at, updated_at,
         properties (id, title, code, price, property_images (url, is_cover)),
         lead_crm (meta),
         lead_contact_events (id, property_id, conversation_id, message, origin, created_at)
@@ -804,9 +805,13 @@ export async function fetchConversationsFromSupabase(userId: string): Promise<Co
     const { data: dbConversations, error } = await supabase
       .from('conversations')
       .select(`
-        *,
+        id, property_id, buyer_id, advertiser_id, last_message_text, last_message_at,
+        buyer_unread_count, advertiser_unread_count,
+        is_archived_buyer, is_archived_advertiser,
+        is_deleted_buyer, is_deleted_advertiser,
+        deleted_at_buyer, deleted_at_advertiser,
         properties (id, title, price, property_images (url, is_cover)),
-        messages (*)
+        messages (id, conversation_id, sender_id, content, created_at, read_at)
       `)
       .or(`buyer_id.eq.${userId},advertiser_id.eq.${userId}`)
       .order('last_message_at', { ascending: false });
@@ -830,7 +835,7 @@ export async function fetchConversationsFromSupabase(userId: string): Promise<Co
       try {
         const { data: profiles } = await supabase
           .from('profiles')
-          .select('*')
+          .select('id, name, email, role, avatar_url, verified, agency_name')
           .in('id', Array.from(profileIds));
         (profiles || []).forEach((p: any) => {
           profilesMap[p.id] = p;
@@ -842,7 +847,7 @@ export async function fetchConversationsFromSupabase(userId: string): Promise<Co
 
     if (dbConversations && dbConversations.length > 0) {
       for (const c of dbConversations) {
-        const prop = c.properties;
+        const prop: any = Array.isArray(c.properties) ? c.properties[0] : c.properties;
         const isLeadPortalConv = c.buyer_id === c.advertiser_id;
         const isUserBuyer = isLeadPortalConv ? false : (c.buyer_id === userId);
         const otherUserId = isUserBuyer ? c.advertiser_id : c.buyer_id;

@@ -7,7 +7,7 @@ import {
   deleteLeadFromSupabase,
   updateLeadMetadataInSupabase
 } from '../lib/supabaseCrud';
-import { isSupabaseConfigured } from '../lib/supabaseClient';
+import { isSupabaseConfigured, supabase } from '../lib/supabaseClient';
 import { Toast } from './appTypes';
 import { UserProfile } from '../types';
 
@@ -43,6 +43,7 @@ export const CrmProvider: React.FC<{
   addToast: (toast: Omit<Toast, 'id'>) => void;
 }> = ({ children, currentUser, properties, setProperties, addToast }) => {
   const [leads, setLeads] = useState<Lead[]>([]);
+  const canAccessCrm = currentUser.role === 'admin' || currentUser.role === 'broker' || currentUser.role === 'agency';
 
   // Track leads viewed by the current user to compute accurate unread counts
   const [viewedLeadIds, setViewedLeadIds] = useState<string[]>(() => {
@@ -119,18 +120,38 @@ export const CrmProvider: React.FC<{
     }
   }, []);
 
-  // Initial load from Supabase and periodic polling
+  // Realtime keeps the CRM current. A five-minute refresh is retained only as
+  // a recovery path when a browser misses a live event.
   useEffect(() => {
-    if (isSupabaseConfigured) {
-      refreshLeads();
+    if (isSupabaseConfigured && canAccessCrm) {
+      void refreshLeads();
 
-      const timer = setInterval(() => {
-        refreshLeads();
-      }, 12000);
+      let refreshTimer: number | undefined;
+      const scheduleRefresh = () => {
+        if (refreshTimer !== undefined) window.clearTimeout(refreshTimer);
+        refreshTimer = window.setTimeout(() => void refreshLeads(), 350);
+      };
 
-      return () => clearInterval(timer);
+      const timer = window.setInterval(() => void refreshLeads(), 5 * 60 * 1000);
+      const channel = supabase?.channel(`crm-leads-${currentUser?.id || 'guest'}`)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'leads' }, scheduleRefresh)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'lead_crm' }, scheduleRefresh)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'lead_contact_events' }, scheduleRefresh)
+        .subscribe();
+      const handleVisibility = () => {
+        if (document.visibilityState === 'visible') scheduleRefresh();
+      };
+      document.addEventListener('visibilitychange', handleVisibility);
+
+      return () => {
+        window.clearInterval(timer);
+        if (refreshTimer !== undefined) window.clearTimeout(refreshTimer);
+        if (channel) void supabase?.removeChannel(channel);
+        document.removeEventListener('visibilitychange', handleVisibility);
+      };
     }
-  }, [refreshLeads, currentUser?.id]);
+    setLeads([]);
+  }, [canAccessCrm, refreshLeads, currentUser?.id]);
 
   const addLead = async (leadData: Omit<Lead, 'id' | 'createdAt' | 'updatedAt'>): Promise<{ success: boolean; error?: string }> => {
     if (!isSupabaseConfigured) {

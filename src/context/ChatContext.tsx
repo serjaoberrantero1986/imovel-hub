@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
 import { Conversation, Property } from '../types';
 import { 
   fetchConversationsFromSupabase,
@@ -104,38 +104,7 @@ export const ChatProvider: React.FC<{
 
   };
 
-  // Sync state when user switches or logs in/out, and listen to lead events & periodic polling
-  useEffect(() => {
-    if (isAuthenticated && currentUser.id !== 'guest_buyer') {
-      setConversations([]);
-      refreshConversations();
-
-      // Keep a short polling fallback for browsers that do not receive Realtime events.
-      const pollTimer = setInterval(() => {
-        refreshConversations();
-      }, 5000);
-      const channel = supabase?.channel(`messages-${currentUser.id}`)
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'messages' }, refreshConversations)
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'conversations' }, refreshConversations)
-        .subscribe();
-
-      const handleLeadEvent = () => {
-        refreshConversations();
-      };
-      window.addEventListener('imovelhub_lead_submitted', handleLeadEvent);
-
-      return () => {
-        clearInterval(pollTimer);
-        if (channel) void supabase?.removeChannel(channel);
-        window.removeEventListener('imovelhub_lead_submitted', handleLeadEvent);
-      };
-    } else {
-      setConversations([]);
-      setActiveConversationId(null);
-    }
-  }, [currentUser.id, isAuthenticated]);
-
-  const refreshConversations = async () => {
+  const refreshConversations = useCallback(async () => {
     if (!isSupabaseConfigured || !isAuthenticated || currentUser.id === 'guest_buyer') return;
     if (sessionUserId.current !== currentUser.id) return;
     const version = ++refreshVersion.current;
@@ -147,7 +116,46 @@ export const ChatProvider: React.FC<{
     } catch (e) {
       console.warn('Error fetching conversations from Supabase:', e);
     }
-  };
+  }, [currentUser.id, isAuthenticated]);
+
+  // Realtime is the primary synchronisation mechanism. The long interval is
+  // only a safety net for browsers that temporarily lose the live connection.
+  useEffect(() => {
+    if (isAuthenticated && currentUser.id !== 'guest_buyer') {
+      setConversations([]);
+      void refreshConversations();
+
+      let refreshTimer: number | undefined;
+      const scheduleRefresh = () => {
+        if (refreshTimer !== undefined) window.clearTimeout(refreshTimer);
+        refreshTimer = window.setTimeout(() => void refreshConversations(), 350);
+      };
+
+      const pollTimer = window.setInterval(() => void refreshConversations(), 5 * 60 * 1000);
+      const channel = supabase?.channel(`messages-${currentUser.id}`)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'messages' }, scheduleRefresh)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'conversations' }, scheduleRefresh)
+        .subscribe();
+
+      const handleLeadEvent = scheduleRefresh;
+      const handleVisibility = () => {
+        if (document.visibilityState === 'visible') scheduleRefresh();
+      };
+      window.addEventListener('imovelhub_lead_submitted', handleLeadEvent);
+      document.addEventListener('visibilitychange', handleVisibility);
+
+      return () => {
+        window.clearInterval(pollTimer);
+        if (refreshTimer !== undefined) window.clearTimeout(refreshTimer);
+        if (channel) void supabase?.removeChannel(channel);
+        window.removeEventListener('imovelhub_lead_submitted', handleLeadEvent);
+        document.removeEventListener('visibilitychange', handleVisibility);
+      };
+    } else {
+      setConversations([]);
+      setActiveConversationId(null);
+    }
+  }, [currentUser.id, isAuthenticated, refreshConversations]);
 
   const sendMessage = async (conversationId: string, text: string) => {
     if (!text.trim()) return;

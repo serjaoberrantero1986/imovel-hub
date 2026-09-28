@@ -4,7 +4,6 @@ import { useApp } from '../context/AppContext';
 import { UserAvatar } from '../components/ui/UserAvatar';
 import { createCreciDocumentUrl, listPendingCreciReviews, PendingCreciReview, CreciDocument, reviewCreciRequest } from '../lib/creciDocuments';
 
-const REFRESH_INTERVAL_MS = 30_000;
 const formatDate = (value?: string) => value ? new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(value)) : 'Data não informada';
 
 export const AdminCreciReviewView: React.FC = () => {
@@ -38,8 +37,16 @@ export const AdminCreciReviewView: React.FC = () => {
   useEffect(() => {
     if (currentUser.role !== 'admin') return;
     void load(true);
-    const timer = window.setInterval(() => void load(false), REFRESH_INTERVAL_MS);
-    return () => window.clearInterval(timer);
+    const handleQueueChange = () => void load(false);
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') void load(false);
+    };
+    window.addEventListener('creci-review-queue-changed', handleQueueChange);
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => {
+      window.removeEventListener('creci-review-queue-changed', handleQueueChange);
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
   }, [currentUser.role, load]);
 
   useEffect(() => {
