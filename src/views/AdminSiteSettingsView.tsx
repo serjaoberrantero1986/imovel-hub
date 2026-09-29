@@ -6,6 +6,7 @@ import { AdminPropertyTypesPanel } from '../components/admin/AdminPropertyTypesP
 import { AdminCatalogSection } from '../components/admin/AdminCatalogSection';
 import { AdminFooterSettingsPanel } from '../components/admin/AdminFooterSettingsPanel';
 import { AdminPortalIdentityPanel } from '../components/admin/AdminPortalIdentityPanel';
+import { AdminHomePagePanel } from '../components/admin/AdminHomePagePanel';
 import { Switch } from '../components/ui/Switch';
 import { CATALOG_ICON_OPTIONS } from '../lib/iconOptions';
 
@@ -30,7 +31,7 @@ export const AdminSiteSettingsView: React.FC = () => {
   const [modalOpen, setModalOpen] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
-  const [openCatalog, setOpenCatalog] = useState<'amenities' | 'propertyTypes' | 'footer' | 'identity' | null>('amenities');
+  const [openCatalog, setOpenCatalog] = useState<'amenities' | 'propertyTypes' | 'footer' | 'identity' | 'homePage' | null>('amenities');
   const [dragAmenityId, setDragAmenityId] = useState<string | null>(null);
 
   const filtered = useMemo(() => amenities.filter(item =>
@@ -107,6 +108,7 @@ export const AdminSiteSettingsView: React.FC = () => {
     </AdminCatalogSection>
     <AdminPropertyTypesPanel open={openCatalog==='propertyTypes'} onToggle={()=>setOpenCatalog(current=>current==='propertyTypes'?null:'propertyTypes')} />
     <AdminPortalIdentityPanel open={openCatalog==='identity'} onToggle={()=>setOpenCatalog(current=>current==='identity'?null:'identity')} />
+    <AdminHomePagePanel open={openCatalog==='homePage'} onToggle={()=>setOpenCatalog(current=>current==='homePage'?null:'homePage')} />
     <AdminFooterSettingsPanel open={openCatalog==='footer'} onToggle={()=>setOpenCatalog(current=>current==='footer'?null:'footer')} />
   </div>
 

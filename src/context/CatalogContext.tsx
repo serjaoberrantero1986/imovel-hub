@@ -2,7 +2,7 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useS
 import { AmenityCatalogItem, fetchAmenitiesCatalog } from '../lib/amenitiesCatalog';
 import { fetchPropertyTypesCatalog, PropertyTypeCatalogItem } from '../lib/propertyTypesCatalog';
 import { supabase } from '../lib/supabaseClient';
-import { DEFAULT_FOOTER_SETTINGS, DEFAULT_PORTAL_IDENTITY, fetchFooterSettings, fetchPortalIdentity, FooterSettings, PortalIdentitySettings } from '../lib/portalSettings';
+import { DEFAULT_FOOTER_SETTINGS, DEFAULT_HOME_PAGE_SETTINGS, DEFAULT_PORTAL_IDENTITY, fetchFooterSettings, fetchHomePageSettings, fetchPortalIdentity, FooterSettings, HomePageSettings, PortalIdentitySettings } from '../lib/portalSettings';
 
 interface CatalogContextType {
   amenities: AmenityCatalogItem[];
@@ -21,6 +21,8 @@ interface CatalogContextType {
   refreshFooterSettings: () => Promise<void>;
   portalIdentity: PortalIdentitySettings;
   refreshPortalIdentity: () => Promise<void>;
+  homePageSettings: HomePageSettings;
+  refreshHomePageSettings: () => Promise<void>;
 }
 
 const CatalogContext = createContext<CatalogContextType | undefined>(undefined);
@@ -36,6 +38,7 @@ export const CatalogProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [loadingFooterSettings, setLoadingFooterSettings] = useState(true);
   const [footerSettingsError, setFooterSettingsError] = useState<string | null>(null);
   const [portalIdentity, setPortalIdentity] = useState(DEFAULT_PORTAL_IDENTITY);
+  const [homePageSettings, setHomePageSettings] = useState(DEFAULT_HOME_PAGE_SETTINGS);
 
   const refreshAmenities = useCallback(async () => {
     setLoadingAmenities(true);
@@ -66,12 +69,14 @@ export const CatalogProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const refreshPortalIdentity = useCallback(async () => {
     try { setPortalIdentity(await fetchPortalIdentity()); } catch { setPortalIdentity(DEFAULT_PORTAL_IDENTITY); }
   }, []);
+  const refreshHomePageSettings = useCallback(async()=>{try{setHomePageSettings(await fetchHomePageSettings());}catch{setHomePageSettings(DEFAULT_HOME_PAGE_SETTINGS);}},[]);
 
   useEffect(() => {
     void refreshAmenities();
     void refreshPropertyTypes();
     void refreshFooterSettings();
     void refreshPortalIdentity();
+    void refreshHomePageSettings();
     if (!supabase) return;
     const channel = supabase.channel('features-catalog-updates')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'features' }, () => void refreshAmenities())
@@ -80,13 +85,14 @@ export const CatalogProvider: React.FC<{ children: React.ReactNode }> = ({ child
       .on('postgres_changes', { event: '*', schema: 'public', table: 'property_types_catalog' }, () => void refreshPropertyTypes())
       .subscribe();
     const portalSettingsChannel = supabase.channel('portal-settings-updates')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'portal_settings' }, () => { void refreshFooterSettings(); void refreshPortalIdentity(); })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'portal_settings' }, () => { void refreshFooterSettings(); void refreshPortalIdentity(); void refreshHomePageSettings(); })
       .subscribe();
     const { data: authListener } = supabase.auth.onAuthStateChange(() => {
       window.setTimeout(() => void refreshAmenities(), 0);
       window.setTimeout(() => void refreshPropertyTypes(), 0);
       window.setTimeout(() => void refreshFooterSettings(), 0);
       window.setTimeout(() => void refreshPortalIdentity(), 0);
+      window.setTimeout(() => void refreshHomePageSettings(), 0);
     });
     return () => {
       authListener.subscription.unsubscribe();
@@ -94,7 +100,7 @@ export const CatalogProvider: React.FC<{ children: React.ReactNode }> = ({ child
       void supabase.removeChannel(propertyTypesChannel);
       void supabase.removeChannel(portalSettingsChannel);
     };
-  }, [refreshAmenities, refreshPropertyTypes, refreshFooterSettings, refreshPortalIdentity]);
+  }, [refreshAmenities, refreshPropertyTypes, refreshFooterSettings, refreshPortalIdentity, refreshHomePageSettings]);
 
   const activeAmenities = useMemo(() => amenities.filter(item => item.isActive), [amenities]);
   const activePropertyTypes = useMemo(() => propertyTypes.filter(item => item.isActive), [propertyTypes]);
@@ -113,7 +119,7 @@ export const CatalogProvider: React.FC<{ children: React.ReactNode }> = ({ child
       share.content = portalIdentity.shareImageUrl;
     } else if (share) share.remove();
   }, [portalIdentity]);
-  return <CatalogContext.Provider value={{ amenities, activeAmenities, loadingAmenities, amenitiesError, refreshAmenities, propertyTypes, activePropertyTypes, loadingPropertyTypes, propertyTypesError, refreshPropertyTypes, footerSettings, loadingFooterSettings, footerSettingsError, refreshFooterSettings, portalIdentity, refreshPortalIdentity }}>{children}</CatalogContext.Provider>;
+  return <CatalogContext.Provider value={{ amenities, activeAmenities, loadingAmenities, amenitiesError, refreshAmenities, propertyTypes, activePropertyTypes, loadingPropertyTypes, propertyTypesError, refreshPropertyTypes, footerSettings, loadingFooterSettings, footerSettingsError, refreshFooterSettings, portalIdentity, refreshPortalIdentity, homePageSettings, refreshHomePageSettings }}>{children}</CatalogContext.Provider>;
 };
 
 export const useCatalog = () => {

@@ -34,7 +34,7 @@ const HERO_BACKGROUNDS = [
 ];
 
 export const HeroLuxurySection: React.FC = () => {
-  const { activeAmenities, activePropertyTypes, propertyTypesError, portalIdentity } = useCatalog();
+  const { activeAmenities, activePropertyTypes, propertyTypesError, portalIdentity, homePageSettings } = useCatalog();
   const { 
     properties, 
     filters, 
@@ -194,12 +194,12 @@ export const HeroLuxurySection: React.FC = () => {
       <div className="portal-hero-composition">
         <div className="portal-hero-copy">
           <h1 className="portal-hero-title">
-            <span>Seu próximo imóvel</span>
-            <span className="portal-hero-title-accent">está mais perto do que</span>
-            <span className="portal-hero-title-accent">você imagina.</span>
+            <span>{homePageSettings.heroLine1}</span>
+            <span className="portal-hero-title-accent">{homePageSettings.heroLine2}</span>
+            <span className="portal-hero-title-accent">{homePageSettings.heroLine3}</span>
           </h1>
           <p className="portal-hero-subtitle">
-            Encontre imóveis para comprar, alugar ou investir em poucos cliques.
+            {homePageSettings.heroSubtitle}
           </p>
         </div>
         <HeroPropertyScene

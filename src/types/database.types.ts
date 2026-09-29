@@ -377,6 +377,7 @@ export interface Database {
           owner_profile_id: string | null;
           footer: Json;
           identity: Json;
+          home_page: Json;
           created_at: string;
           updated_at: string;
         };
@@ -385,6 +386,7 @@ export interface Database {
           owner_profile_id?: string | null;
           footer?: Json;
           identity?: Json;
+          home_page?: Json;
           created_at?: string;
           updated_at?: string;
         };

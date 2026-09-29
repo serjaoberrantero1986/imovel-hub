@@ -17,7 +17,7 @@ import {
   RotateCcw,
   SearchX
 } from 'lucide-react';
-import { useApp } from '../context/AppContext';
+import { useApp, useCatalog } from '../context/AppContext';
 import { PropertyCard } from '../components/properties/PropertyCard';
 import { PropertyFilterBar } from '../components/properties/PropertyFilterBar';
 import { HeroLuxurySection } from '../components/home/HeroLuxurySection';
@@ -26,6 +26,7 @@ import { PropertyCardSkeleton } from '../components/ui/Skeleton';
 import { filterProperties, hasActiveFilters } from '../lib/propertyFilters';
 
 export const PortalHomeView: React.FC = () => {
+  const { homePageSettings } = useCatalog();
   const { 
     properties, 
     setCurrentView, 
@@ -43,6 +44,10 @@ export const PortalHomeView: React.FC = () => {
 
   const [hoveredMapPropId, setHoveredMapPropId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const homeIcons: Record<string, React.ComponentType<{className?:string}>> = { ShieldCheck, TrendingUp, Award, Sparkles, Home, MapPin, Building2 };
+  const infoCards = [...homePageSettings.infoCards].filter(item=>item.isActive).sort((a,b)=>a.displayOrder-b.displayOrder);
+  const now = new Date();
+  const banners = [...homePageSettings.banners].filter(item=>item.isActive&&(!item.startsAt||new Date(item.startsAt)<=now)&&(!item.endsAt||new Date(item.endsAt)>=now)).sort((a,b)=>a.displayOrder-b.displayOrder);
 
   // Check if user has applied any search or filter
   const isFiltering = useMemo(() => hasActiveFilters(filters), [filters]);
@@ -356,87 +361,9 @@ export const PortalHomeView: React.FC = () => {
           </div>
         </section>
 
-        {/* Section: Por que anunciar no Web Imóvel */}
-        <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div 
-            onClick={() => openLegalPage('security')}
-            className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-3 shadow-sm hover:border-rose-400 dark:hover:border-rose-600 transition-all cursor-pointer group"
-          >
-            <div className="flex items-center justify-between">
-              <div className="w-12 h-12 rounded-2xl bg-rose-50 dark:bg-rose-950/60 text-rose-600 flex items-center justify-center transition-transform group-hover:scale-110">
-                <ShieldCheck className="w-6 h-6" />
-              </div>
-              <span className="text-[11px] font-bold text-rose-600 dark:text-rose-400 group-hover:underline flex items-center gap-1">
-                <span>Ver Dicas</span>
-                <ChevronRight className="w-3.5 h-3.5" />
-              </span>
-            </div>
-            <h3 className="text-base font-bold text-slate-900 dark:text-white font-['Outfit']">
-              Segurança & Verificação CRECI
-            </h3>
-            <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
-              Todos os anúncios e corretores parceiros são verificados garantindo total transparência e proteção jurídica em todas as negociações.
-            </p>
-          </div>
+        {infoCards.length>0&&<section className="grid grid-cols-1 md:grid-cols-3 gap-6">{infoCards.map(card=>{const Icon=homeIcons[card.icon]||Sparkles;return <div key={card.id} onClick={()=>card.action==='security'&&openLegalPage('security')} className={`p-6 rounded-3xl border border-slate-200 dark:border-slate-800 space-y-3 shadow-sm transition-all group ${card.action!=='none'?'cursor-pointer hover:border-rose-400':''}`} style={{backgroundColor:card.backgroundColor,color:card.textColor}}><div className="flex items-center justify-between"><div className="w-12 h-12 rounded-2xl flex items-center justify-center transition-transform group-hover:scale-110" style={{color:card.iconColor,backgroundColor:`${card.iconColor}18`}}><Icon className="w-6 h-6"/></div>{card.linkLabel&&<span className="text-[11px] font-bold flex items-center gap-1" style={{color:card.iconColor}}>{card.linkLabel}<ChevronRight className="w-3.5 h-3.5"/></span>}</div><h3 className="text-base font-bold font-['Outfit']">{card.title}</h3><p className="text-xs leading-relaxed opacity-70">{card.description}</p></div>;})}</section>}
 
-          <div className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-3 shadow-sm">
-            <div className="w-12 h-12 rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 flex items-center justify-center">
-              <TrendingUp className="w-6 h-6" />
-            </div>
-            <h3 className="text-base font-bold text-slate-900 dark:text-white font-['Outfit']">
-              CRM & Gestão de Leads Integrado
-            </h3>
-            <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
-              Para corretores e imobiliárias: funil kanban inteligente, disparo direto para WhatsApp e métricas de desempenho em tempo real.
-            </p>
-          </div>
-
-          <div className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-3 shadow-sm">
-            <div className="w-12 h-12 rounded-2xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 flex items-center justify-center">
-              <Award className="w-6 h-6" />
-            </div>
-            <h3 className="text-base font-bold text-slate-900 dark:text-white font-['Outfit']">
-              Fotos em Alta Resolução & Tour em Vídeo
-            </h3>
-            <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
-              Apresentação impecável com galerias otimizadas para mobile e desktop, gerando até 3x mais contatos qualificados por anúncio.
-            </p>
-          </div>
-        </section>
-
-        {/* CTA Banner: Quer Vender ou Alugar seu Imóvel? */}
-        <section className="rounded-3xl p-8 sm:p-12 bg-gradient-to-r from-rose-600 via-rose-700 to-indigo-800 text-white shadow-2xl flex flex-col md:flex-row items-center justify-between gap-8">
-          <div className="space-y-2 max-w-xl">
-            <h2 className="text-2xl sm:text-3xl font-extrabold font-['Outfit']">
-              Quer Vender ou Alugar seu Imóvel Mais Rápido?
-            </h2>
-            <p className="text-xs sm:text-sm text-rose-100">
-              Cadastre seu anúncio em menos de 3 minutos e alcance milhares de compradores e investidores em Sorocaba e região.
-            </p>
-          </div>
-
-          {currentUser.role !== 'admin' && <button
-            onClick={() => {
-              if (!isAuthenticated) {
-                openAuthModal('login');
-                return;
-              }
-              if (currentUser?.role !== 'broker' && currentUser?.role !== 'agency') {
-                addToast({
-                  type: 'warning',
-                  title: 'Recurso Exclusivo',
-                  message: 'A publicação de anúncios é exclusiva para corretores e imobiliárias credenciadas.'
-                });
-                return;
-              }
-              setEditingProperty(null);
-              setIsWizardOpen(true);
-            }}
-            className="px-8 py-4 rounded-2xl bg-white text-rose-700 hover:bg-slate-100 font-extrabold text-sm shadow-xl hover:scale-105 active:scale-95 transition-all shrink-0 cursor-pointer"
-          >
-            Anunciar Imóvel Agora
-          </button>}
-        </section>
+        {banners.map(banner=><section key={banner.id} className="rounded-3xl p-8 sm:p-12 text-white shadow-2xl flex flex-col md:flex-row items-center justify-between gap-8 bg-cover bg-center" style={{color:banner.textColor,backgroundImage:banner.imageUrl?`linear-gradient(90deg,${banner.startColor}dd,${banner.endColor}aa),url(${banner.imageUrl})`:`linear-gradient(90deg,${banner.startColor},${banner.endColor})`}}><div className="space-y-2 max-w-xl"><h2 className="text-2xl sm:text-3xl font-extrabold font-['Outfit']">{banner.title}</h2><p className="text-xs sm:text-sm opacity-85">{banner.description}</p></div>{banner.buttonLabel&&banner.action!=='none'&&!(banner.action==='publish'&&currentUser.role==='admin')&&<button onClick={()=>{if(banner.action==='external'){if(/^https?:\/\//i.test(banner.externalUrl))window.open(banner.externalUrl,'_blank','noopener,noreferrer');return;}if(banner.action==='search'){setCurrentView('search');return;}if(!isAuthenticated){openAuthModal('login');return;}if(currentUser.role!=='broker'&&currentUser.role!=='agency'){addToast({type:'warning',title:'Recurso Exclusivo',message:'A publicação de anúncios é exclusiva para corretores e imobiliárias credenciadas.'});return;}setEditingProperty(null);setIsWizardOpen(true);}} className="px-8 py-4 rounded-2xl bg-white text-slate-900 hover:bg-slate-100 font-extrabold text-sm shadow-xl hover:scale-105 active:scale-95 transition-all shrink-0">{banner.buttonLabel}</button>}</section>)}
 
       </div>
 

@@ -1,7 +1,7 @@
 import { processAndCompressImage, validateImageFile } from './imageProcessing';
 import { supabase } from './supabaseClient';
 
-export type PortalAssetKind = 'logo'|'favicon'|'hero'|'share';
+export type PortalAssetKind = 'logo'|'favicon'|'hero'|'share'|'banner';
 
 export async function uploadPortalAsset(kind:PortalAssetKind,file:File) {
   if (!supabase) throw new Error('Serviço temporariamente indisponível.');
