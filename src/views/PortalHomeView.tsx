@@ -46,9 +46,30 @@ export const PortalHomeView: React.FC = () => {
 
   const [isVisualEditorOpen, setIsVisualEditorOpen] = useState(false);
   const [visualConfiguration, setVisualConfiguration] = useState<VisualPortalConfiguration>(DEFAULT_VISUAL_PORTAL_CONFIGURATION);
+  const [publishedVisualConfiguration, setPublishedVisualConfiguration] = useState<VisualPortalConfiguration | null>(null);
   const [visualEditorBusy, setVisualEditorBusy] = useState(false);
   const canEditPortal = isAuthenticated && (currentUser.role === 'broker' || currentUser.role === 'agency');
-  const isVisible = (section: Parameters<typeof isSectionVisible>[1]) => !isVisualEditorOpen || isSectionVisible(visualConfiguration, section);
+  const activeVisualConfiguration = isVisualEditorOpen ? visualConfiguration : publishedVisualConfiguration;
+  const isVisible = (section: Parameters<typeof isSectionVisible>[1]) => !activeVisualConfiguration || isSectionVisible(activeVisualConfiguration, section);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!canEditPortal) {
+      setPublishedVisualConfiguration(null);
+      return () => { cancelled = true; };
+    }
+    const loadPublishedConfiguration = async () => {
+      try {
+        await ensureMyVisualPortalConfiguration(currentUser.id);
+        const configuration = await fetchMyVisualPortalConfiguration(currentUser.id);
+        if (!cancelled) setPublishedVisualConfiguration(configuration.published);
+      } catch {
+        if (!cancelled) setPublishedVisualConfiguration(null);
+      }
+    };
+    void loadPublishedConfiguration();
+    return () => { cancelled = true; };
+  }, [canEditPortal, currentUser.id]);
 
   const openVisualEditor = async () => {
     if (!canEditPortal) return;
@@ -57,6 +78,7 @@ export const PortalHomeView: React.FC = () => {
       await ensureMyVisualPortalConfiguration(currentUser.id);
       const configuration = await fetchMyVisualPortalConfiguration(currentUser.id);
       setVisualConfiguration(configuration.draft);
+      setPublishedVisualConfiguration(configuration.published);
       setIsVisualEditorOpen(true);
     } catch (error: any) {
       addToast({ type: 'error', title: 'Editor indisponível', message: error?.message || 'Execute a atualização do banco de dados antes de usar o editor.' });
@@ -81,6 +103,7 @@ export const PortalHomeView: React.FC = () => {
     setVisualEditorBusy(true);
     try {
       await publishMyVisualPortalConfiguration(currentUser.id, visualConfiguration);
+      setPublishedVisualConfiguration(visualConfiguration);
       addToast({ type: 'success', title: 'Versão publicada', message: 'A versão foi reservada para o portal individual do seu subdomínio.' });
     } catch (error: any) {
       addToast({ type: 'error', title: 'Publicação não concluída', message: error?.message || 'Tente novamente.' });
@@ -94,7 +117,7 @@ export const PortalHomeView: React.FC = () => {
   const homeIcons: Record<string, React.ComponentType<{className?:string}>> = { ShieldCheck, TrendingUp, Award, Sparkles, Home, MapPin, Building2 };
   const infoCards = [...homePageSettings.infoCards].filter(item=>item.isActive).sort((a,b)=>a.displayOrder-b.displayOrder);
   const now = new Date();
-  const banners = (isVisualEditorOpen && !isSectionVisible(visualConfiguration, 'banners') ? [] : [...homePageSettings.banners])
+  const banners = (activeVisualConfiguration && !isSectionVisible(activeVisualConfiguration, 'banners') ? [] : [...homePageSettings.banners])
     .filter(item=>item.isActive&&(!item.startsAt||new Date(item.startsAt)<=now)&&(!item.endsAt||new Date(item.endsAt)>=now))
     .sort((a,b)=>a.displayOrder-b.displayOrder);
 
@@ -161,7 +184,7 @@ export const PortalHomeView: React.FC = () => {
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 transition-colors">
       
       {/* Hero Luxury Section with Real Floating Properties and Modern Search Bar */}
-      {isVisible('hero') && <HeroLuxurySection visualConfiguration={isVisualEditorOpen ? visualConfiguration : undefined} />}
+      {isVisible('hero') && <HeroLuxurySection visualConfiguration={activeVisualConfiguration || undefined} />}
 
       {canEditPortal && !isVisualEditorOpen && <button type="button" onClick={() => void openVisualEditor()} disabled={visualEditorBusy} className="fixed bottom-24 right-4 z-40 inline-flex items-center gap-2 rounded-2xl bg-slate-900 px-4 py-3 text-xs font-extrabold text-white shadow-xl shadow-slate-950/30 transition-transform hover:-translate-y-0.5 disabled:opacity-60 dark:bg-white dark:text-slate-900 sm:bottom-6 sm:right-6"><Sparkles className="h-4 w-4 text-rose-400" />{visualEditorBusy ? 'Abrindo editor...' : 'Editar portal'}</button>}
 
