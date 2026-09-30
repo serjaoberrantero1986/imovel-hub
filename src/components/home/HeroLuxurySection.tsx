@@ -51,9 +51,10 @@ export const HeroLuxurySection: React.FC<HeroLuxurySectionProps> = ({ visualConf
 
   // Pick once per home visit, independently of listings and search updates.
   // Only the selected image is requested by the browser.
-  const [background, setBackground] = useState(() =>
+  const [background] = useState(() =>
     HERO_BACKGROUNDS[Math.floor(Math.random() * HERO_BACKGROUNDS.length)]
   );
+  const [customBackgroundIndex, setCustomBackgroundIndex] = useState(0);
 
   // Search Bar Local State
   const [isCodeSearchActive, setIsCodeSearchActive] = useState<boolean>(Boolean(filters.propertyCode));
@@ -63,6 +64,15 @@ export const HeroLuxurySection: React.FC<HeroLuxurySectionProps> = ({ visualConf
   const [saveSearchTitle, setSaveSearchTitle] = useState<string>('');
   
   const typeDropdownRef = useRef<HTMLDivElement>(null);
+
+  const customBackgrounds = visualConfiguration?.hero.backgroundImages || [];
+  useEffect(() => {
+    setCustomBackgroundIndex(0);
+    if (visualConfiguration?.hero.backgroundMode !== 'image' || customBackgrounds.length < 2) return;
+    const seconds = Math.min(20, Math.max(3, visualConfiguration.hero.backgroundIntervalSeconds));
+    const timer = window.setInterval(() => setCustomBackgroundIndex(index => (index + 1) % customBackgrounds.length), seconds * 1000);
+    return () => window.clearInterval(timer);
+  }, [visualConfiguration?.hero.backgroundMode, visualConfiguration?.hero.backgroundIntervalSeconds, customBackgrounds.length]);
 
   // Close type dropdown on outside click
   useEffect(() => {
@@ -174,6 +184,8 @@ export const HeroLuxurySection: React.FC<HeroLuxurySectionProps> = ({ visualConf
   }, [filters.types]);
 
   const hero = visualConfiguration?.hero;
+  const customBackground = customBackgrounds[customBackgroundIndex % Math.max(customBackgrounds.length, 1)];
+  const backgroundSource = customBackground?.url || portalIdentity.heroImageUrl || background.src;
   const heroStyle = hero?.backgroundMode === 'solid'
     ? { backgroundColor: hero.solidColor }
     : hero?.backgroundMode === 'gradient'
@@ -191,14 +203,15 @@ export const HeroLuxurySection: React.FC<HeroLuxurySectionProps> = ({ visualConf
         } as React.CSSProperties}
       >
         <img
-          src={portalIdentity.heroImageUrl || background.src}
+          key={backgroundSource}
+          src={backgroundSource}
           alt=""
           width={background.width}
           height={background.height}
           fetchPriority="high"
           decoding="async"
-          onError={() => {
-            if (background !== HERO_BACKGROUNDS[0]) setBackground(HERO_BACKGROUNDS[0]);
+          onError={event => {
+            if (event.currentTarget.src !== new URL(HERO_BACKGROUNDS[0].src, window.location.origin).href) event.currentTarget.src = HERO_BACKGROUNDS[0].src;
           }}
         />
       </div>
@@ -206,18 +219,19 @@ export const HeroLuxurySection: React.FC<HeroLuxurySectionProps> = ({ visualConf
       <div className="portal-hero-composition">
         <div className="portal-hero-copy">
           <h1 className="portal-hero-title">
-            <span>{homePageSettings.heroLine1}</span>
-            <span className="portal-hero-title-accent">{homePageSettings.heroLine2}</span>
-            <span className="portal-hero-title-accent">{homePageSettings.heroLine3}</span>
+            <span>{hero ? hero.line1 : homePageSettings.heroLine1}</span>
+            <span className="portal-hero-title-accent">{hero ? hero.line2 : homePageSettings.heroLine2}</span>
+            <span className="portal-hero-title-accent">{hero ? hero.line3 : homePageSettings.heroLine3}</span>
           </h1>
           <p className="portal-hero-subtitle">
-            {homePageSettings.heroSubtitle}
+            {hero ? hero.subtitle : homePageSettings.heroSubtitle}
           </p>
         </div>
         {hero?.showPropertyScene !== false && <HeroPropertyScene
           properties={properties}
           onOpenProperty={openPropertyDetail}
           getTypeLabel={getPropertyTypeLabel}
+          variant={hero?.propertySceneStyle || 'route'}
         />}
       </div>
 

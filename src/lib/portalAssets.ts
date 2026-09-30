@@ -4,14 +4,15 @@ import { supabase } from './supabaseClient';
 
 export type PortalAssetKind = 'logo'|'favicon'|'hero'|'share'|'banner';
 
-export async function uploadPortalAsset(kind:PortalAssetKind,file:File) {
+export async function uploadPortalAsset(kind:PortalAssetKind,file:File,ownerId='default') {
   if (!supabase) throw new Error('Serviço temporariamente indisponível.');
   const validation=await validateImageFile(file,0);
   if(!validation.valid) throw new Error(validation.error||'Imagem inválida.');
   const maxDimension=kind==='favicon'?512:kind==='logo'?1200:2560;
   const processed=await editUserImage(file, kind==='logo'?'logo':kind==='favicon'?'avatar':'photo',maxDimension);
   if (!processed) return null;
-  const path=`default/${kind}/${processed.hash}.webp`;
+  const safeOwnerId=ownerId==='default'?'default':ownerId.toLowerCase();
+  const path=`${safeOwnerId}/${kind}/${processed.hash}.webp`;
   const {error}=await supabase.storage.from('portal-assets').upload(path,processed.blob,{contentType:'image/webp',upsert:true});
   if(error) throw error;
   const {data}=supabase.storage.from('portal-assets').getPublicUrl(path);

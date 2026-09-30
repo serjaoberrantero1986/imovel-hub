@@ -1,8 +1,8 @@
-import { HomePageSettings } from './portalSettings';
 import { supabase } from './supabaseClient';
 
 export type PortalTemplateId = 'essencial' | 'signature' | 'urbano' | 'casa_familia' | 'prime';
 export type HeroBackgroundMode = 'image' | 'solid' | 'gradient';
+export type HeroPropertySceneStyle = 'route' | 'cards' | 'spotlight';
 export type EditableSectionId = 'hero' | 'featured_properties' | 'neighborhoods' | 'map' | 'info_cards' | 'banners';
 
 export interface EditableSection {
@@ -15,11 +15,18 @@ export interface VisualPortalConfiguration {
   version: 1;
   templateId: PortalTemplateId;
   hero: {
+    line1: string;
+    line2: string;
+    line3: string;
+    subtitle: string;
     backgroundMode: HeroBackgroundMode;
+    backgroundImages: Array<{ id: string; url: string; path: string }>;
+    backgroundIntervalSeconds: number;
     solidColor: string;
     gradientStart: string;
     gradientEnd: string;
     showPropertyScene: boolean;
+    propertySceneStyle: HeroPropertySceneStyle;
   };
   sections: EditableSection[];
 }
@@ -45,11 +52,18 @@ const configuration = (templateId: PortalTemplateId, hero: Partial<VisualPortalC
   version: 1,
   templateId,
   hero: {
+    line1: 'Seu próximo imóvel',
+    line2: 'está mais perto do que',
+    line3: 'você imagina.',
+    subtitle: 'Encontre imóveis para comprar, alugar ou investir em poucos cliques.',
     backgroundMode: 'image',
+    backgroundImages: [],
+    backgroundIntervalSeconds: 8,
     solidColor: '#10152b',
     gradientStart: '#0f172a',
     gradientEnd: '#4f46e5',
     showPropertyScene: true,
+    propertySceneStyle: 'route',
     ...hero
   },
   sections: baseSections()
@@ -57,10 +71,10 @@ const configuration = (templateId: PortalTemplateId, hero: Partial<VisualPortalC
 
 export const PORTAL_TEMPLATES: PortalTemplate[] = [
   { id: 'essencial', name: 'Essencial', description: 'Claro, direto e focado na busca.', preview: 'linear-gradient(135deg, #f8fafc, #e2e8f0)', configuration: configuration('essencial') },
-  { id: 'signature', name: 'Signature', description: 'Editorial, sóbrio e sofisticado.', preview: 'linear-gradient(135deg, #111827, #4c1d3b)', configuration: configuration('signature', { gradientStart: '#111827', gradientEnd: '#701a75' }) },
-  { id: 'urbano', name: 'Urbano', description: 'Contemporâneo, vibrante e metropolitano.', preview: 'linear-gradient(135deg, #111827, #4338ca)', configuration: configuration('urbano', { gradientStart: '#111827', gradientEnd: '#4338ca' }) },
-  { id: 'casa_familia', name: 'Casa & Família', description: 'Acolhedor, leve e próximo.', preview: 'linear-gradient(135deg, #78350f, #fb7185)', configuration: configuration('casa_familia', { gradientStart: '#78350f', gradientEnd: '#fb7185' }) },
-  { id: 'prime', name: 'Prime', description: 'Luxo discreto com contraste marcante.', preview: 'linear-gradient(135deg, #09090b, #a16207)', configuration: configuration('prime', { gradientStart: '#09090b', gradientEnd: '#a16207' }) }
+  { id: 'signature', name: 'Signature', description: 'Editorial, sóbrio e sofisticado.', preview: 'linear-gradient(135deg, #111827, #4c1d3b)', configuration: configuration('signature', { gradientStart: '#111827', gradientEnd: '#701a75', propertySceneStyle: 'spotlight' }) },
+  { id: 'urbano', name: 'Urbano', description: 'Contemporâneo, vibrante e metropolitano.', preview: 'linear-gradient(135deg, #111827, #4338ca)', configuration: configuration('urbano', { gradientStart: '#111827', gradientEnd: '#4338ca', propertySceneStyle: 'cards' }) },
+  { id: 'casa_familia', name: 'Casa & Família', description: 'Acolhedor, leve e próximo.', preview: 'linear-gradient(135deg, #78350f, #fb7185)', configuration: configuration('casa_familia', { gradientStart: '#78350f', gradientEnd: '#fb7185', propertySceneStyle: 'cards' }) },
+  { id: 'prime', name: 'Prime', description: 'Luxo discreto com contraste marcante.', preview: 'linear-gradient(135deg, #09090b, #a16207)', configuration: configuration('prime', { gradientStart: '#09090b', gradientEnd: '#a16207', propertySceneStyle: 'spotlight' }) }
 ];
 
 export const DEFAULT_VISUAL_PORTAL_CONFIGURATION = configuration('essencial');
@@ -70,7 +84,11 @@ export const cloneVisualConfiguration = (value: VisualPortalConfiguration) => JS
 export const normaliseVisualConfiguration = (value: Partial<VisualPortalConfiguration> | null | undefined): VisualPortalConfiguration => ({
   ...DEFAULT_VISUAL_PORTAL_CONFIGURATION,
   ...value,
-  hero: { ...DEFAULT_VISUAL_PORTAL_CONFIGURATION.hero, ...(value?.hero || {}) },
+  hero: {
+    ...DEFAULT_VISUAL_PORTAL_CONFIGURATION.hero,
+    ...(value?.hero || {}),
+    backgroundImages: Array.isArray(value?.hero?.backgroundImages) ? value.hero.backgroundImages.slice(0, 5) : []
+  },
   sections: baseSections().map(section => ({ ...section, ...(value?.sections || []).find(item => item.id === section.id) }))
 });
 

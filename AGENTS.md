@@ -64,3 +64,8 @@
 - Dados operacionais e reais, como preço, disponibilidade, leads e dados de conta, não podem ser livremente editados pelo Editor visual.
 - Novos blocos devem prever prévia responsiva, comportamento no celular, acessibilidade e limites de desempenho desde sua implementação inicial.
 
+## 10. Entrega de Alterações
+- Após toda alteração local, a resposta final deve incluir um script PowerShell para adicionar somente os arquivos daquela implementação, criar o commit e executar o `git push`.
+- Quando a implementação criar ou alterar estruturas, políticas ou funções do Supabase, a resposta final também deve indicar claramente o arquivo SQL/migration que precisa ser executado antes do teste em produção.
+- Arquivos pendentes de outras tarefas não podem ser incluídos automaticamente no script de push.
+

@@ -8,6 +8,7 @@ interface HeroPropertySceneProps {
   properties: Property[];
   onOpenProperty: (id: string) => void;
   getTypeLabel: (type: string) => string;
+  variant?: 'route' | 'cards' | 'spotlight';
 }
 
 const coverImage = (property: Property) =>
@@ -32,7 +33,7 @@ const shuffleProperties = (properties: Property[]) => {
   return shuffled;
 };
 
-export function HeroPropertyScene({ properties, onOpenProperty, getTypeLabel }: HeroPropertySceneProps) {
+export function HeroPropertyScene({ properties, onOpenProperty, getTypeLabel, variant = 'route' }: HeroPropertySceneProps) {
   const sceneRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
   const nodesRef = useRef<(HTMLDivElement | null)[]>([]);
@@ -109,6 +110,7 @@ export function HeroPropertyScene({ properties, onOpenProperty, getTypeLabel }: 
       className="hero-property-scene"
       data-empty={listings.length === 0}
       data-playing={isPlaying}
+      data-variant={variant}
       role={listings.length ? 'region' : undefined}
       aria-label={listings.length ? 'Imóveis para conhecer' : undefined}
     >

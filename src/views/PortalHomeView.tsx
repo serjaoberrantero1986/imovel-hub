@@ -26,6 +26,7 @@ import { PropertyCardSkeleton } from '../components/ui/Skeleton';
 import { filterProperties, hasActiveFilters } from '../lib/propertyFilters';
 import { PortalVisualEditor } from '../components/visual-editor/PortalVisualEditor';
 import { DEFAULT_VISUAL_PORTAL_CONFIGURATION, VisualPortalConfiguration, ensureMyVisualPortalConfiguration, fetchMyVisualPortalConfiguration, isSectionVisible, publishMyVisualPortalConfiguration, saveMyVisualPortalDraft } from '../lib/visualPortalEditor';
+import { uploadPortalAsset } from '../lib/portalAssets';
 
 export const PortalHomeView: React.FC = () => {
   const { homePageSettings } = useCatalog();
@@ -112,6 +113,28 @@ export const PortalHomeView: React.FC = () => {
     }
   };
 
+  const uploadHeroBackground = async (file: File) => {
+    if (visualConfiguration.hero.backgroundImages.length >= 5) return;
+    setVisualEditorBusy(true);
+    try {
+      const asset = await uploadPortalAsset('hero', file, currentUser.id);
+      if (!asset) return;
+      setVisualConfiguration(current => ({
+        ...current,
+        hero: {
+          ...current.hero,
+          backgroundMode: 'image',
+          backgroundImages: [...current.hero.backgroundImages, { id: crypto.randomUUID(), url: asset.url, path: asset.path }].slice(0, 5)
+        }
+      }));
+      addToast({ type: 'success', title: 'Imagem adicionada', message: 'O fundo foi otimizado e incluído na prévia.' });
+    } catch (error: any) {
+      addToast({ type: 'error', title: 'Imagem não adicionada', message: error?.message || 'Tente novamente.' });
+    } finally {
+      setVisualEditorBusy(false);
+    }
+  };
+
   const [hoveredMapPropId, setHoveredMapPropId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const homeIcons: Record<string, React.ComponentType<{className?:string}>> = { ShieldCheck, TrendingUp, Award, Sparkles, Home, MapPin, Building2 };
@@ -188,7 +211,7 @@ export const PortalHomeView: React.FC = () => {
 
       {canEditPortal && !isVisualEditorOpen && <button type="button" onClick={() => void openVisualEditor()} disabled={visualEditorBusy} className="fixed bottom-24 right-4 z-40 inline-flex items-center gap-2 rounded-2xl bg-slate-900 px-4 py-3 text-xs font-extrabold text-white shadow-xl shadow-slate-950/30 transition-transform hover:-translate-y-0.5 disabled:opacity-60 dark:bg-white dark:text-slate-900 sm:bottom-6 sm:right-6"><Sparkles className="h-4 w-4 text-rose-400" />{visualEditorBusy ? 'Abrindo editor...' : 'Editar portal'}</button>}
 
-      {isVisualEditorOpen && <PortalVisualEditor configuration={visualConfiguration} busy={visualEditorBusy} onChange={setVisualConfiguration} onClose={() => setIsVisualEditorOpen(false)} onSaveDraft={() => void saveVisualDraft()} onPublish={() => void publishVisualConfiguration()} />}
+      {isVisualEditorOpen && <PortalVisualEditor configuration={visualConfiguration} busy={visualEditorBusy} onChange={setVisualConfiguration} onClose={() => setIsVisualEditorOpen(false)} onSaveDraft={() => void saveVisualDraft()} onPublish={() => void publishVisualConfiguration()} onUploadHeroImage={uploadHeroBackground} />}
 
       {/* Main Content Area */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 space-y-20">
