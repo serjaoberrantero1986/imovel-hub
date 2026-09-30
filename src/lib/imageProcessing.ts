@@ -96,9 +96,11 @@ export function getImageDimensions(source: File | string): Promise<ImageDimensio
   return new Promise((resolve, reject) => {
     const img = new Image();
     img.onload = () => {
+      if (typeof source !== 'string') URL.revokeObjectURL(img.src);
       resolve({ width: img.naturalWidth, height: img.naturalHeight });
     };
     img.onerror = () => {
+      if (typeof source !== 'string') URL.revokeObjectURL(img.src);
       reject(new Error('Não foi possível ler as dimensões da imagem.'));
     };
 
@@ -148,12 +150,12 @@ export async function validateImageFile(
   }
 
   // 4. File size check (Max 3MB)
-  if (file.size > MAX_FILE_SIZE_BYTES) {
+  if (file.size > 40 * 1024 * 1024) {
     const sizeMb = (file.size / (1024 * 1024)).toFixed(2);
     return {
       valid: false,
       code: 'FILE_TOO_LARGE',
-      error: `O arquivo "${file.name}" tem ${sizeMb} MB e ultrapassa o limite máximo de 3 MB.`
+      error: `O arquivo "${file.name}" tem ${sizeMb} MB e ultrapassa o limite de processamento de 40 MB.`
     };
   }
 
@@ -180,6 +182,7 @@ export async function validateImageFile(
   // 6. Dimensions check
   try {
     const dims = await getImageDimensions(file);
+    if (dims.width * dims.height > 60_000_000) return { valid: false, error: 'Esta imagem excede 60 megapixels. Reduza a resolução para editar com segurança.' };
     if (dims.width < MIN_IMAGE_DIMENSION || dims.height < MIN_IMAGE_DIMENSION) {
       return {
         valid: false,
@@ -217,6 +220,7 @@ export async function processAndCompressImage(
     maxDimension?: number;
     quality?: number;
     outputType?: 'image/webp' | 'image/jpeg';
+    preserveTransparency?: boolean;
   } = {}
 ): Promise<ProcessedImageResult> {
   const maxDim = options.maxDimension || MAX_IMAGE_DIMENSION;
@@ -274,8 +278,10 @@ export async function processAndCompressImage(
   }
 
   // Clear background
-  ctx.fillStyle = '#ffffff';
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  if (!options.preserveTransparency || outputType === 'image/jpeg') {
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+  }
 
   // Move origin to center of canvas for rotation/flip
   ctx.save();
@@ -322,7 +328,7 @@ export async function processAndCompressImage(
   ctx.restore();
 
   // Create WebP / JPEG Blob
-  const mainBlob: Blob = await new Promise((resolve) => {
+  let mainBlob: Blob = await new Promise((resolve) => {
     canvas.toBlob(
       (b) => resolve(b || new Blob([], { type: outputType })),
       outputType,
@@ -330,6 +336,22 @@ export async function processAndCompressImage(
     );
   });
 
+  let finalQuality = quality;
+  while (mainBlob.size > MAX_FILE_SIZE_BYTES && finalQuality > 0.6) {
+    finalQuality = Math.max(0.6, finalQuality - 0.08);
+    mainBlob = await new Promise<Blob>((resolve, reject) => canvas.toBlob(b => b ? resolve(b) : reject(new Error('Não foi possível otimizar a imagem.')), outputType, finalQuality));
+  }
+  while (mainBlob.size > MAX_FILE_SIZE_BYTES && Math.min(canvas.width, canvas.height) > 800) {
+    const reduced = document.createElement('canvas');
+    reduced.width = Math.round(canvas.width * 0.85);
+    reduced.height = Math.round(canvas.height * 0.85);
+    reduced.getContext('2d')!.drawImage(canvas, 0, 0, reduced.width, reduced.height);
+    canvas.width = reduced.width;
+    canvas.height = reduced.height;
+    ctx.drawImage(reduced, 0, 0);
+    mainBlob = await new Promise<Blob>((resolve, reject) => canvas.toBlob(b => b ? resolve(b) : reject(new Error('Falha ao otimizar.')), outputType, finalQuality));
+  }
+  if (!mainBlob.size || mainBlob.size > MAX_FILE_SIZE_BYTES) throw new Error('Não foi possível atingir o tamanho de envio com boa qualidade. Reduza a resolução da imagem.');
   // Create Thumbnail Canvas (max 400x300)
   const thumbCanvas = document.createElement('canvas');
   const thumbRatio = Math.min(400 / canvas.width, 300 / canvas.height, 1);
@@ -352,7 +374,7 @@ export async function processAndCompressImage(
   const hash = await computeFileHash(mainBlob);
 
   // Convert to Data URLs for persistent immediate offline state
-  const mainDataUrl = canvas.toDataURL(outputType, quality);
+  const mainDataUrl = canvas.toDataURL(outputType, finalQuality);
   const thumbDataUrl = thumbCanvas.toDataURL(outputType, 0.75);
 
   // Clean up object URL if created

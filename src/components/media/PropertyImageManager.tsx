@@ -1,3 +1,4 @@
+import { editUserImage } from '../../lib/editUserImage';
 import React, { useState, useRef } from 'react';
 import { 
   Upload, 
@@ -153,7 +154,8 @@ export const PropertyImageManager: React.FC<PropertyImageManagerProps> = ({
 
       try {
         // Compress & Convert to WebP
-        const processed = await processAndCompressImage(file);
+        const processed = await editUserImage(file);
+        if (!processed) continue;
 
         // Check if hash matches any item in the current batch
         if (existingHashes.includes(processed.hash)) {
@@ -555,7 +557,7 @@ export const PropertyImageManager: React.FC<PropertyImageManagerProps> = ({
             <div className="flex flex-wrap items-center justify-center gap-2 pt-1 text-[11px] text-slate-400">
               <span className="px-2 py-0.5 rounded-lg bg-slate-200 dark:bg-slate-800 font-mono">JPG, PNG, WebP, AVIF</span>
               <span>•</span>
-              <span className="font-bold text-slate-600 dark:text-slate-300">Máx. 3 MB por foto</span>
+              <span className="font-bold text-slate-600 dark:text-slate-300">Otimização automática antes do envio</span>
               <span>•</span>
               <span>Até 10 fotos</span>
             </div>

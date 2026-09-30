@@ -1,3 +1,4 @@
+import { editUserImage } from '../lib/editUserImage';
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   User, 
@@ -87,34 +88,17 @@ export const ProfileView: React.FC = () => {
     if (currentUser.role === 'admin' && activeTab === 'role_specific') setActiveTab('general');
   }, [activeTab, currentUser.role]);
 
-  // Handle avatar upload
-  const handleAvatarFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      if (file.size > 5 * 1024 * 1024) {
-        addToast({ type: 'warning', title: 'Arquivo muito grande', message: 'Envie uma foto com até 5MB.' });
-        return;
-      }
-      const reader = new FileReader();
-      reader.onload = () => {
-        setFormData(prev => ({ ...prev, avatarUrl: reader.result as string }));
-        addToast({ type: 'info', title: 'Foto selecionada', message: 'Clique em Salvar Alterações para confirmar.' });
-      };
-      reader.readAsDataURL(file);
+  const editProfileImage = async (file: File | undefined, field: 'avatarUrl' | 'agencyLogo') => {
+    if (!file) return;
+    try {
+      const result = await editUserImage(file, field === 'avatarUrl' ? 'avatar' : 'logo', 1000);
+      if (result) setFormData(previous => ({ ...previous, [field]: result.url }));
+    } catch (error) {
+      addToast({ type: 'error', title: 'Imagem não preparada', message: error instanceof Error ? error.message : 'Tente novamente.' });
     }
   };
-
-  // Handle logo upload
-  const handleLogoFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = () => {
-        setFormData(prev => ({ ...prev, agencyLogo: reader.result as string }));
-      };
-      reader.readAsDataURL(file);
-    }
-  };
+  const handleAvatarFileChange = (e: React.ChangeEvent<HTMLInputElement>) => { void editProfileImage(e.target.files?.[0], 'avatarUrl'); e.target.value = ''; };
+  const handleLogoFileChange = (e: React.ChangeEvent<HTMLInputElement>) => { void editProfileImage(e.target.files?.[0], 'agencyLogo'); e.target.value = ''; };
 
   const handleRequestCreciReview = async () => {
     if (!formData.creci || !formData.creciUf) {

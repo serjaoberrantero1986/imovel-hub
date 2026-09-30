@@ -1,5 +1,11 @@
 # Diretrizes de Desenvolvimento e Produção
 
+## Imagens enviadas pelos usuários
+- Todo campo de imagem, atual ou futuro (perfil, logotipo, anúncios, hero, fundos e banners), deve reutilizar o editor avançado compartilhado por meio de editUserImage/ImageEditorModal.
+- Validar segurança e capacidade de processamento na entrada; aplicar o limite de upload ao resultado otimizado, preservando qualidade e transparência de logotipos.
+- Documentos comprobatórios devem preservar o conteúdo completo e a legibilidade: somente orientação e otimização, sem filtros estéticos. PDFs seguem o fluxo documental.
+- O editor e os formulários devem acompanhar o tema claro/escuro e reutilizar o padrão visual dos formulários aprovados.
+
 ## 1. Ambiente Estritamente de Produção
 - Este projeto opera exclusivamente em ambiente de PRODUÇÃO real.
 - **NUNCA** adicionar botões de "Acesso Rápido para Demonstração", atalhos de preenchimento automático com contas falsas de teste, mocks de login, ou alternâncias artificiais de credenciais.

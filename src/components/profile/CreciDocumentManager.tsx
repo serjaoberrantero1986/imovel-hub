@@ -1,3 +1,4 @@
+import { editUserImage } from '../../lib/editUserImage';
 import React, { useEffect, useRef, useState } from 'react';
 import { Eye, FileCheck, Loader2, Trash2, Upload } from 'lucide-react';
 import { Toast } from '../../context/appTypes';
@@ -40,7 +41,13 @@ export const CreciDocumentManager: React.FC<Props> = ({ user, addToast, onDocume
     if (!file || locked) return;
     setBusy(true);
     try {
-      await uploadCreciDocument(user.id, file, kind);
+      let prepared = file;
+      if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
+        const result = await editUserImage(file, 'document', 2560);
+        if (!result) return;
+        prepared = new File([result.blob], file.name.replace(/\.[^.]+$/, '') + '.jpg', { type: 'image/jpeg' });
+      }
+      await uploadCreciDocument(user.id, prepared, kind);
       await refresh();
       addToast({ type: 'success', title: 'Documento adicionado', message: 'O arquivo privado foi anexado à solicitação.' });
     } catch (error: any) {
