@@ -30,6 +30,16 @@
   background: linear-gradient(90deg, rgba(13, 18, 40, .97) 0%, rgba(13, 18, 40, .88) 24%, rgba(13, 18, 40, .4) 52%, rgba(13, 18, 40, .04) 82%),
     linear-gradient(0deg, rgba(13, 18, 40, .55), transparent 38%);
 }
+.portal-hero[data-background-mode='solid'] .portal-hero-background,
+.portal-hero[data-background-mode='gradient'] .portal-hero-background {
+  display: none;
+}
+.portal-hero[data-template='prime'] .portal-hero-title-accent {
+  background-image: linear-gradient(100deg, #f8d991 0%, #d4a64a 48%, #fff2c6 100%);
+}
+.portal-hero[data-template='casa_familia'] .portal-hero-title-accent {
+  background-image: linear-gradient(100deg, #fbc68d 0%, #fecdd3 48%, #fde68a 100%);
+}
 .portal-hero-composition {
   position: relative;
   z-index: 10;

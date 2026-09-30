@@ -24,6 +24,8 @@ import { HeroLuxurySection } from '../components/home/HeroLuxurySection';
 import { PropertyMap } from '../components/properties/PropertyMap';
 import { PropertyCardSkeleton } from '../components/ui/Skeleton';
 import { filterProperties, hasActiveFilters } from '../lib/propertyFilters';
+import { PortalVisualEditor } from '../components/visual-editor/PortalVisualEditor';
+import { DEFAULT_VISUAL_PORTAL_CONFIGURATION, VisualPortalConfiguration, ensureMyVisualPortalConfiguration, fetchMyVisualPortalConfiguration, isSectionVisible, publishMyVisualPortalConfiguration, saveMyVisualPortalDraft } from '../lib/visualPortalEditor';
 
 export const PortalHomeView: React.FC = () => {
   const { homePageSettings } = useCatalog();
@@ -42,12 +44,59 @@ export const PortalHomeView: React.FC = () => {
     addToast
   } = useApp();
 
+  const [isVisualEditorOpen, setIsVisualEditorOpen] = useState(false);
+  const [visualConfiguration, setVisualConfiguration] = useState<VisualPortalConfiguration>(DEFAULT_VISUAL_PORTAL_CONFIGURATION);
+  const [visualEditorBusy, setVisualEditorBusy] = useState(false);
+  const canEditPortal = isAuthenticated && (currentUser.role === 'broker' || currentUser.role === 'agency');
+  const isVisible = (section: Parameters<typeof isSectionVisible>[1]) => !isVisualEditorOpen || isSectionVisible(visualConfiguration, section);
+
+  const openVisualEditor = async () => {
+    if (!canEditPortal) return;
+    setVisualEditorBusy(true);
+    try {
+      await ensureMyVisualPortalConfiguration(currentUser.id);
+      const configuration = await fetchMyVisualPortalConfiguration(currentUser.id);
+      setVisualConfiguration(configuration.draft);
+      setIsVisualEditorOpen(true);
+    } catch (error: any) {
+      addToast({ type: 'error', title: 'Editor indisponível', message: error?.message || 'Execute a atualização do banco de dados antes de usar o editor.' });
+    } finally {
+      setVisualEditorBusy(false);
+    }
+  };
+
+  const saveVisualDraft = async () => {
+    setVisualEditorBusy(true);
+    try {
+      await saveMyVisualPortalDraft(currentUser.id, visualConfiguration);
+      addToast({ type: 'success', title: 'Rascunho salvo', message: 'Sua prévia visual foi salva com segurança.' });
+    } catch (error: any) {
+      addToast({ type: 'error', title: 'Rascunho não salvo', message: error?.message || 'Tente novamente.' });
+    } finally {
+      setVisualEditorBusy(false);
+    }
+  };
+
+  const publishVisualConfiguration = async () => {
+    setVisualEditorBusy(true);
+    try {
+      await publishMyVisualPortalConfiguration(currentUser.id, visualConfiguration);
+      addToast({ type: 'success', title: 'Versão publicada', message: 'A versão foi reservada para o portal individual do seu subdomínio.' });
+    } catch (error: any) {
+      addToast({ type: 'error', title: 'Publicação não concluída', message: error?.message || 'Tente novamente.' });
+    } finally {
+      setVisualEditorBusy(false);
+    }
+  };
+
   const [hoveredMapPropId, setHoveredMapPropId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const homeIcons: Record<string, React.ComponentType<{className?:string}>> = { ShieldCheck, TrendingUp, Award, Sparkles, Home, MapPin, Building2 };
   const infoCards = [...homePageSettings.infoCards].filter(item=>item.isActive).sort((a,b)=>a.displayOrder-b.displayOrder);
   const now = new Date();
-  const banners = [...homePageSettings.banners].filter(item=>item.isActive&&(!item.startsAt||new Date(item.startsAt)<=now)&&(!item.endsAt||new Date(item.endsAt)>=now)).sort((a,b)=>a.displayOrder-b.displayOrder);
+  const banners = (isVisualEditorOpen && !isSectionVisible(visualConfiguration, 'banners') ? [] : [...homePageSettings.banners])
+    .filter(item=>item.isActive&&(!item.startsAt||new Date(item.startsAt)<=now)&&(!item.endsAt||new Date(item.endsAt)>=now))
+    .sort((a,b)=>a.displayOrder-b.displayOrder);
 
   // Check if user has applied any search or filter
   const isFiltering = useMemo(() => hasActiveFilters(filters), [filters]);
@@ -112,13 +161,17 @@ export const PortalHomeView: React.FC = () => {
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 transition-colors">
       
       {/* Hero Luxury Section with Real Floating Properties and Modern Search Bar */}
-      <HeroLuxurySection />
+      {isVisible('hero') && <HeroLuxurySection visualConfiguration={isVisualEditorOpen ? visualConfiguration : undefined} />}
+
+      {canEditPortal && !isVisualEditorOpen && <button type="button" onClick={() => void openVisualEditor()} disabled={visualEditorBusy} className="fixed bottom-24 right-4 z-40 inline-flex items-center gap-2 rounded-2xl bg-slate-900 px-4 py-3 text-xs font-extrabold text-white shadow-xl shadow-slate-950/30 transition-transform hover:-translate-y-0.5 disabled:opacity-60 dark:bg-white dark:text-slate-900 sm:bottom-6 sm:right-6"><Sparkles className="h-4 w-4 text-rose-400" />{visualEditorBusy ? 'Abrindo editor...' : 'Editar portal'}</button>}
+
+      {isVisualEditorOpen && <PortalVisualEditor configuration={visualConfiguration} busy={visualEditorBusy} onChange={setVisualConfiguration} onClose={() => setIsVisualEditorOpen(false)} onSaveDraft={() => void saveVisualDraft()} onPublish={() => void publishVisualConfiguration()} />}
 
       {/* Main Content Area */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 space-y-20">
         
         {/* Section: Imóveis em Destaque ou Resultados da Busca */}
-        <section id="portal-properties-section" className="space-y-6 scroll-mt-20">
+        {isVisible('featured_properties') && <section id="portal-properties-section" className="space-y-6 scroll-mt-20">
           {isFiltering ? (
             <div className="space-y-6">
               <div className="flex flex-wrap items-end justify-between gap-4 pb-2 border-b border-slate-200 dark:border-slate-800">
@@ -268,10 +321,10 @@ export const PortalHomeView: React.FC = () => {
               )}
             </div>
           )}
-        </section>
+        </section>}
 
         {/* Section: Bairros Reais dos Imóveis Cadastrados */}
-        {dynamicNeighborhoods.length > 0 && (
+        {isVisible('neighborhoods') && dynamicNeighborhoods.length > 0 && (
           <section className="p-8 sm:p-12 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-8 shadow-sm">
             <div className="max-w-2xl">
               <span className="text-xs font-extrabold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">
@@ -327,7 +380,7 @@ export const PortalHomeView: React.FC = () => {
         )}
 
         {/* Section: Interactive Map Exploration Banner */}
-        <section className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center bg-slate-900 text-white rounded-3xl p-6 sm:p-10 overflow-hidden shadow-2xl relative">
+        {isVisible('map') && <section className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center bg-slate-900 text-white rounded-3xl p-6 sm:p-10 overflow-hidden shadow-2xl relative">
           <div className="lg:col-span-5 space-y-4 z-10">
             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-500/20 text-rose-300 text-xs font-bold border border-rose-500/30">
               <MapPin className="w-3.5 h-3.5" />
@@ -359,9 +412,9 @@ export const PortalHomeView: React.FC = () => {
               hoveredPropertyId={hoveredMapPropId}
             />
           </div>
-        </section>
+        </section>}
 
-        {infoCards.length>0&&<section className="grid grid-cols-1 md:grid-cols-3 gap-6">{infoCards.map(card=>{const Icon=homeIcons[card.icon]||Sparkles;return <div key={card.id} onClick={()=>card.action==='security'&&openLegalPage('security')} className={`p-6 rounded-3xl border border-slate-200 dark:border-slate-800 space-y-3 shadow-sm transition-all group ${card.action!=='none'?'cursor-pointer hover:border-rose-400':''}`} style={{backgroundColor:card.backgroundColor,color:card.textColor}}><div className="flex items-center justify-between"><div className="w-12 h-12 rounded-2xl flex items-center justify-center transition-transform group-hover:scale-110" style={{color:card.iconColor,backgroundColor:`${card.iconColor}18`}}><Icon className="w-6 h-6"/></div>{card.linkLabel&&<span className="text-[11px] font-bold flex items-center gap-1" style={{color:card.iconColor}}>{card.linkLabel}<ChevronRight className="w-3.5 h-3.5"/></span>}</div><h3 className="text-base font-bold font-['Outfit']">{card.title}</h3><p className="text-xs leading-relaxed opacity-70">{card.description}</p></div>;})}</section>}
+        {isVisible('info_cards') && infoCards.length>0&&<section className="grid grid-cols-1 md:grid-cols-3 gap-6">{infoCards.map(card=>{const Icon=homeIcons[card.icon]||Sparkles;return <div key={card.id} onClick={()=>card.action==='security'&&openLegalPage('security')} className={`p-6 rounded-3xl border border-slate-200 dark:border-slate-800 space-y-3 shadow-sm transition-all group ${card.action!=='none'?'cursor-pointer hover:border-rose-400':''}`} style={{backgroundColor:card.backgroundColor,color:card.textColor}}><div className="flex items-center justify-between"><div className="w-12 h-12 rounded-2xl flex items-center justify-center transition-transform group-hover:scale-110" style={{color:card.iconColor,backgroundColor:`${card.iconColor}18`}}><Icon className="w-6 h-6"/></div>{card.linkLabel&&<span className="text-[11px] font-bold flex items-center gap-1" style={{color:card.iconColor}}>{card.linkLabel}<ChevronRight className="w-3.5 h-3.5"/></span>}</div><h3 className="text-base font-bold font-['Outfit']">{card.title}</h3><p className="text-xs leading-relaxed opacity-70">{card.description}</p></div>;})}</section>}
 
         {banners.map(banner=><section key={banner.id} className="rounded-3xl p-8 sm:p-12 text-white shadow-2xl flex flex-col md:flex-row items-center justify-between gap-8 bg-cover bg-center" style={{color:banner.textColor,backgroundImage:banner.imageUrl?`linear-gradient(90deg,${banner.startColor}dd,${banner.endColor}aa),url(${banner.imageUrl})`:`linear-gradient(90deg,${banner.startColor},${banner.endColor})`}}><div className="space-y-2 max-w-xl"><h2 className="text-2xl sm:text-3xl font-extrabold font-['Outfit']">{banner.title}</h2><p className="text-xs sm:text-sm opacity-85">{banner.description}</p></div>{banner.buttonLabel&&banner.action!=='none'&&!(banner.action==='publish'&&currentUser.role==='admin')&&<button onClick={()=>{if(banner.action==='external'){if(/^https?:\/\//i.test(banner.externalUrl))window.open(banner.externalUrl,'_blank','noopener,noreferrer');return;}if(banner.action==='search'){setCurrentView('search');return;}if(!isAuthenticated){openAuthModal('login');return;}if(currentUser.role!=='broker'&&currentUser.role!=='agency'){addToast({type:'warning',title:'Recurso Exclusivo',message:'A publicação de anúncios é exclusiva para corretores e imobiliárias credenciadas.'});return;}setEditingProperty(null);setIsWizardOpen(true);}} className="px-8 py-4 rounded-2xl bg-white text-slate-900 hover:bg-slate-100 font-extrabold text-sm shadow-xl hover:scale-105 active:scale-95 transition-all shrink-0">{banner.buttonLabel}</button>}</section>)}
 

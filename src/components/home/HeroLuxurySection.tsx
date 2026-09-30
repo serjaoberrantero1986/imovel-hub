@@ -25,6 +25,7 @@ import { useApp, useCatalog } from '../../context/AppContext';
 import { PropertyType, PropertyPurpose } from '../../types';
 import { HeroPropertyScene } from './HeroPropertyScene';
 import { getPropertyTypeIcon } from '../ui/propertyTypeIcons';
+import { VisualPortalConfiguration } from '../../lib/visualPortalEditor';
 
 const HERO_BACKGROUNDS = [
   { src: '/assets/hero-city-sunset.jpg', width: 1739, height: 608, desktopPosition: '62% center', mobilePosition: '70% center' },
@@ -33,7 +34,11 @@ const HERO_BACKGROUNDS = [
   { src: '/assets/hero-city-skyline.jpg', width: 1900, height: 664, desktopPosition: '55% center', mobilePosition: '60% center' },
 ];
 
-export const HeroLuxurySection: React.FC = () => {
+interface HeroLuxurySectionProps {
+  visualConfiguration?: VisualPortalConfiguration;
+}
+
+export const HeroLuxurySection: React.FC<HeroLuxurySectionProps> = ({ visualConfiguration }) => {
   const { activeAmenities, activePropertyTypes, propertyTypesError, portalIdentity, homePageSettings } = useCatalog();
   const { 
     properties, 
@@ -168,8 +173,15 @@ export const HeroLuxurySection: React.FC = () => {
     return `${filters.types.length} Tipos`;
   }, [filters.types]);
 
+  const hero = visualConfiguration?.hero;
+  const heroStyle = hero?.backgroundMode === 'solid'
+    ? { backgroundColor: hero.solidColor }
+    : hero?.backgroundMode === 'gradient'
+      ? { background: `linear-gradient(135deg, ${hero.gradientStart}, ${hero.gradientEnd})` }
+      : undefined;
+
   return (
-    <section className="portal-hero">
+    <section className="portal-hero" data-background-mode={hero?.backgroundMode || 'image'} data-template={visualConfiguration?.templateId || 'essencial'} style={heroStyle}>
       <div
         className="portal-hero-background"
         aria-hidden="true"
@@ -202,11 +214,11 @@ export const HeroLuxurySection: React.FC = () => {
             {homePageSettings.heroSubtitle}
           </p>
         </div>
-        <HeroPropertyScene
+        {hero?.showPropertyScene !== false && <HeroPropertyScene
           properties={properties}
           onOpenProperty={openPropertyDetail}
           getTypeLabel={getPropertyTypeLabel}
-        />
+        />}
       </div>
 
       {/* 3. Bottom Embedded Modern Hero Search Bar (Identical to gemini.jpeg) */}

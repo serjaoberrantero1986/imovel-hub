@@ -378,6 +378,8 @@ export interface Database {
           footer: Json;
           identity: Json;
           home_page: Json;
+          visual_draft: Json;
+          visual_published: Json;
           created_at: string;
           updated_at: string;
         };
@@ -387,6 +389,8 @@ export interface Database {
           footer?: Json;
           identity?: Json;
           home_page?: Json;
+          visual_draft?: Json;
+          visual_published?: Json;
           created_at?: string;
           updated_at?: string;
         };

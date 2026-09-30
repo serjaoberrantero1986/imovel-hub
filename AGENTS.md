@@ -58,3 +58,9 @@
 - Fundos, bordas e sombras permanecem permitidos em botões, indicadores e conteúdos abaixo do cabeçalho, mas não no contêiner do título da página.
 - Novas páginas devem reutilizar esse padrão. Qualquer exceção visual precisa ser apresentada e confirmada pelo usuário antes da implementação.
 
+## 9. Editor Visual do Portal
+- Toda funcionalidade visual nova deve ser criada como componente reutilizável e registrada no Editor visual antes de ser disponibilizada no portal; não criar páginas administrativas paralelas para editar conteúdo ou aparência de um portal.
+- Configurações de aparência, ordem, visibilidade e conteúdo devem pertencer ao portal do corretor/imobiliária e manter rascunho separado da versão publicada.
+- Dados operacionais e reais, como preço, disponibilidade, leads e dados de conta, não podem ser livremente editados pelo Editor visual.
+- Novos blocos devem prever prévia responsiva, comportamento no celular, acessibilidade e limites de desempenho desde sua implementação inicial.
+
