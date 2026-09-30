@@ -59,6 +59,8 @@
 - Novas páginas devem reutilizar esse padrão. Qualquer exceção visual precisa ser apresentada e confirmada pelo usuário antes da implementação.
 
 ## 9. Editor Visual do Portal
+- O modo Editar Portal deve permitir seleção e edição no próprio elemento, com ferramentas contextuais. Não substituir esta experiência por um formulário lateral obrigatório.
+- Modelos devem variar composição, ordem, tipografia e distribuição dos elementos, não apenas cores. Usar os componentes compartilhados do canvas e IDs estáveis para manter as personalizações.
 - Toda funcionalidade visual nova deve ser criada como componente reutilizável e registrada no Editor visual antes de ser disponibilizada no portal; não criar páginas administrativas paralelas para editar conteúdo ou aparência de um portal.
 - Configurações de aparência, ordem, visibilidade e conteúdo devem pertencer ao portal do corretor/imobiliária e manter rascunho separado da versão publicada.
 - Dados operacionais e reais, como preço, disponibilidade, leads e dados de conta, não podem ser livremente editados pelo Editor visual.

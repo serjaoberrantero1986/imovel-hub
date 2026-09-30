@@ -1,3 +1,4 @@
+import { PortalCanvas, EditableText, EditableBox, CanvasSections, CanvasSection } from '../components/visual-editor/PortalCanvas';
 import React, { useState, useMemo, useEffect } from 'react';
 import { 
   Building2, 
@@ -49,6 +50,7 @@ export const PortalHomeView: React.FC = () => {
   const [visualConfiguration, setVisualConfiguration] = useState<VisualPortalConfiguration>(DEFAULT_VISUAL_PORTAL_CONFIGURATION);
   const [publishedVisualConfiguration, setPublishedVisualConfiguration] = useState<VisualPortalConfiguration | null>(null);
   const [visualEditorBusy, setVisualEditorBusy] = useState(false);
+  const [canvasSettingsOpen, setCanvasSettingsOpen] = useState(false);
   const canEditPortal = isAuthenticated && (currentUser.role === 'broker' || currentUser.role === 'agency');
   const activeVisualConfiguration = isVisualEditorOpen ? visualConfiguration : publishedVisualConfiguration;
   const isVisible = (section: Parameters<typeof isSectionVisible>[1]) => !activeVisualConfiguration || isSectionVisible(activeVisualConfiguration, section);
@@ -57,6 +59,7 @@ export const PortalHomeView: React.FC = () => {
     let cancelled = false;
     if (!canEditPortal) {
       setPublishedVisualConfiguration(null);
+      setIsVisualEditorOpen(false);
       return () => { cancelled = true; };
     }
     const loadPublishedConfiguration = async () => {
@@ -204,6 +207,7 @@ export const PortalHomeView: React.FC = () => {
   };
 
   return (
+    <PortalCanvas value={activeVisualConfiguration || DEFAULT_VISUAL_PORTAL_CONFIGURATION} editing={isVisualEditorOpen && canEditPortal} busy={visualEditorBusy} ownerId={currentUser.id} onChange={setVisualConfiguration} onSave={() => void saveVisualDraft()} onPublish={() => void publishVisualConfiguration()} onClose={() => {setIsVisualEditorOpen(false);setCanvasSettingsOpen(false);}} onSettings={() => setCanvasSettingsOpen(true)}>
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 transition-colors">
       
       {/* Hero Luxury Section with Real Floating Properties and Modern Search Bar */}
@@ -211,13 +215,13 @@ export const PortalHomeView: React.FC = () => {
 
       {canEditPortal && !isVisualEditorOpen && <button type="button" onClick={() => void openVisualEditor()} disabled={visualEditorBusy} className="fixed bottom-24 right-4 z-40 inline-flex items-center gap-2 rounded-2xl bg-slate-900 px-4 py-3 text-xs font-extrabold text-white shadow-xl shadow-slate-950/30 transition-transform hover:-translate-y-0.5 disabled:opacity-60 dark:bg-white dark:text-slate-900 sm:bottom-6 sm:right-6"><Sparkles className="h-4 w-4 text-rose-400" />{visualEditorBusy ? 'Abrindo editor...' : 'Editar portal'}</button>}
 
-      {isVisualEditorOpen && <PortalVisualEditor configuration={visualConfiguration} busy={visualEditorBusy} onChange={setVisualConfiguration} onClose={() => setIsVisualEditorOpen(false)} onSaveDraft={() => void saveVisualDraft()} onPublish={() => void publishVisualConfiguration()} onUploadHeroImage={uploadHeroBackground} />}
+      {isVisualEditorOpen && canvasSettingsOpen && <PortalVisualEditor configuration={visualConfiguration} busy={visualEditorBusy} onChange={setVisualConfiguration} onClose={() => setCanvasSettingsOpen(false)} onSaveDraft={() => void saveVisualDraft()} onPublish={() => void publishVisualConfiguration()} onUploadHeroImage={uploadHeroBackground} />}
 
       {/* Main Content Area */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 space-y-20">
+      <CanvasSections>
         
         {/* Section: Imóveis em Destaque ou Resultados da Busca */}
-        {isVisible('featured_properties') && <section id="portal-properties-section" className="space-y-6 scroll-mt-20">
+        {isVisible('featured_properties') && <CanvasSection sectionId="featured_properties"><EditableBox id="section.featured" label="Imóveis em destaque"><section id="portal-properties-section" className="space-y-6 scroll-mt-20">
           {isFiltering ? (
             <div className="space-y-6">
               <div className="flex flex-wrap items-end justify-between gap-4 pb-2 border-b border-slate-200 dark:border-slate-800">
@@ -302,10 +306,10 @@ export const PortalHomeView: React.FC = () => {
               <div className="flex flex-wrap items-end justify-between gap-4">
                 <div>
                   <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white font-['Outfit']">
-                    Imóveis em Destaque
+                    <EditableText id="featured.title" label="Imóveis em Destaque">Imóveis em Destaque</EditableText>
                   </h2>
                   <p className="text-xs sm:text-sm text-slate-500">
-                    Oportunidades selecionadas com alta valorização e acabamento nobre
+                    <EditableText id="featured.subtitle" label="Oportunidades selecionadas com alta valo">Oportunidades selecionadas com alta valorização e acabamento nobre</EditableText>
                   </p>
                 </div>
 
@@ -367,20 +371,20 @@ export const PortalHomeView: React.FC = () => {
               )}
             </div>
           )}
-        </section>}
+        </section></EditableBox></CanvasSection>}
 
         {/* Section: Bairros Reais dos Imóveis Cadastrados */}
         {isVisible('neighborhoods') && dynamicNeighborhoods.length > 0 && (
-          <section className="p-8 sm:p-12 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-8 shadow-sm">
+          <CanvasSection sectionId="neighborhoods"><EditableBox id="section.neighborhoods" label="Bairros"><section className="p-8 sm:p-12 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-8 shadow-sm">
             <div className="max-w-2xl">
               <span className="text-xs font-extrabold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">
-                Localização Privilegiada
+                <EditableText id="neighborhoods.eyebrow" label="Localização Privilegiada">Localização Privilegiada</EditableText>
               </span>
               <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white font-['Outfit'] mt-1">
-                Explore por Bairro
+                <EditableText id="neighborhoods.title" label="Explore por Bairro">Explore por Bairro</EditableText>
               </h2>
               <p className="text-xs sm:text-sm text-slate-500 mt-1">
-                Conheça as regiões com imóveis ativos disponíveis no portal
+                <EditableText id="neighborhoods.subtitle" label="Conheça as regiões com imóveis ativos di">Conheça as regiões com imóveis ativos disponíveis no portal</EditableText>
               </p>
             </div>
 
@@ -422,21 +426,21 @@ export const PortalHomeView: React.FC = () => {
                 ))}
               </div>
             )}
-          </section>
+          </section></EditableBox></CanvasSection>
         )}
 
         {/* Section: Interactive Map Exploration Banner */}
-        {isVisible('map') && <section className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center bg-slate-900 text-white rounded-3xl p-6 sm:p-10 overflow-hidden shadow-2xl relative">
+        {isVisible('map') && <CanvasSection sectionId="map"><EditableBox id="section.map" label="Mapa"><section className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center bg-slate-900 text-white rounded-3xl p-6 sm:p-10 overflow-hidden shadow-2xl relative">
           <div className="lg:col-span-5 space-y-4 z-10">
             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-500/20 text-rose-300 text-xs font-bold border border-rose-500/30">
               <MapPin className="w-3.5 h-3.5" />
-              <span>Geolocalização Imobiliária</span>
+              <span><EditableText id="map.eyebrow" label="Geolocalização Imobiliária">Geolocalização Imobiliária</EditableText></span>
             </span>
             <h2 className="text-2xl sm:text-4xl font-extrabold font-['Outfit']">
-              Busque Imóveis Direto no Mapa
+              <EditableText id="map.title" label="Busque Imóveis Direto no Mapa">Busque Imóveis Direto no Mapa</EditableText>
             </h2>
             <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
-              Visualize os preços dos imóveis nos bairros de sua preferência, confira proximidade com escolas, supermercados e vias de acesso com visualização dinâmica.
+              <EditableText id="map.description" label="Visualize os preços dos imóveis nos bair">Visualize os preços dos imóveis nos bairros de sua preferência, confira proximidade com escolas, supermercados e vias de acesso com visualização dinâmica.</EditableText>
             </p>
             <div className="pt-2">
               <button
@@ -447,7 +451,7 @@ export const PortalHomeView: React.FC = () => {
                 className="px-6 py-3 rounded-2xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs sm:text-sm shadow-lg shadow-rose-600/30 flex items-center gap-2 transition-all active:scale-98"
               >
                 <Eye className="w-4 h-4" />
-                <span>Abrir Busca no Mapa Completo</span>
+                <span><EditableText id="map.button" label="Abrir Busca no Mapa Completo">Abrir Busca no Mapa Completo</EditableText></span>
               </button>
             </div>
           </div>
@@ -458,14 +462,15 @@ export const PortalHomeView: React.FC = () => {
               hoveredPropertyId={hoveredMapPropId}
             />
           </div>
-        </section>}
+        </section></EditableBox></CanvasSection>}
 
-        {isVisible('info_cards') && infoCards.length>0&&<section className="grid grid-cols-1 md:grid-cols-3 gap-6">{infoCards.map(card=>{const Icon=homeIcons[card.icon]||Sparkles;return <div key={card.id} onClick={()=>card.action==='security'&&openLegalPage('security')} className={`p-6 rounded-3xl border border-slate-200 dark:border-slate-800 space-y-3 shadow-sm transition-all group ${card.action!=='none'?'cursor-pointer hover:border-rose-400':''}`} style={{backgroundColor:card.backgroundColor,color:card.textColor}}><div className="flex items-center justify-between"><div className="w-12 h-12 rounded-2xl flex items-center justify-center transition-transform group-hover:scale-110" style={{color:card.iconColor,backgroundColor:`${card.iconColor}18`}}><Icon className="w-6 h-6"/></div>{card.linkLabel&&<span className="text-[11px] font-bold flex items-center gap-1" style={{color:card.iconColor}}>{card.linkLabel}<ChevronRight className="w-3.5 h-3.5"/></span>}</div><h3 className="text-base font-bold font-['Outfit']">{card.title}</h3><p className="text-xs leading-relaxed opacity-70">{card.description}</p></div>;})}</section>}
+        {isVisible('info_cards') && infoCards.length>0&&<CanvasSection sectionId="info_cards"><EditableBox id="section.info" label="Cards informativos"><section className="grid grid-cols-1 md:grid-cols-3 gap-6">{infoCards.map(card=>{const Icon=homeIcons[card.icon]||Sparkles;return <div key={card.id} onClick={()=>!isVisualEditorOpen&&card.action==='security'&&openLegalPage('security')} className={`p-6 rounded-3xl border border-slate-200 dark:border-slate-800 space-y-3 shadow-sm transition-all group ${card.action!=='none'?'cursor-pointer hover:border-rose-400':''}`} style={{backgroundColor:card.backgroundColor,color:card.textColor}}><div className="flex items-center justify-between"><div className="w-12 h-12 rounded-2xl flex items-center justify-center transition-transform group-hover:scale-110" style={{color:card.iconColor,backgroundColor:`${card.iconColor}18`}}><Icon className="w-6 h-6"/></div>{card.linkLabel&&<span className="text-[11px] font-bold flex items-center gap-1" style={{color:card.iconColor}}><EditableText id={`card.${card.id}.link`} label="Texto do link">{card.linkLabel}</EditableText><ChevronRight className="w-3.5 h-3.5"/></span>}</div><h3 className="text-base font-bold font-['Outfit']"><EditableText id={`card.${card.id}.title`} label="Título do card">{card.title}</EditableText></h3><p className="text-xs leading-relaxed opacity-70"><EditableText id={`card.${card.id}.description`} label="Descrição do card">{card.description}</EditableText></p></div>;})}</section></EditableBox></CanvasSection>}
 
-        {banners.map(banner=><section key={banner.id} className="rounded-3xl p-8 sm:p-12 text-white shadow-2xl flex flex-col md:flex-row items-center justify-between gap-8 bg-cover bg-center" style={{color:banner.textColor,backgroundImage:banner.imageUrl?`linear-gradient(90deg,${banner.startColor}dd,${banner.endColor}aa),url(${banner.imageUrl})`:`linear-gradient(90deg,${banner.startColor},${banner.endColor})`}}><div className="space-y-2 max-w-xl"><h2 className="text-2xl sm:text-3xl font-extrabold font-['Outfit']">{banner.title}</h2><p className="text-xs sm:text-sm opacity-85">{banner.description}</p></div>{banner.buttonLabel&&banner.action!=='none'&&!(banner.action==='publish'&&currentUser.role==='admin')&&<button onClick={()=>{if(banner.action==='external'){if(/^https?:\/\//i.test(banner.externalUrl))window.open(banner.externalUrl,'_blank','noopener,noreferrer');return;}if(banner.action==='search'){setCurrentView('search');return;}if(!isAuthenticated){openAuthModal('login');return;}if(currentUser.role!=='broker'&&currentUser.role!=='agency'){addToast({type:'warning',title:'Recurso Exclusivo',message:'A publicação de anúncios é exclusiva para corretores e imobiliárias credenciadas.'});return;}setEditingProperty(null);setIsWizardOpen(true);}} className="px-8 py-4 rounded-2xl bg-white text-slate-900 hover:bg-slate-100 font-extrabold text-sm shadow-xl hover:scale-105 active:scale-95 transition-all shrink-0">{banner.buttonLabel}</button>}</section>)}
+        <CanvasSection sectionId="banners"><EditableBox id="section.banners" label="Banners">{banners.map(banner=><section key={banner.id} className="rounded-3xl p-8 sm:p-12 text-white shadow-2xl flex flex-col md:flex-row items-center justify-between gap-8 bg-cover bg-center" style={{color:banner.textColor,backgroundImage:banner.imageUrl?`linear-gradient(90deg,${banner.startColor}dd,${banner.endColor}aa),url(${banner.imageUrl})`:`linear-gradient(90deg,${banner.startColor},${banner.endColor})`}}><div className="space-y-2 max-w-xl"><h2 className="text-2xl sm:text-3xl font-extrabold font-['Outfit']"><EditableText id={`banner.${banner.id}.title`} label="Título do banner">{banner.title}</EditableText></h2><p className="text-xs sm:text-sm opacity-85"><EditableText id={`banner.${banner.id}.description`} label="Descrição do banner">{banner.description}</EditableText></p></div>{banner.buttonLabel&&banner.action!=='none'&&!(banner.action==='publish'&&currentUser.role==='admin')&&<button onClick={()=>{if(banner.action==='external'){if(/^https?:\/\//i.test(banner.externalUrl))window.open(banner.externalUrl,'_blank','noopener,noreferrer');return;}if(banner.action==='search'){setCurrentView('search');return;}if(!isAuthenticated){openAuthModal('login');return;}if(currentUser.role!=='broker'&&currentUser.role!=='agency'){addToast({type:'warning',title:'Recurso Exclusivo',message:'A publicação de anúncios é exclusiva para corretores e imobiliárias credenciadas.'});return;}setEditingProperty(null);setIsWizardOpen(true);}} className="px-8 py-4 rounded-2xl bg-white text-slate-900 hover:bg-slate-100 font-extrabold text-sm shadow-xl hover:scale-105 active:scale-95 transition-all shrink-0"><EditableText id={`banner.${banner.id}.button`} label="Texto do botão">{banner.buttonLabel}</EditableText></button>}</section>)}</EditableBox></CanvasSection>
 
-      </div>
+      </CanvasSections>
 
     </div>
+    </PortalCanvas>
   );
 };

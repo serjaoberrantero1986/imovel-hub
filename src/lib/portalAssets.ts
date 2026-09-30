@@ -12,8 +12,8 @@ export async function uploadPortalAsset(kind:PortalAssetKind,file:File,ownerId='
   const processed=await editUserImage(file, kind==='logo'?'logo':kind==='favicon'?'avatar':'photo',maxDimension);
   if (!processed) return null;
   const safeOwnerId=ownerId==='default'?'default':ownerId.toLowerCase();
-  const path=`${safeOwnerId}/${kind}/${processed.hash}.webp`;
-  const {error}=await supabase.storage.from('portal-assets').upload(path,processed.blob,{contentType:'image/webp',upsert:true});
+  const path=`${safeOwnerId}/${kind}/${processed.hash}-${crypto.randomUUID()}.webp`;
+  const {error}=await supabase.storage.from('portal-assets').upload(path,processed.blob,{contentType:'image/webp',upsert:false});
   if(error) throw error;
   const {data}=supabase.storage.from('portal-assets').getPublicUrl(path);
   return {url:data.publicUrl,path};

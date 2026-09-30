@@ -1,3 +1,4 @@
+import { EditableText, EditableImage } from '../visual-editor/PortalCanvas';
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { 
   Search, 
@@ -194,38 +195,14 @@ export const HeroLuxurySection: React.FC<HeroLuxurySectionProps> = ({ visualConf
 
   return (
     <section className="portal-hero" data-background-mode={hero?.backgroundMode || 'image'} data-template={visualConfiguration?.templateId || 'essencial'} style={heroStyle}>
-      <div
-        className="portal-hero-background"
-        aria-hidden="true"
-        style={{
-          '--hero-background-desktop-position': background.desktopPosition,
-          '--hero-background-mobile-position': background.mobilePosition,
-        } as React.CSSProperties}
-      >
-        <img
-          key={backgroundSource}
-          src={backgroundSource}
-          alt=""
-          width={background.width}
-          height={background.height}
-          fetchPriority="high"
-          decoding="async"
-          onError={event => {
-            if (event.currentTarget.src !== new URL(HERO_BACKGROUNDS[0].src, window.location.origin).href) event.currentTarget.src = HERO_BACKGROUNDS[0].src;
-          }}
-        />
-      </div>
+      <EditableImage id="hero.background" label="Imagem da apresentação" className="portal-hero-background" src={backgroundSource} style={{ "--hero-background-desktop-position": background.desktopPosition, "--hero-background-mobile-position": background.mobilePosition } as React.CSSProperties} />
 
       <div className="portal-hero-composition">
         <div className="portal-hero-copy">
-          <h1 className="portal-hero-title">
-            <span>{hero ? hero.line1 : homePageSettings.heroLine1}</span>
-            <span className="portal-hero-title-accent">{hero ? hero.line2 : homePageSettings.heroLine2}</span>
-            <span className="portal-hero-title-accent">{hero ? hero.line3 : homePageSettings.heroLine3}</span>
-          </h1>
-          <p className="portal-hero-subtitle">
+          <EditableText as="h1" id="hero.title" label="Título principal" className="portal-hero-title">{[hero ? hero.line1 : homePageSettings.heroLine1, hero ? hero.line2 : homePageSettings.heroLine2, hero ? hero.line3 : homePageSettings.heroLine3].join("\n")}</EditableText>
+          <EditableText as="p" id="hero.subtitle" label="Texto auxiliar" className="portal-hero-subtitle">
             {hero ? hero.subtitle : homePageSettings.heroSubtitle}
-          </p>
+          </EditableText>
         </div>
         {hero?.showPropertyScene !== false && <HeroPropertyScene
           properties={properties}
