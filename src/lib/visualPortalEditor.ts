@@ -44,6 +44,7 @@ export interface VisualPortalConfiguration {
     propertyShowPrice?: boolean;
     propertyShowLocation?: boolean;
     propertyShowType?: boolean;
+    searchPosition?: Partial<Record<'desktop' | 'tablet' | 'mobile', { x: number; y: number }>>;
     solidColor: string;
     gradientStart: string;
     gradientEnd: string;
@@ -87,6 +88,14 @@ const configuration = (templateId: PortalTemplateId, hero: Partial<VisualPortalC
     propertyLimit: 12,
     propertyAutoplay: false,
     propertyIntervalSeconds: 6,
+    propertyShowPrice: true,
+    propertyShowLocation: true,
+    propertyShowType: true,
+    searchPosition: {
+      desktop: { x: 0, y: 0 },
+      tablet: { x: 0, y: 0 },
+      mobile: { x: 0, y: 0 }
+    },
     solidColor: '#10152b',
     gradientStart: '#0f172a',
     gradientEnd: '#4f46e5',
@@ -124,7 +133,11 @@ export const normaliseVisualConfiguration = (value: Partial<VisualPortalConfigur
     ...DEFAULT_VISUAL_PORTAL_CONFIGURATION.hero,
     ...(value?.hero || {}),
     // Preserve all five legacy gallery images plus an older direct override.
-    backgroundImages: gallery.slice(0, 6)
+    backgroundImages: gallery.slice(0, 6),
+    searchPosition: {
+      ...DEFAULT_VISUAL_PORTAL_CONFIGURATION.hero.searchPosition,
+      ...(value?.hero?.searchPosition || {})
+    }
   },
   sections: baseSections().map(section => ({ ...section, ...(value?.sections || []).find(item => item.id === section.id) }))
 });

@@ -52,7 +52,7 @@ export function HeroControls({hero,onChange,onPrepareImage,busy=false}:HeroContr
       {check('showPropertyScene','Exibir miniaturas no desktop')}
       <p>Continuam ocultas no celular. Apenas imóveis ativos são exibidos.</p>
       <label>Composição<select value={hero.propertySceneStyle} onChange={e=>onChange({propertySceneStyle:e.target.value as Hero['propertySceneStyle']})}><option value="route">Rota ilustrativa</option><option value="cards">Cards</option><option value="spotlight">Destaque</option></select></label>
-      {hero.propertySceneStyle==='spotlight'?<p>O modelo Destaque exibe um imóvel por vez.</p>:number('propertyVisibleCount','Cards simultâneos',1,3,3)}{number('propertyLimit','Imóveis na sequência',1,30,12)}
+      {hero.propertySceneStyle==='spotlight'?<p>O modelo Destaque exibe um imóvel por vez.</p>:number('propertyVisibleCount','Cards simultâneos',1,5,3)}{number('propertyLimit','Imóveis na sequência',1,30,12)}
       <label>Imóveis<select value={hero.propertySource||'all'} onChange={e=>onChange({propertySource:e.target.value as Hero['propertySource']})}><option value="all">Todos os ativos</option><option value="featured">Somente destaques</option></select></label>
       <label>Ordem<select value={hero.propertyOrder||'random'} onChange={e=>onChange({propertyOrder:e.target.value as Hero['propertyOrder']})}><option value="random">Aleatória</option><option value="price_asc">Menor preço</option></select></label>
       {check('propertyAutoplay','Trocar anúncios automaticamente',false)}{number('propertyIntervalSeconds','Intervalo dos anúncios (segundos)',3,60,6)}

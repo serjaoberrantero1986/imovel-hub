@@ -41,9 +41,9 @@ try {
     await call('Input.dispatchMouseEvent',{type:'mouseMoved',x:width-10,y:650,button:'left',buttons:1},sessionId);
     await call('Input.dispatchMouseEvent',{type:'mouseReleased',x:width-10,y:650,button:'left',buttons:0,clickCount:1},sessionId);
     await new Promise(resolve=>setTimeout(resolve,100));
-    const moved=await call('Runtime.evaluate',{expression:'(()=>{const r=document.querySelector(".canvas-command-bar").getBoundingClientRect();return r.top>200&&r.right<=innerWidth+1&&r.left>=0&&r.bottom<=innerHeight+1;})()',returnByValue:true},sessionId);
-    result.results.push({name:'arraste real por ponteiro mantém barra dentro da tela',passed:moved.result.value===true});
-    result.failed ||= moved.result.value!==true;
+    const moved=await call('Runtime.evaluate',{expression:'(()=>{const r=document.querySelector(".canvas-command-bar").getBoundingClientRect();return {passed:r.top>200&&r.right<=innerWidth+1&&r.left>=0&&r.bottom<=innerHeight+1,rect:{top:r.top,right:r.right,bottom:r.bottom,left:r.left,width:r.width,height:r.height}};})()',returnByValue:true},sessionId);
+    result.results.push({name:'arraste real por ponteiro mantém barra dentro da tela',passed:moved.result.value.passed,...(!moved.result.value.passed?{error:JSON.stringify(moved.result.value.rect)}:{})});
+    result.failed ||= !moved.result.value.passed;
     console.log(JSON.stringify({width,...result},null,2));
     if(result.failed)process.exitCode=1;
     await call('Target.closeTarget',{targetId});

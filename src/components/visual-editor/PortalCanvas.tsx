@@ -1,7 +1,8 @@
 import { FloatingEditorBar } from './FloatingEditorBar';
 import { HeroControls, HeroControlsProps } from './HeroControls';
+import { useDraggableSurface } from './useDraggableSurface';
 import { installPortalEditorGuard } from '../../lib/portalEditorGuard';
-import { applyMarks, toggleList, insertMarkedText, markState, Mark, Marks } from '../../lib/portalRichText';
+import { applyMarks, toggleList, insertMarkedText, markState, gradientState, Mark, Marks } from '../../lib/portalRichText';
 import React, { createContext, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Bold, Italic, Underline, Undo2, Redo2, X, Plus, Send, Palette, ArrowUp, ArrowDown, Copy, Trash2, ImagePlus, Home, MapPin, ShieldCheck, Star, Heart, Phone } from 'lucide-react';
 import { createPortal } from 'react-dom';
@@ -18,11 +19,13 @@ interface CanvasContextValue {
   value: VisualPortalConfiguration;
   select: (selection: Selection) => void;
   update: (id: string, patch: Partial<CanvasElement>) => void;
+  updateHero: (patch: Partial<VisualPortalConfiguration['hero']>) => void;
   selected: string | undefined;
   reorder: (from: string, to: string) => void;
 }
 const CanvasContext = createContext<CanvasContextValue | null>(null);
 export const usePortalEditing = () => useContext(CanvasContext)?.editing || false;
+export const usePortalEditor = () => useContext(CanvasContext);
 const icons = { Home, MapPin, ShieldCheck, Star, Heart, Phone };
 const iconLabels = { Home: 'Casa', MapPin: 'Localização', ShieldCheck: 'Segurança', Star: 'Estrela', Heart: 'Coração', Phone: 'Telefone' };
 
@@ -33,6 +36,8 @@ export function PortalCanvas({ children, value, editing, busy, onChange, onPubli
   const [styleTarget,setStyleTarget]=useState<'desktop'|'tablet'|'mobile'>('desktop');
   const pendingMarks=useRef<Marks|null>(null);
   const [marks,setMarks]=useState<Record<Mark,boolean|'mixed'>>({bold:false,italic:false,underline:false,strike:false});
+  const [selectedGradient,setSelectedGradient]=useState<Gradient|'mixed'|undefined>();
+  const [hasTextSelection,setHasTextSelection]=useState(false);
   useEffect(()=>{const resize=()=>setViewport(window.innerWidth<768?'mobile':window.innerWidth<1024?'tablet':'desktop');window.addEventListener('resize',resize);return()=>window.removeEventListener('resize',resize);},[]);
   const [selection, setSelection] = useState<Selection>();
   const [position, setPosition] = useState({ left: 12, top: 150 });
@@ -44,11 +49,14 @@ export function PortalCanvas({ children, value, editing, busy, onChange, onPubli
   const range = useRef<Range | null>(null);
   const panel = useRef<HTMLDivElement>(null);
   const [panelHeight, setPanelHeight] = useState(260);
+  const movablePanel = useDraggableSurface(selection?.id);
   const change = (next: VisualPortalConfiguration) => {if(busy)return;latest.current=next;onChange(next);};
   const update = (id: string, patch: Partial<CanvasElement>) => {
     const current = latest.current;
     change({ ...current, elements: { ...current.elements, [id]: { ...current.elements?.[id], ...patch } } });
   };
+  const updateHero = (patch: Partial<VisualPortalConfiguration['hero']>) =>
+    change({ ...latest.current, hero: { ...latest.current.hero, ...patch } });
   useEffect(() => { if (!editing) setSelection(undefined); }, [editing]);
   useLayoutEffect(() => {
     if (!selection || !panel.current) return;
@@ -70,6 +78,8 @@ export function PortalCanvas({ children, value, editing, busy, onChange, onPubli
       const s = window.getSelection();
       if (s?.rangeCount && selection.node.contains(s.anchorNode) && selection.node.contains(s.focusNode)) {
         range.current = s.getRangeAt(0).cloneRange();
+        setHasTextSelection(!range.current.collapsed);
+        setSelectedGradient(gradientState(selection.node,range.current));
         setMarks(Object.fromEntries((['bold','italic','underline','strike'] as const).map(mark=>[mark,markState(selection.node,range.current,mark)])) as Record<Mark,boolean|'mixed'>);
       }
     };
@@ -107,6 +117,7 @@ export function PortalCanvas({ children, value, editing, busy, onChange, onPubli
     if(range.current.collapsed){pendingMarks.current=clear?{}:{...pendingMarks.current,...patch};return;}
     range.current=applyMarks(selection.node,range.current,patch,clear);
     update(selection.id,{html:cleanRichText(selection.node.innerHTML)});
+    setSelectedGradient(gradientState(selection.node,range.current));
   };
   const undo = (redo=false) => {if(busy)return;if(document.activeElement instanceof HTMLElement)document.activeElement.blur();setSelection(undefined);pendingMarks.current=null;redo?onRedo():onUndo();};
   const guardHandlers=useRef({select,undo});
@@ -162,16 +173,17 @@ export function PortalCanvas({ children, value, editing, busy, onChange, onPubli
       <button onClick={onClose} disabled={busy||uploading} title="Sair da edição"><X size={16}/></button>
       <small>{unpublished?"Prévia privada · alterações não publicadas":"Clique em um elemento para editar. Navegação desativada."}</small>
     </FloatingEditorBar>
-    {selection && <div ref={panel} className="canvas-context-menu" data-canvas-tools style={position} role="region" aria-label={'Editar '+selection.label}>
-      <div className="canvas-context-heading"><strong>{selection.label}</strong><button onClick={()=>setSelection(undefined)} aria-label="Fechar ferramentas"><X size={16}/></button></div>
+    {selection && <div ref={node=>{panel.current=node;movablePanel.surfaceRef.current=node;}} className="canvas-context-menu" data-canvas-tools style={{...position,...movablePanel.surfaceStyle}} role="region" aria-label={'Editar '+selection.label}>
+      <div className="canvas-context-heading"><button type="button" className="canvas-window-drag" {...movablePanel.handleProps}>⠿</button><strong>{selection.label}</strong><button onClick={()=>setSelection(undefined)} aria-label="Fechar ferramentas"><X size={16}/></button></div>
       {selection.kind!=='hero'&&<nav>{(['content','style','layout'] as const).map((t,i)=><button aria-pressed={tab===t} key={t} onClick={()=>setTab(t)}>{['Conteúdo','Estilo','Espaçamento'][i]}</button>)}</nav>}
       <fieldset disabled={busy||uploading} className="canvas-context-body">
         {tab==='content'&&<>
           {selection.kind==='hero'&&<HeroControls hero={value.hero} onChange={patch=>change({...latest.current,hero:{...latest.current.hero,...patch}})} onPrepareImage={onPrepareImage} busy={busy}/>}
-          {selection.kind==='text'&&<><p>Escreva diretamente no texto. Selecione um trecho para formatar. Enter cria uma nova linha.</p><div className="canvas-row"><button onMouseDown={e=>e.preventDefault()} onClick={()=>format('bold')} aria-pressed={marks.bold} title="Negrito"><Bold size={18}/></button><button onMouseDown={e=>e.preventDefault()} onClick={()=>format('italic')} aria-pressed={marks.italic} title="Itálico"><Italic size={18}/></button><button onMouseDown={e=>e.preventDefault()} onClick={()=>format('underline')} aria-pressed={marks.underline} title="Sublinhado"><Underline size={18}/></button><button onMouseDown={e=>e.preventDefault()} aria-pressed={marks.strike} onClick={()=>format('strike')} title="Tachado"><s>S</s></button><button onMouseDown={e=>e.preventDefault()} onClick={()=>applyText({},true)}>Limpar formatação</button></div>
+          {selection.kind==='text'&&<><p>Escreva diretamente no texto. Selecione um trecho para formatar. Enter cria uma nova linha.</p><div className="canvas-row"><button onMouseDown={e=>e.preventDefault()} onClick={()=>format('bold')} aria-pressed={marks.bold} title="Negrito"><Bold size={18}/></button><button onMouseDown={e=>e.preventDefault()} onClick={()=>format('italic')} aria-pressed={marks.italic} title="Itálico"><Italic size={18}/></button><button onMouseDown={e=>e.preventDefault()} onClick={()=>format('underline')} aria-pressed={marks.underline} title="Sublinhado"><Underline size={18}/></button><button onMouseDown={e=>e.preventDefault()} aria-pressed={marks.strike} onClick={()=>format('strike')} title="Tachado"><s>S</s></button></div>
           {selection.node.tagName==='DIV'&&<div className="canvas-row">{(['ul','ol'] as const).map(kind=><button key={kind} onMouseDown={e=>e.preventDefault()} onClick={()=>{range.current=toggleList(selection.node,kind);update(selection.id,{html:cleanRichText(selection.node.innerHTML)});}}>{kind==='ul'?'Lista com marcadores':'Lista numerada'}</button>)}</div>}
           <label>Cor do trecho<input type="color" defaultValue="#0f172a" onChange={e=>applyText({color:e.target.value})}/></label>
           <label>Destaque do trecho<input type="color" defaultValue="#fef08a" onChange={e=>applyText({highlight:e.target.value})}/></label>
+          <details className="canvas-selection-gradient"><summary>Degradê do trecho selecionado</summary><button type="button" disabled={!hasTextSelection} aria-pressed={selectedGradient==='mixed'?'mixed':!!selectedGradient} onMouseDown={e=>e.preventDefault()} onClick={()=>applyText({gradient:selectedGradient&&selectedGradient!=='mixed'?undefined:{start:'#e11d48',end:'#7c3aed',angle:90}})}>{selectedGradient&&selectedGradient!=='mixed'?'Desativar degradê':'Ativar degradê'}</button>{selectedGradient&&selectedGradient!=='mixed'&&<><label>Cor inicial<input type="color" value={selectedGradient.start} onChange={e=>applyText({gradient:{...selectedGradient,start:e.target.value}})}/></label><label>Cor final<input type="color" value={selectedGradient.end} onChange={e=>applyText({gradient:{...selectedGradient,end:e.target.value}})}/></label><label>Direção (graus)<input type="number" min={0} max={360} value={selectedGradient.angle} onChange={e=>applyText({gradient:{...selectedGradient,angle:Math.max(0,Math.min(360,+e.target.value))}})}/></label></>}</details>
           <button onMouseDown={e=>e.preventDefault()} onClick={()=>{const url=window.prompt('Destino do link (https://, mailto: ou tel:). Deixe vazio para remover.');if(url!==null && (!url||safeLink(url)))applyText({link:url?safeLink(url):undefined});}}>Inserir / remover link</button></>}
           {selection.kind==='image'&&<><button disabled={uploading} onClick={()=>fileInput.current?.click()}><ImagePlus size={16}/>{uploading?'Preparando imagem…':'Selecionar e editar imagem'}</button><input ref={fileInput} type="file" hidden accept="image/*" onChange={e=>{if(e.target.files?.[0])void upload(e.target.files[0]);e.target.value='';}}/><label>Descrição da imagem<input value={item.alt||''} onChange={e=>update(selection.id,{alt:e.target.value})}/></label></>}
           {selection.kind==='icon'&&<label>Ícone<select value={item.icon||'Star'} onChange={e=>update(selection.id,{icon:e.target.value})}>{Object.entries(iconLabels).map(([id,label])=><option key={id} value={id}>{label}</option>)}</select></label>}
@@ -183,7 +195,7 @@ export function PortalCanvas({ children, value, editing, busy, onChange, onPubli
           <p>Estilos do bloco inteiro. Os ajustes específicos aparecem na largura correspondente.</p>
           <div className="canvas-row"><label>Cor<input type="color" value={String(selectedStyle?.color||'#0f172a')} onChange={e=>style({color:e.target.value})}/></label><label>Fundo<input type="color" value={String(selectedStyle?.backgroundColor||'#ffffff')} onChange={e=>style({backgroundColor:e.target.value})}/></label></div>
           {selection.kind==='text'&&<><label>Fonte<select value={selectedStyle?.fontFamily||'Outfit'} onChange={e=>style({fontFamily:e.target.value})}>{CANVAS_FONTS.map(f=><option key={f}>{f}</option>)}</select></label><label>Tamanho<input type="number" min={10} max={120} value={selectedStyle?.fontSize||''} placeholder="Automático" onChange={e=>style({fontSize:e.target.value?Math.max(10,Math.min(120,+e.target.value)):undefined})}/></label><label>Alinhamento<select value={selectedStyle?.textAlign||computedStyle?.textAlign||'left'} onChange={e=>style({textAlign:e.target.value as React.CSSProperties['textAlign']})}><option value="left">Esquerda</option><option value="center">Centro</option><option value="right">Direita</option><option value="justify">Justificado</option></select></label></>}
-          {selection.kind==='text'&&<>{gradientControl('textGradient','Degradê do texto')}<label>Peso da fonte<select value={selectedStyle?.fontWeight||computedStyle?.fontWeight||400} onChange={e=>style({fontWeight:+e.target.value})}>{[300,400,500,600,700,800,900].map(weight=><option key={weight} value={weight}>{weight}</option>)}</select></label><label>Altura de linha<input type="number" min={0.8} max={3} step={0.1} value={selectedStyle?.lineHeight||1.3} onChange={e=>style({lineHeight:Math.max(.8,Math.min(3,+e.target.value))})}/></label><label>Espaçamento entre letras (px)<input type="number" min={-5} max={20} step={.5} value={selectedStyle?.letterSpacing||0} onChange={e=>style({letterSpacing:Math.max(-5,Math.min(20,+e.target.value))})}/></label><label>Sombra<select value={selectedStyle?.textShadow||''} onChange={e=>style({textShadow:e.target.value||undefined})}><option value="">Sem sombra</option><option value="0 2px 6px #00000066">Suave</option><option value="0 4px 12px #000000aa">Forte</option></select></label></>}
+          {selection.kind==='text'&&<><label>Peso da fonte<select value={selectedStyle?.fontWeight||computedStyle?.fontWeight||400} onChange={e=>style({fontWeight:+e.target.value})}>{[300,400,500,600,700,800,900].map(weight=><option key={weight} value={weight}>{weight}</option>)}</select></label><label>Altura de linha<input type="number" min={0.8} max={3} step={0.1} value={selectedStyle?.lineHeight||1.3} onChange={e=>style({lineHeight:Math.max(.8,Math.min(3,+e.target.value))})}/></label><label>Espaçamento entre letras (px)<input type="number" min={-5} max={20} step={.5} value={selectedStyle?.letterSpacing||0} onChange={e=>style({letterSpacing:Math.max(-5,Math.min(20,+e.target.value))})}/></label><label>Sombra<select value={selectedStyle?.textShadow||''} onChange={e=>style({textShadow:e.target.value||undefined})}><option value="">Sem sombra</option><option value="0 2px 6px #00000066">Suave</option><option value="0 4px 12px #000000aa">Forte</option></select></label></>}
           {gradientControl('backgroundGradient','Degradê do fundo')}
           <details><summary>Borda e transparência</summary><label>Espessura da borda (px)<input type="number" min={0} max={12} value={Number(selectedStyle?.borderWidth)||0} onChange={e=>style({borderWidth:Math.max(0,Math.min(12,+e.target.value)),borderStyle:'solid'})}/></label><label>Cor da borda<input type="color" value={String(selectedStyle?.borderColor||'#cbd5e1')} onChange={e=>style({borderColor:e.target.value})}/></label><label>Opacidade<input type="range" min={.1} max={1} step={.05} value={Number(selectedStyle?.opacity??1)} onChange={e=>style({opacity:+e.target.value})}/></label></details>
           <label>Cantos arredondados<input type="range" min={0} max={80} value={Number(selectedStyle?.borderRadius)||0} onChange={e=>style({borderRadius:+e.target.value})}/></label>
@@ -196,7 +208,7 @@ export function PortalCanvas({ children, value, editing, busy, onChange, onPubli
       </fieldset>
     </div>}
   </>;
-  return <CanvasContext.Provider value={{editing:editing&&!busy,viewport,pendingMarks,value,select,update,reorder,selected:selection?.id}}>
+  return <CanvasContext.Provider value={{editing:editing&&!busy,viewport,pendingMarks,value,select,update,updateHero,reorder,selected:selection?.id}}>
     <div className="portal-canvas" data-editing={editing} data-composition={value.templateId}>{children}</div>
     {editing && createPortal(controls,document.body)}
   </CanvasContext.Provider>;

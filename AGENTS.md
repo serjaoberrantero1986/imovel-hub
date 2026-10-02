@@ -67,6 +67,8 @@
 - Configurações de aparência, ordem, visibilidade e conteúdo devem pertencer ao portal do corretor/imobiliária e manter rascunho separado da versão publicada.
 - Dados operacionais e reais, como preço, disponibilidade, leads e dados de conta, não podem ser livremente editados pelo Editor visual.
 - Novos blocos devem prever prévia responsiva, comportamento no celular, acessibilidade e limites de desempenho desde sua implementação inicial.
+- Janelas e painéis flutuantes do editor devem reutilizar `useDraggableSurface`, permanecer limitados à área visível e oferecer restauração da posição; não criar popups de edição fixos que possam encobrir permanentemente o conteúdo.
+- Elementos reposicionáveis do portal devem salvar coordenadas por breakpoint (desktop, tablet e celular). Formatação rica aplicada a uma seleção de texto deve permanecer restrita ao trecho selecionado, sem converter o estilo do bloco inteiro.
 
 ## 10. Entrega de Alterações
 - Após toda alteração local, a resposta final deve incluir um script PowerShell para adicionar somente os arquivos daquela implementação, criar o commit e executar o `git push`.

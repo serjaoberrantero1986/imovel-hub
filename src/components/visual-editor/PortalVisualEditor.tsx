@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Check, Loader2, Palette, RotateCcw, Send, X } from 'lucide-react';
 import { PORTAL_TEMPLATES, PortalTemplateId, VisualPortalConfiguration, cloneVisualConfiguration, templateConfiguration } from '../../lib/visualPortalEditor';
 import { HeroControls, HeroControlsProps } from './HeroControls';
+import { useDraggableSurface } from './useDraggableSurface';
 import { Switch } from '../ui/Switch';
 
 interface Props {
@@ -16,6 +17,7 @@ interface Props {
 
 export const PortalVisualEditor: React.FC<Props> = ({ configuration, busy = false, onChange, onClose, onPublish, onPrepareImage }) => {
   const [tab, setTab] = useState<'templates' | 'hero' | 'sections'>('templates');
+  const movable = useDraggableSurface();
   const selectTemplate = (id: PortalTemplateId) => {
     const next = templateConfiguration(id);
     onChange({
@@ -42,9 +44,10 @@ export const PortalVisualEditor: React.FC<Props> = ({ configuration, busy = fals
   });
 
   return (
-    <aside data-canvas-tools className="fixed inset-x-3 bottom-3 z-[90] mx-auto flex max-h-[calc(100vh-1.5rem)] w-auto max-w-5xl flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl shadow-slate-950/20 dark:border-slate-700 dark:bg-slate-900 md:inset-x-auto md:right-6 md:top-20 md:bottom-4 md:w-[380px] md:max-h-none">
+    <aside ref={node=>{movable.surfaceRef.current=node;}} style={movable.surfaceStyle} data-canvas-tools className="fixed inset-x-3 bottom-3 z-[90] mx-auto flex max-h-[calc(100vh-1.5rem)] w-auto max-w-5xl flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl shadow-slate-950/20 dark:border-slate-700 dark:bg-slate-900 md:inset-x-auto md:right-6 md:top-20 md:bottom-4 md:w-[380px] md:max-h-none">
       <div className="flex shrink-0 items-start justify-between border-b border-slate-100 px-5 py-4 dark:border-slate-800">
-        <div className="flex min-w-0 items-center gap-3">
+        <button type="button" className="canvas-window-drag" {...movable.handleProps}>⠿</button>
+        <div className="flex min-w-0 flex-1 items-center gap-3">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-rose-50 text-rose-600 dark:bg-rose-950/40 dark:text-rose-300"><Palette className="h-5 w-5" /></div>
           <div className="min-w-0"><h2 className="font-['Outfit'] text-base font-extrabold text-slate-900 dark:text-white">Modelos e página</h2><p className="text-[11px] text-slate-500 dark:text-slate-400">Prévia privada do seu portal</p></div>
         </div>

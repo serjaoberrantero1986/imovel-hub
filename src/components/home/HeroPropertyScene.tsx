@@ -21,11 +21,12 @@ const coverImage = (property: Property) =>
   || '';
 
 // These anchors are an illustration over the photograph, not geographic coordinates.
-const anchors = [
-  { x: '13%', y: '72%', color: '#be8aef' },
-  { x: '50%', y: '58%', color: '#ff54ae' },
-  { x: '86%', y: '82%', color: '#ffb58f' },
-];
+const anchorColors = ['#be8aef', '#d56fd0', '#ff54ae', '#ff858c', '#ffb58f'];
+const anchorsFor = (count: number) => Array.from({ length: count }, (_, index) => ({
+  x: `${count === 1 ? 50 : 8 + (84 * index) / (count - 1)}%`,
+  y: `${index === Math.floor(count / 2) ? 58 : 72 + (index % 2) * 10}%`,
+  color: anchorColors[Math.round(index * (anchorColors.length - 1) / Math.max(1, count - 1))],
+}));
 
 const shuffleProperties = (properties: Property[]) => {
   const shuffled = [...properties];
@@ -46,7 +47,7 @@ export function HeroPropertyScene({ properties, onOpenProperty, getTypeLabel, va
 
   const [page,setPage]=useState(0);
   const [hovered,setHovered]=useState(false);
-  const count=variant==='spotlight'?1:Math.max(1,Math.min(3,settings?.propertyVisibleCount||3));
+  const count=variant==='spotlight'?1:Math.max(1,Math.min(5,settings?.propertyVisibleCount||3));
   const pool=useMemo(()=>{
     const active=properties.filter(p=>p.id&&p.title&&p.status==='active'&&(settings?.propertySource!=='featured'||p.featured));
     const ordered=settings?.propertyOrder==='price_asc'?[...active].sort((a,b)=>a.price-b.price):shuffleProperties(active);
@@ -128,7 +129,6 @@ export function HeroPropertyScene({ properties, onOpenProperty, getTypeLabel, va
       role={listings.length ? 'region' : undefined}
       aria-label={listings.length ? 'Imóveis para conhecer' : undefined}
     >
-      {pool.length>count&&<div className="hero-listing-navigation" data-canvas-tools={editing?true:undefined}><button type="button" aria-label="Anúncios anteriores" onClick={()=>setPage(value=>(value-1+Math.ceil(pool.length/count))%Math.ceil(pool.length/count))}>‹</button><button type="button" aria-label="Próximos anúncios" onClick={()=>setPage(value=>(value+1)%Math.ceil(pool.length/count))}>›</button></div>}
       <div
         ref={stageRef}
         className="hero-property-stage"
@@ -150,8 +150,8 @@ export function HeroPropertyScene({ properties, onOpenProperty, getTypeLabel, va
           </svg>
         )}
         {listings.map((property, index) => {
-          const prominent = listings.length === 1 || index === 1;
-          const anchor = anchors[listings.length === 1 ? 1 : index];
+          const prominent = listings.length === 1 || index === Math.floor(listings.length / 2);
+          const anchor = anchorsFor(listings.length)[index];
           const image = coverImage(property);
           const location = [property.neighborhood, property.city].filter(Boolean).join(' · ');
           return (

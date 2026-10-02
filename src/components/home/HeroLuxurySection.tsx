@@ -1,4 +1,5 @@
-import { EditableText, usePortalEditing } from '../visual-editor/PortalCanvas';
+import { EditableText, usePortalEditor } from '../visual-editor/PortalCanvas';
+import { MovablePortalSearch } from '../visual-editor/MovablePortalSearch';
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { 
   Search, 
@@ -56,7 +57,8 @@ export const HeroLuxurySection: React.FC<HeroLuxurySectionProps> = ({ visualConf
     HERO_BACKGROUNDS[Math.floor(Math.random() * HERO_BACKGROUNDS.length)]
   );
   const [customBackgroundIndex, setCustomBackgroundIndex] = useState(0);
-  const editing=usePortalEditing();
+  const portalEditor=usePortalEditor();
+  const editing=portalEditor?.editing||false;
   const [paused,setPaused]=useState(false);
   const [reducedMotion,setReducedMotion]=useState(window.matchMedia('(prefers-reduced-motion: reduce)').matches);
   useEffect(()=>{const media=window.matchMedia('(prefers-reduced-motion: reduce)');const update=()=>setReducedMotion(media.matches);media.addEventListener('change',update);return()=>media.removeEventListener('change',update);},[]);
@@ -189,6 +191,8 @@ export const HeroLuxurySection: React.FC<HeroLuxurySectionProps> = ({ visualConf
   }, [filters.types]);
 
   const hero = visualConfiguration?.hero;
+  const searchViewport=portalEditor?.viewport||'desktop';
+  const searchPosition=hero?.searchPosition?.[searchViewport]||{x:0,y:0};
   const customBackground = customBackgrounds[customBackgroundIndex % Math.max(customBackgrounds.length, 1)];
   const backgroundSource = customBackground?.url || portalIdentity.heroImageUrl || background.src;
   const heroStyle = hero?.backgroundMode === 'solid'
@@ -220,10 +224,13 @@ export const HeroLuxurySection: React.FC<HeroLuxurySectionProps> = ({ visualConf
           onOpenProperty={openPropertyDetail}
           getTypeLabel={getPropertyTypeLabel}
           variant={hero?.propertySceneStyle || 'route'}
+          settings={hero}
+          editing={editing}
         />}
       </div>
 
       {/* 3. Bottom Embedded Modern Hero Search Bar (Identical to gemini.jpeg) */}
+      <MovablePortalSearch editing={editing} position={searchPosition} onChange={next=>portalEditor?.updateHero({searchPosition:{...hero?.searchPosition,[searchViewport]:next}})}>
       <div className="relative z-30 max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 w-full mt-4 sm:mt-6">
         
         {/* Main Floating Pill Container (transitions to rounded-3xl when expanded so all controls fit inside) */}
@@ -633,6 +640,7 @@ export const HeroLuxurySection: React.FC<HeroLuxurySectionProps> = ({ visualConf
         </div>
 
       </div>
+      </MovablePortalSearch>
 
       {/* Save Search Modal */}
       {saveModalOpen && (

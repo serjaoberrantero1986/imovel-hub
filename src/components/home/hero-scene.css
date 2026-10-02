@@ -102,6 +102,10 @@
   transform: translate(-50%, -100%);
 }
 .hero-property-node[data-prominent='true'] { width: 34%; z-index: 2; }
+.hero-property-stage[data-count='4'] .hero-property-node { width: 21%; }
+.hero-property-stage[data-count='4'] .hero-property-node[data-prominent='true'] { width: 27%; }
+.hero-property-stage[data-count='5'] .hero-property-node { width: 18%; }
+.hero-property-stage[data-count='5'] .hero-property-node[data-prominent='true'] { width: 23%; }
 .hero-property-card {
   display: block;
   position: relative;
@@ -170,7 +174,7 @@
 @media (min-width: 1024px) {
   .hero-property-scene[data-variant='cards'] .hero-property-stage {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(var(--property-count), minmax(0, 1fr));
     align-items: center;
     gap: 14px;
     height: 330px;

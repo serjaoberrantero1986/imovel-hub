@@ -3,12 +3,13 @@ import {createRoot} from 'react-dom/client';
 import {flushSync} from 'react-dom';
 import {PortalCanvas,EditableText,CanvasSection} from '../src/components/visual-editor/PortalCanvas';
 import {DEFAULT_VISUAL_PORTAL_CONFIGURATION} from '../src/lib/visualPortalEditor';
-import {applyMarks,markState,insertMarkedText,toggleList} from '../src/lib/portalRichText';
+import {applyMarks,markState,gradientState,insertMarkedText,toggleList} from '../src/lib/portalRichText';
 import {cleanRichText} from '../src/lib/portalCanvas';
 import {HeroControls} from '../src/components/visual-editor/HeroControls';
 import {PortalVisualEditor} from '../src/components/visual-editor/PortalVisualEditor';
 import {normaliseVisualConfiguration} from '../src/lib/visualPortalEditor';
 import {sessionReducer} from '../src/components/visual-editor/usePortalSession';
+import {HeroPropertyScene} from '../src/components/home/HeroPropertyScene';
 
 const results:{name:string;passed:boolean;error?:string}[]=[];
 const assert=(value:unknown,message:string)=>{if(!value)throw new Error(message);};
@@ -40,6 +41,14 @@ async function run(){
     const next=applyMarks(root,range,{bold:false});assert(markState(root,next,'bold')===false,'remover de todos');assert(root.innerHTML.includes('<br>'),'quebra preservada');
     next.collapse(false);insertMarkedText(root,next,'Z',{italic:true});assert(root.textContent?.endsWith('Z'),'inserção');assert(root.innerHTML.includes('font-style:italic'),'marca inserida');root.remove();
   });
+  await test('degradê altera somente o trecho selecionado',()=>{
+    const root=document.createElement('div');root.contentEditable='true';root.textContent='texto inteiro';document.body.append(root);
+    let range=select(root,0,5);range=applyMarks(root,range,{gradient:{start:'#e11d48',end:'#7c3aed',angle:90}});
+    assert(gradientState(root,range)!=='mixed'&&!!gradientState(root,range),'degradê ativo');
+    assert(root.querySelectorAll('[data-text-gradient]').length===1,'um trecho marcado');
+    assert(root.textContent==='texto inteiro','conteúdo completo preservado');
+    assert(root.querySelector('[data-text-gradient]')?.textContent==='texto','apenas seleção formatada');root.remove();
+  });
   await test('sanitização preserva links seguros e bloqueia scripts',()=>{const html=cleanRichText('<a href="javascript:alert(1)" onclick="alert(1)">A</a><script>alert(1)</script><a href="https://example.com">B</a>');assert(!html.includes('javascript')&&!html.includes('onclick')&&!html.includes('<script'),'sem código');assert(html.includes('https://example.com'),'link válido');});
   await test('listas preservam marcação ao formatar',()=>{
     const root=document.createElement('div');root.contentEditable='true';root.innerHTML='um<br>dois';document.body.append(root);
@@ -53,6 +62,15 @@ async function run(){
     assert(normaliseVisualConfiguration(config).hero.backgroundImages.length===1,'migração idempotente');
   });
   await test('histórico central desfaz alterações de qualquer painel',()=>{const initial={value:DEFAULT_VISUAL_PORTAL_CONFIGURATION,past:[],future:[]};const next=sessionReducer(initial,{type:'change',value:{...initial.value,hero:{...initial.value.hero,backgroundIntervalSeconds:12}}});assert(sessionReducer(next,{type:'undo'}).value.hero.backgroundIntervalSeconds===8,'undo');assert(sessionReducer(sessionReducer(next,{type:'undo'}),{type:'redo'}).value.hero.backgroundIntervalSeconds===12,'redo');});
+  await test('galeria aceita cinco cards, respeita visibilidade e não exibe setas manuais',async()=>{
+    const host=document.createElement('div');document.body.append(host);const gallery=createRoot(host);
+    const properties=Array.from({length:6},(_,index)=>({id:String(index),title:'Imóvel '+index,status:'active',price:100000+index,type:'house',purpose:'sale',city:'Sorocaba',neighborhood:'Centro',media:[],images:[]})) as any;
+    flushSync(()=>gallery.render(<HeroPropertyScene properties={properties} onOpenProperty={()=>{}} getTypeLabel={()=> 'Casa'} settings={{...DEFAULT_VISUAL_PORTAL_CONFIGURATION.hero,propertyVisibleCount:5,propertyAutoplay:false,propertyShowPrice:false,propertyShowLocation:false,propertyShowType:false}}/>));await wait();
+    assert(host.querySelectorAll('.hero-property-node').length===5,'cinco miniaturas simultâneas');
+    assert(!host.querySelector('.hero-listing-navigation'),'sem controles anterior/próximo');
+    assert(!host.querySelector('.hero-property-type')&&!host.querySelector('.hero-property-location')&&!host.querySelector('.hero-property-price'),'campos ocultos');
+    gallery.unmount();host.remove();
+  });
   flushSync(()=>createRoot(document.getElementById('root')!).render(<Harness/>));await wait();
   await test('modo edição bloqueia links externos ao canvas, ações e formulários',()=>{
     document.getElementById('outside-link')!.click();document.getElementById('action')!.click();document.querySelector('form')!.dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}));
@@ -74,6 +92,7 @@ async function run(){
     flushSync(()=>other.render(<PortalVisualEditor configuration={DEFAULT_VISUAL_PORTAL_CONFIGURATION} onChange={()=>{}} onClose={()=>{}} onPublish={()=>{}} onPrepareImage={async()=>null}/>));
     (Array.from(host.querySelectorAll('button')).find(button=>button.textContent==='Apresentação') as HTMLElement).click();await wait();
     assert(Array.from(host.querySelectorAll('.hero-controls label')).map(label=>label.textContent).join('|')===direct,'opções idênticas nos dois atalhos');
+    assert(host.querySelector('.canvas-window-drag'),'painel de modelos arrastável');
     other.unmount();host.remove();
   });
   await test('digitação no cursor utiliza a marca selecionada',async()=>{

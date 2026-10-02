@@ -1,7 +1,8 @@
 import { cleanRichText, escapeText, safeLink } from './portalCanvas';
+import type { Gradient } from './portalCanvas';
 
 export type Mark = 'bold' | 'italic' | 'underline' | 'strike';
-export interface Marks { bold?: boolean; italic?: boolean; underline?: boolean; strike?: boolean; color?: string; highlight?: string; link?: string; list?: 'ul'|'ol'; }
+export interface Marks { bold?: boolean; italic?: boolean; underline?: boolean; strike?: boolean; color?: string; highlight?: string; link?: string; list?: 'ul'|'ol'; gradient?: Gradient; }
 interface Run { text: string; marks: Marks; }
 interface Snapshot { runs: Run[]; start: number; end: number; }
 
@@ -35,6 +36,10 @@ function snapshot(root: HTMLElement, range?: Range | null): Snapshot {
       if (node.style.textDecoration) { marks.underline = node.style.textDecoration.includes('underline'); marks.strike = node.style.textDecoration.includes('line-through'); }
       if (node.style.color) marks.color = node.style.color;
       if (node.style.backgroundColor) marks.highlight = node.style.backgroundColor;
+      const gradient = node.dataset.textGradient;
+      if (gradient) {
+        try { marks.gradient = JSON.parse(gradient) as Gradient; } catch { marks.gradient = undefined; }
+      }
       if (tag === 'A') marks.link = safeLink(node.getAttribute('href') || '');
     }
     point(node, 0);
@@ -55,9 +60,12 @@ function serialize(runs: Run[]): string {
   const inline=({text,marks:m}:Run)=>{
     const styles = [m.bold !== undefined && `font-weight:${m.bold ? 700 : 400}`, m.italic !== undefined && `font-style:${m.italic ? 'italic' : 'normal'}`,
       (m.underline !== undefined || m.strike !== undefined) && `text-decoration:${[m.underline && 'underline', m.strike && 'line-through'].filter(Boolean).join(' ') || 'none'}`,
-      m.color && `color:${m.color}`, m.highlight && `background-color:${m.highlight}`].filter(Boolean).join(';');
+      m.color && `color:${m.color}`, m.highlight && `background-color:${m.highlight}`,
+      m.gradient && `background-image:linear-gradient(${m.gradient.angle}deg,${m.gradient.start} ${m.gradient.startAt ?? 0}%,${m.gradient.end} ${m.gradient.endAt ?? 100}%)`,
+      m.gradient && 'background-clip:text', m.gradient && '-webkit-background-clip:text', m.gradient && 'color:transparent'].filter(Boolean).join(';');
     const textHtml = escapeText(text);
-    const styled = styles ? `<span style="${styles}">${textHtml}</span>` : textHtml;
+    const gradientData = m.gradient ? ` data-text-gradient="${escapeText(JSON.stringify(m.gradient))}"` : '';
+    const styled = styles ? `<span${gradientData} style="${styles}">${textHtml}</span>` : textHtml;
     return m.link ? `<a href="${escapeText(safeLink(m.link))}">${styled}</a>` : styled;
   };
   let output='',list:'ul'|'ol'|undefined;
@@ -104,6 +112,20 @@ export function markState(root: HTMLElement, range: Range | null, mark: Mark): b
     offset = next;
   }
   return states.every(Boolean) && states.length > 0 ? true : states.some(Boolean) ? 'mixed' : false;
+}
+
+export function gradientState(root: HTMLElement, range: Range | null): Gradient | 'mixed' | undefined {
+  if (!range || range.collapsed || !root.contains(range.commonAncestorContainer)) return undefined;
+  const { runs, start, end } = snapshot(root, range);
+  let offset = 0;
+  const values: (Gradient | undefined)[] = [];
+  for (const run of runs) {
+    const next = offset + run.text.length;
+    if (next > start && offset < end) values.push(run.marks.gradient);
+    offset = next;
+  }
+  const first = JSON.stringify(values[0]);
+  return values.every(value => JSON.stringify(value) === first) ? values[0] : 'mixed';
 }
 
 export function applyMarks(root: HTMLElement, range: Range, patch: Marks, clear = false): Range {

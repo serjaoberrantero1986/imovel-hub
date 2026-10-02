@@ -60,15 +60,27 @@ export function cleanRichText(html: string): string {
     const children = Array.from(node.childNodes).map(clean).join('');
     if (!tags.has(node.tagName)) return children;
     if (node.tagName === 'BR') return '<br>';
+    const gradient = node.getAttribute('data-text-gradient');
+    let gradientAttribute = '', safeGradient = '';
+    if (gradient) {
+      try {
+        const parsed = JSON.parse(gradient) as Gradient;
+        safeGradient = gradientCss(parsed) || '';
+        if (safeGradient) gradientAttribute = ' data-text-gradient="' + escapeText(JSON.stringify(parsed)) + '"';
+      } catch { gradientAttribute = ''; }
+    }
     // Keep inline text formatting only, not layout or event attributes.
     const allowed = ['font-weight','font-style','text-decoration','color','background-color'];
     const rules = allowed.map(key => {
       const v = node.style.getPropertyValue(key);
-      return v && !/url|expression|[<>;"]/i.test(v) ? key + ':' + v : '';
-    }).filter(Boolean).join(';');
+      if (!v || /url|expression|[<>;"]/i.test(v)) return '';
+      return key + ':' + v;
+    }).filter(Boolean);
+    if (safeGradient) rules.push('background-image:'+safeGradient, 'background-clip:text', '-webkit-background-clip:text', 'color:transparent');
+    const styleRules = rules.join(';');
     const tag = node.tagName.toLowerCase();
     const href = tag === 'a' ? safeLink(node.getAttribute('href') || '') : '';
-    return '<' + tag + (href ? ' href="' + escapeText(href) + '"' : '') + (rules ? ' style="' + rules + '"' : '') + '>' + children + '</' + tag + '>';
+    return '<' + tag + (href ? ' href="' + escapeText(href) + '"' : '') + gradientAttribute + (styleRules ? ' style="' + styleRules + '"' : '') + '>' + children + '</' + tag + '>';
   };
   return Array.from(doc.body.childNodes).map(clean).join('');
 }

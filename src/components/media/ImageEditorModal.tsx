@@ -26,6 +26,7 @@ import {
   ProcessedImageResult,
   loadImage 
 } from '../../lib/imageProcessing';
+import { useDraggableSurface } from '../visual-editor/useDraggableSurface';
 
 interface ImageEditorModalProps {
   isOpen: boolean;
@@ -63,6 +64,7 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState('');
   const [showOriginal, setShowOriginal] = useState(false);
+  const movable = useDraggableSurface(isOpen ? imageUrl : undefined);
 
   // Canvas references for live rendering
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -310,10 +312,11 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-6 bg-black/60 backdrop-blur-md animate-in fade-in duration-200">
-      <div className="w-full max-w-6xl bg-white dark:bg-slate-900 text-slate-900 dark:text-white rounded-3xl overflow-hidden shadow-2xl border border-slate-200 dark:border-slate-800 flex flex-col max-h-[92vh]">
+      <div ref={node=>{movable.surfaceRef.current=node;}} style={movable.surfaceStyle} className="w-full max-w-6xl bg-white dark:bg-slate-900 text-slate-900 dark:text-white rounded-3xl overflow-hidden shadow-2xl border border-slate-200 dark:border-slate-800 flex flex-col max-h-[92vh]">
         
         {/* Header */}
         <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50 dark:bg-slate-950/60">
+          <button type="button" className="canvas-window-drag mr-2" {...movable.handleProps}>⠿</button>
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-xl bg-rose-600/20 text-rose-400 flex items-center justify-center">
               <Sparkles className="w-5 h-5" />
