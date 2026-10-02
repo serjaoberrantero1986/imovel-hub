@@ -26,6 +26,24 @@ export interface VisualPortalConfiguration {
     backgroundMode: HeroBackgroundMode;
     backgroundImages: Array<{ id: string; url: string; path: string }>;
     backgroundIntervalSeconds: number;
+    backgroundAutoplay?: boolean;
+    backgroundTransition?: 'fade' | 'none';
+    backgroundTransitionSeconds?: number;
+    backgroundPositionX?: number;
+    backgroundPositionY?: number;
+    backgroundFit?: 'cover' | 'contain';
+    overlayOpacity?: number;
+    minHeight?: number;
+    gradientAngle?: number;
+    propertyAutoplay?: boolean;
+    propertyIntervalSeconds?: number;
+    propertyVisibleCount?: number;
+    propertyLimit?: number;
+    propertySource?: 'all' | 'featured';
+    propertyOrder?: 'random' | 'price_asc';
+    propertyShowPrice?: boolean;
+    propertyShowLocation?: boolean;
+    propertyShowType?: boolean;
     solidColor: string;
     gradientStart: string;
     gradientEnd: string;
@@ -63,6 +81,12 @@ const configuration = (templateId: PortalTemplateId, hero: Partial<VisualPortalC
     backgroundMode: 'image',
     backgroundImages: [],
     backgroundIntervalSeconds: 8,
+    backgroundAutoplay: true,
+    backgroundTransition: 'fade',
+    propertyVisibleCount: 3,
+    propertyLimit: 12,
+    propertyAutoplay: false,
+    propertyIntervalSeconds: 6,
     solidColor: '#10152b',
     gradientStart: '#0f172a',
     gradientEnd: '#4f46e5',
@@ -85,16 +109,26 @@ export const DEFAULT_VISUAL_PORTAL_CONFIGURATION = configuration('essencial');
 
 export const cloneVisualConfiguration = (value: VisualPortalConfiguration) => JSON.parse(JSON.stringify(value)) as VisualPortalConfiguration;
 
-export const normaliseVisualConfiguration = (value: Partial<VisualPortalConfiguration> | null | undefined): VisualPortalConfiguration => ({
+export const normaliseVisualConfiguration = (value: Partial<VisualPortalConfiguration> | null | undefined): VisualPortalConfiguration => {
+  // Move legacy direct-background overrides into the shared gallery once.
+  const elements = {...value?.elements};
+  const legacy = elements['hero.background'];
+  const gallery = Array.isArray(value?.hero?.backgroundImages) ? [...value.hero.backgroundImages] : [];
+  if (legacy?.imageUrl && !gallery.some(image => image.url === legacy.imageUrl)) gallery.unshift({id:'legacy-background',url:legacy.imageUrl,path:legacy.imagePath || ''});
+  if(legacy) elements['hero.background'] = {...legacy,imageUrl:undefined,imagePath:undefined};
+  return ({
   ...DEFAULT_VISUAL_PORTAL_CONFIGURATION,
   ...value,
+  elements,
   hero: {
     ...DEFAULT_VISUAL_PORTAL_CONFIGURATION.hero,
     ...(value?.hero || {}),
-    backgroundImages: Array.isArray(value?.hero?.backgroundImages) ? value.hero.backgroundImages.slice(0, 5) : []
+    // Preserve all five legacy gallery images plus an older direct override.
+    backgroundImages: gallery.slice(0, 6)
   },
   sections: baseSections().map(section => ({ ...section, ...(value?.sections || []).find(item => item.id === section.id) }))
 });
+};
 
 export const templateConfiguration = (templateId: PortalTemplateId): VisualPortalConfiguration => {
   const template = PORTAL_TEMPLATES.find(item => item.id === templateId) || PORTAL_TEMPLATES[0];

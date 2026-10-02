@@ -19,3 +19,41 @@
 .canvas-section{position:relative}.canvas-section-handle{display:block;margin:0 0 12px;padding:6px 12px;background:#fff1f2;color:#be123c;border:1px dashed #fb7185;border-radius:8px;font-size:12px;cursor:grab}.portal-canvas[data-editing=true] .portal-hero-background{pointer-events:auto}.portal-hero-background::after{pointer-events:none}.portal-canvas[data-editing=true] .portal-hero-composition{pointer-events:none}.portal-canvas[data-editing=true] .portal-hero-copy,.portal-canvas[data-editing=true] .hero-property-scene{pointer-events:auto}.portal-canvas[data-composition=signature] .portal-hero-background::after,.portal-canvas[data-composition=casa_familia] .portal-hero-background::after{display:none}
 .canvas-template-preview{width:78px;height:66px;flex-shrink:0;border-radius:8px;padding:8px;display:grid;grid-template-columns:repeat(6,1fr);grid-template-rows:30px 12px;gap:3px;overflow:hidden}.canvas-template-preview i{grid-column:span 3;background:#ffffffb3;border-radius:3px}.canvas-template-preview b{grid-column:span 3;background:#ffffff45;border-radius:3px}.canvas-template-preview em{grid-column:span 2;background:#ffffff80;border-radius:2px}.preview-urbano i,.preview-prime i{grid-column:span 6}.preview-urbano b,.preview-prime b{display:none}.preview-casa_familia i{border-radius:20px 20px 3px 3px;order:1}.preview-casa_familia b{order:2}.preview-casa_familia em{order:3}.preview-signature em:last-child{display:none}.preview-signature em{grid-column:span 3}
 .dark .portal-canvas[data-composition=signature]>.min-h-screen,.dark .portal-canvas[data-composition=casa_familia]>.min-h-screen{background:#141922}.dark .portal-canvas[data-composition=signature] .portal-hero,.dark .portal-canvas[data-composition=casa_familia] .portal-hero{background:#141922}.dark .portal-canvas[data-composition=signature] .portal-hero-title,.dark .portal-canvas[data-composition=casa_familia] .portal-hero-title{color:#f5f1e9}.dark .portal-canvas[data-composition=signature] .portal-hero-subtitle,.dark .portal-canvas[data-composition=casa_familia] .portal-hero-subtitle{color:#cbd5e1}
+
+
+/* Shared contextual controls and session feedback */
+.canvas-drag-handle{touch-action:none;cursor:grab!important;user-select:none}
+.canvas-drag-handle:active{cursor:grabbing!important}
+.canvas-preview-status{position:fixed;bottom:76px;right:20px;z-index:40;background:#fff1f2;color:#9f1239;padding:8px 14px;border:1px solid #fda4af;border-radius:12px;font:600 12px Outfit,Arial,sans-serif}
+.canvas-context-menu [aria-pressed=true]{background:#ffe4e6!important;color:#9f1239;border-color:#fb7185}
+.canvas-context-menu [aria-pressed=mixed]{background:repeating-linear-gradient(45deg,#fff1f2,#fff1f2 4px,#fecdd3 4px,#fecdd3 8px)!important;color:#9f1239}
+.canvas-context-body{min-width:0;border:0;margin:0}.canvas-context-body input[type=checkbox]{width:auto}
+.canvas-context-body details>summary{cursor:pointer;font-weight:700;padding-block:8px}
+.hero-controls{border:0;padding:0;margin:0;display:grid;gap:12px;min-width:0;font-size:12px}
+.hero-controls label{display:grid;gap:5px;color:inherit;font-weight:600}
+.hero-controls input:not([type=checkbox]):not([type=file]),.hero-controls select{width:100%;border:1px solid #cbd5e1;border-radius:8px;padding:8px;background:transparent;color:inherit;min-width:0}
+.hero-controls input[type=color]{height:40px;padding:3px}.hero-controls .hero-control-check{display:flex;gap:8px;align-items:center}
+.hero-controls input[type=checkbox]{width:16px;height:16px;accent-color:#e11d48}
+.hero-controls button{padding:7px 9px;border:1px solid #cbd5e1;border-radius:8px;font-size:11px}.hero-controls button:disabled{opacity:.4}
+.hero-controls details{display:grid;gap:10px}.hero-controls details>*{margin-bottom:10px}.hero-controls summary{font-weight:800;cursor:pointer}
+.hero-image-list{display:grid;gap:8px}.hero-image-list>div{display:flex;gap:8px;padding:8px;border:1px solid #cbd5e1;border-radius:10px;align-items:center}
+.hero-image-list img{width:72px;height:54px;object-fit:cover;border-radius:6px}.hero-image-list>div>div{display:flex;flex-wrap:wrap;gap:4px}
+.dark .hero-controls select option{background:#0f172a;color:#e2e8f0}
+.canvas-text span{display:inline!important}.canvas-text a{text-decoration:underline}.canvas-text ul{list-style:disc;padding-left:1.4em}.canvas-text ol{list-style:decimal;padding-left:1.4em}
+.hero-background-navigation{position:absolute;right:16px;bottom:12px;z-index:20;display:flex;gap:8px;align-items:center;color:white}
+.hero-background-navigation button,.hero-listing-navigation button{background:#0f172abb;border:1px solid #ffffff66;border-radius:8px;padding:4px 12px;color:white}
+.hero-listing-navigation{position:absolute;top:0;right:0;display:flex;gap:8px;z-index:15}.hero-property-scene{position:relative}
+.portal-canvas .portal-hero-background::after{opacity:var(--hero-overlay-opacity,1)}
+@media(min-width:1024px){.portal-canvas .portal-hero[data-custom-height=true]{min-height:var(--hero-min-height)}.hero-property-scene[data-variant=cards] .hero-property-stage{grid-template-columns:repeat(var(--property-count),minmax(0,1fr))}}
+@media(max-width:767px){.canvas-preview-status{bottom:145px;right:12px;font-size:10px}.canvas-context-menu{max-height:calc(100dvh - 112px)}}
+
+@media(min-width:1024px){
+  .portal-canvas .portal-hero[data-show-scene=true] .hero-property-scene{display:block;visibility:visible}
+  .portal-canvas[data-composition=urbano] .portal-hero[data-show-scene=true] .hero-property-scene,.portal-canvas[data-composition=prime] .portal-hero[data-show-scene=true] .hero-property-scene{max-width:740px;margin:auto}
+  .portal-canvas[data-composition=casa_familia] .portal-hero[data-show-scene=true] .hero-property-scene{max-width:700px;margin:20px auto 0}
+}
+@media(max-width:767px){.portal-canvas .hero-property-scene{display:none!important}}
+
+.canvas-text{position:relative;isolation:isolate}
+.canvas-text::before{content:'';position:absolute;inset:0;z-index:-1;pointer-events:none;border-radius:inherit;background:var(--canvas-block-background,transparent)}
+.portal-canvas .portal-hero[data-custom-overlay=true] .portal-hero-background::after{display:block}

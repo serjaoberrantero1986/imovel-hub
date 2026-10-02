@@ -1,3 +1,4 @@
+import type { VisualPortalConfiguration } from '../../lib/visualPortalEditor';
 import React, { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { ChevronRight, Home, Star } from 'lucide-react';
 import { Property } from '../../types';
@@ -8,6 +9,8 @@ interface HeroPropertySceneProps {
   properties: Property[];
   onOpenProperty: (id: string) => void;
   getTypeLabel: (type: string) => string;
+  settings?: VisualPortalConfiguration['hero'];
+  editing?: boolean;
   variant?: 'route' | 'cards' | 'spotlight';
 }
 
@@ -33,7 +36,7 @@ const shuffleProperties = (properties: Property[]) => {
   return shuffled;
 };
 
-export function HeroPropertyScene({ properties, onOpenProperty, getTypeLabel, variant = 'route' }: HeroPropertySceneProps) {
+export function HeroPropertyScene({ properties, onOpenProperty, getTypeLabel, variant = 'route', settings, editing=false }: HeroPropertySceneProps) {
   const sceneRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
   const nodesRef = useRef<(HTMLDivElement | null)[]>([]);
@@ -41,13 +44,23 @@ export function HeroPropertyScene({ properties, onOpenProperty, getTypeLabel, va
   const [isPlaying, setIsPlaying] = useState(false);
   const gradientId = `hero-route-${useId().replace(/:/g, '')}`;
 
-  const listings = useMemo(() => {
-    // Every active listing has the same chance on each visit. The shuffled order
-    // also determines which listing occupies the larger central position.
-    return shuffleProperties(
-      properties.filter(property => property.id && property.title && property.status === 'active')
-    ).slice(0, 3);
-  }, [properties]);
+  const [page,setPage]=useState(0);
+  const [hovered,setHovered]=useState(false);
+  const count=variant==='spotlight'?1:Math.max(1,Math.min(3,settings?.propertyVisibleCount||3));
+  const pool=useMemo(()=>{
+    const active=properties.filter(p=>p.id&&p.title&&p.status==='active'&&(settings?.propertySource!=='featured'||p.featured));
+    const ordered=settings?.propertyOrder==='price_asc'?[...active].sort((a,b)=>a.price-b.price):shuffleProperties(active);
+    return ordered.slice(0,Math.max(1,Math.min(30,settings?.propertyLimit||12)));
+  },[properties,settings?.propertySource,settings?.propertyOrder,settings?.propertyLimit]);
+  const visibleCount=Math.min(count,pool.length);
+  const listings=Array.from({length:visibleCount},(_,i)=>pool[(page*count+i)%pool.length]);
+  useEffect(()=>{setPage(0);},[pool,count]);
+  useEffect(()=>{
+    const media=window.matchMedia('(prefers-reduced-motion: reduce)');
+    if(!settings?.propertyAutoplay||editing||hovered||pool.length<=count||!isPlaying||media.matches)return;
+    const timer=window.setInterval(()=>{if(!document.hidden&&!media.matches)setPage(value=>(value+1)%Math.ceil(pool.length/count));},Math.max(3,Math.min(60,settings.propertyIntervalSeconds||6))*1000);
+    return()=>window.clearInterval(timer);
+  },[settings?.propertyAutoplay,settings?.propertyIntervalSeconds,editing,hovered,pool.length,count,isPlaying]);
   const listingKey = listings.map(property => property.id).join(',');
 
   useEffect(() => {
@@ -107,6 +120,7 @@ export function HeroPropertyScene({ properties, onOpenProperty, getTypeLabel, va
   return (
     <div
       ref={sceneRef}
+      onMouseEnter={()=>setHovered(true)} onMouseLeave={()=>setHovered(false)} onFocusCapture={()=>setHovered(true)} onBlurCapture={event=>{if(!event.currentTarget.contains(event.relatedTarget))setHovered(false);}}
       className="hero-property-scene"
       data-empty={listings.length === 0}
       data-playing={isPlaying}
@@ -114,6 +128,7 @@ export function HeroPropertyScene({ properties, onOpenProperty, getTypeLabel, va
       role={listings.length ? 'region' : undefined}
       aria-label={listings.length ? 'Imóveis para conhecer' : undefined}
     >
+      {pool.length>count&&<div className="hero-listing-navigation" data-canvas-tools={editing?true:undefined}><button type="button" aria-label="Anúncios anteriores" onClick={()=>setPage(value=>(value-1+Math.ceil(pool.length/count))%Math.ceil(pool.length/count))}>‹</button><button type="button" aria-label="Próximos anúncios" onClick={()=>setPage(value=>(value+1)%Math.ceil(pool.length/count))}>›</button></div>}
       <div
         ref={stageRef}
         className="hero-property-stage"
@@ -177,12 +192,12 @@ export function HeroPropertyScene({ properties, onOpenProperty, getTypeLabel, va
                   )}
                 </span>
                 <span className="hero-property-info">
-                  <span className="hero-property-type">{getTypeLabel(property.type)}</span>
-                  {location && <span className="hero-property-location" title={location}>{location}</span>}
-                  <span className="hero-property-price">
+                  {settings?.propertyShowType!==false&&<span className="hero-property-type">{getTypeLabel(property.type)}</span>}
+                  {settings?.propertyShowLocation!==false && location && <span className="hero-property-location" title={location}>{location}</span>}
+                  {settings?.propertyShowPrice!==false&&<span className="hero-property-price">
                     {formatCurrency(property.price)}
                     {property.purpose === 'rent' && <small> / mês</small>}
-                  </span>
+                  </span>}
                   <ChevronRight className="hero-property-arrow" size={17} aria-hidden="true" />
                 </span>
               </button>

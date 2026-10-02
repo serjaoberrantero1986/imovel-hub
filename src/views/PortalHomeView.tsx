@@ -1,5 +1,6 @@
+import { usePortalSession } from '../components/visual-editor/usePortalSession';
 import { PortalCanvas, EditableText, EditableBox, CanvasSections, CanvasSection } from '../components/visual-editor/PortalCanvas';
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { 
   Building2, 
   Search, 
@@ -26,8 +27,8 @@ import { PropertyMap } from '../components/properties/PropertyMap';
 import { PropertyCardSkeleton } from '../components/ui/Skeleton';
 import { filterProperties, hasActiveFilters } from '../lib/propertyFilters';
 import { PortalVisualEditor } from '../components/visual-editor/PortalVisualEditor';
-import { DEFAULT_VISUAL_PORTAL_CONFIGURATION, VisualPortalConfiguration, ensureMyVisualPortalConfiguration, fetchMyVisualPortalConfiguration, isSectionVisible, publishMyVisualPortalConfiguration, saveMyVisualPortalDraft } from '../lib/visualPortalEditor';
-import { uploadPortalAsset } from '../lib/portalAssets';
+import { DEFAULT_VISUAL_PORTAL_CONFIGURATION, VisualPortalConfiguration, ensureMyVisualPortalConfiguration, fetchMyVisualPortalConfiguration, isSectionVisible, publishMyVisualPortalConfiguration } from '../lib/visualPortalEditor';
+
 
 export const PortalHomeView: React.FC = () => {
   const { homePageSettings } = useCatalog();
@@ -47,16 +48,30 @@ export const PortalHomeView: React.FC = () => {
   } = useApp();
 
   const [isVisualEditorOpen, setIsVisualEditorOpen] = useState(false);
-  const [visualConfiguration, setVisualConfiguration] = useState<VisualPortalConfiguration>(DEFAULT_VISUAL_PORTAL_CONFIGURATION);
+  const session = usePortalSession(currentUser.id);
+  const visualConfiguration = session.value;
+  const setVisualConfiguration = session.change;
+  const [sessionOwner, setSessionOwner] = useState<string | null>(null);
+  const ownerRef = useRef(currentUser.id); ownerRef.current = currentUser.id;
   const [publishedVisualConfiguration, setPublishedVisualConfiguration] = useState<VisualPortalConfiguration | null>(null);
   const [visualEditorBusy, setVisualEditorBusy] = useState(false);
   const [canvasSettingsOpen, setCanvasSettingsOpen] = useState(false);
   const canEditPortal = isAuthenticated && (currentUser.role === 'broker' || currentUser.role === 'agency');
-  const activeVisualConfiguration = isVisualEditorOpen ? visualConfiguration : publishedVisualConfiguration;
+  const activeVisualConfiguration = sessionOwner === currentUser.id && canEditPortal ? visualConfiguration : publishedVisualConfiguration;
+  const unpublished = sessionOwner === currentUser.id && JSON.stringify(visualConfiguration) !== JSON.stringify(publishedVisualConfiguration);
+  useEffect(() => {
+    if (!unpublished) return;
+    const warn = (event: BeforeUnloadEvent) => {event.preventDefault();event.returnValue='';};
+    window.addEventListener('beforeunload',warn);
+    return ()=>window.removeEventListener('beforeunload',warn);
+  }, [unpublished]);
   const isVisible = (section: Parameters<typeof isSectionVisible>[1]) => !activeVisualConfiguration || isSectionVisible(activeVisualConfiguration, section);
 
   useEffect(() => {
     let cancelled = false;
+    setSessionOwner(null);
+    setIsVisualEditorOpen(false);
+    setCanvasSettingsOpen(false);
     if (!canEditPortal) {
       setPublishedVisualConfiguration(null);
       setIsVisualEditorOpen(false);
@@ -77,11 +92,15 @@ export const PortalHomeView: React.FC = () => {
 
   const openVisualEditor = async () => {
     if (!canEditPortal) return;
+    if(sessionOwner === currentUser.id){setIsVisualEditorOpen(true);return;}
+    const owner=currentUser.id;
     setVisualEditorBusy(true);
     try {
       await ensureMyVisualPortalConfiguration(currentUser.id);
       const configuration = await fetchMyVisualPortalConfiguration(currentUser.id);
-      setVisualConfiguration(configuration.draft);
+      if(ownerRef.current !== owner)return;
+      session.reset(configuration.published);
+      setSessionOwner(owner);
       setPublishedVisualConfiguration(configuration.published);
       setIsVisualEditorOpen(true);
     } catch (error: any) {
@@ -91,48 +110,27 @@ export const PortalHomeView: React.FC = () => {
     }
   };
 
-  const saveVisualDraft = async () => {
+  const discardVisualChanges = async () => {
+    if(!window.confirm("Descartar as alterações não publicadas?"))return;
     setVisualEditorBusy(true);
-    try {
-      await saveMyVisualPortalDraft(currentUser.id, visualConfiguration);
-      addToast({ type: 'success', title: 'Rascunho salvo', message: 'Sua prévia visual foi salva com segurança.' });
-    } catch (error: any) {
-      addToast({ type: 'error', title: 'Rascunho não salvo', message: error?.message || 'Tente novamente.' });
-    } finally {
-      setVisualEditorBusy(false);
-    }
+    session.reset(publishedVisualConfiguration || DEFAULT_VISUAL_PORTAL_CONFIGURATION);
+    try{await session.discardAssets();}catch(error){addToast({type:'warning',title:'Limpeza pendente',message:error instanceof Error?error.message:'Não foi possível limpar imagens temporárias.'});}
+    finally{setVisualEditorBusy(false);}
   };
-
   const publishVisualConfiguration = async () => {
     setVisualEditorBusy(true);
     try {
-      await publishMyVisualPortalConfiguration(currentUser.id, visualConfiguration);
-      setPublishedVisualConfiguration(visualConfiguration);
+      const owner = currentUser.id;
+      const ready = await session.materialize(visualConfiguration);
+      if(ownerRef.current !== owner)return;
+      await publishMyVisualPortalConfiguration(owner, ready);
+      if(ownerRef.current !== owner)return;
+      session.commitAssets(ready);
+      session.reset(ready);
+      setPublishedVisualConfiguration(ready);
       addToast({ type: 'success', title: 'Versão publicada', message: 'A versão foi reservada para o portal individual do seu subdomínio.' });
     } catch (error: any) {
       addToast({ type: 'error', title: 'Publicação não concluída', message: error?.message || 'Tente novamente.' });
-    } finally {
-      setVisualEditorBusy(false);
-    }
-  };
-
-  const uploadHeroBackground = async (file: File) => {
-    if (visualConfiguration.hero.backgroundImages.length >= 5) return;
-    setVisualEditorBusy(true);
-    try {
-      const asset = await uploadPortalAsset('hero', file, currentUser.id);
-      if (!asset) return;
-      setVisualConfiguration(current => ({
-        ...current,
-        hero: {
-          ...current.hero,
-          backgroundMode: 'image',
-          backgroundImages: [...current.hero.backgroundImages, { id: crypto.randomUUID(), url: asset.url, path: asset.path }].slice(0, 5)
-        }
-      }));
-      addToast({ type: 'success', title: 'Imagem adicionada', message: 'O fundo foi otimizado e incluído na prévia.' });
-    } catch (error: any) {
-      addToast({ type: 'error', title: 'Imagem não adicionada', message: error?.message || 'Tente novamente.' });
     } finally {
       setVisualEditorBusy(false);
     }
@@ -207,15 +205,16 @@ export const PortalHomeView: React.FC = () => {
   };
 
   return (
-    <PortalCanvas value={activeVisualConfiguration || DEFAULT_VISUAL_PORTAL_CONFIGURATION} editing={isVisualEditorOpen && canEditPortal} busy={visualEditorBusy} ownerId={currentUser.id} onChange={setVisualConfiguration} onSave={() => void saveVisualDraft()} onPublish={() => void publishVisualConfiguration()} onClose={() => {setIsVisualEditorOpen(false);setCanvasSettingsOpen(false);}} onSettings={() => setCanvasSettingsOpen(true)}>
+    <PortalCanvas value={activeVisualConfiguration || DEFAULT_VISUAL_PORTAL_CONFIGURATION} editing={isVisualEditorOpen && canEditPortal} busy={visualEditorBusy||session.preparing} ownerId={currentUser.id} onChange={setVisualConfiguration} unpublished={unpublished} onDiscard={() => void discardVisualChanges()} onUndo={session.undo} onRedo={session.redo} canUndo={session.canUndo} canRedo={session.canRedo} onPrepareImage={session.prepareImage} onPublish={() => void publishVisualConfiguration()} onClose={() => {setIsVisualEditorOpen(false);setCanvasSettingsOpen(false);}} onSettings={() => setCanvasSettingsOpen(true)}>
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 transition-colors">
       
       {/* Hero Luxury Section with Real Floating Properties and Modern Search Bar */}
       {isVisible('hero') && <HeroLuxurySection visualConfiguration={activeVisualConfiguration || undefined} />}
 
+      {canEditPortal && !isVisualEditorOpen && unpublished && <div className="canvas-preview-status">Prévia privada · alterações não publicadas</div>}
       {canEditPortal && !isVisualEditorOpen && <button type="button" onClick={() => void openVisualEditor()} disabled={visualEditorBusy} className="fixed bottom-24 right-4 z-40 inline-flex items-center gap-2 rounded-2xl bg-slate-900 px-4 py-3 text-xs font-extrabold text-white shadow-xl shadow-slate-950/30 transition-transform hover:-translate-y-0.5 disabled:opacity-60 dark:bg-white dark:text-slate-900 sm:bottom-6 sm:right-6"><Sparkles className="h-4 w-4 text-rose-400" />{visualEditorBusy ? 'Abrindo editor...' : 'Editar portal'}</button>}
 
-      {isVisualEditorOpen && canvasSettingsOpen && <PortalVisualEditor configuration={visualConfiguration} busy={visualEditorBusy} onChange={setVisualConfiguration} onClose={() => setCanvasSettingsOpen(false)} onSaveDraft={() => void saveVisualDraft()} onPublish={() => void publishVisualConfiguration()} onUploadHeroImage={uploadHeroBackground} />}
+      {isVisualEditorOpen && canvasSettingsOpen && <PortalVisualEditor configuration={visualConfiguration} busy={visualEditorBusy||session.preparing} onChange={setVisualConfiguration} onClose={() => setCanvasSettingsOpen(false)} onPublish={() => void publishVisualConfiguration()} onPrepareImage={session.prepareImage} />}
 
       {/* Main Content Area */}
       <CanvasSections>

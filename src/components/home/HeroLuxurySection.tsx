@@ -1,4 +1,4 @@
-import { EditableText, EditableImage } from '../visual-editor/PortalCanvas';
+import { EditableText, usePortalEditing } from '../visual-editor/PortalCanvas';
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { 
   Search, 
@@ -56,6 +56,10 @@ export const HeroLuxurySection: React.FC<HeroLuxurySectionProps> = ({ visualConf
     HERO_BACKGROUNDS[Math.floor(Math.random() * HERO_BACKGROUNDS.length)]
   );
   const [customBackgroundIndex, setCustomBackgroundIndex] = useState(0);
+  const editing=usePortalEditing();
+  const [paused,setPaused]=useState(false);
+  const [reducedMotion,setReducedMotion]=useState(window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  useEffect(()=>{const media=window.matchMedia('(prefers-reduced-motion: reduce)');const update=()=>setReducedMotion(media.matches);media.addEventListener('change',update);return()=>media.removeEventListener('change',update);},[]);
 
   // Search Bar Local State
   const [isCodeSearchActive, setIsCodeSearchActive] = useState<boolean>(Boolean(filters.propertyCode));
@@ -68,12 +72,12 @@ export const HeroLuxurySection: React.FC<HeroLuxurySectionProps> = ({ visualConf
 
   const customBackgrounds = visualConfiguration?.hero.backgroundImages || [];
   useEffect(() => {
-    setCustomBackgroundIndex(0);
-    if (visualConfiguration?.hero.backgroundMode !== 'image' || customBackgrounds.length < 2) return;
-    const seconds = Math.min(20, Math.max(3, visualConfiguration.hero.backgroundIntervalSeconds));
-    const timer = window.setInterval(() => setCustomBackgroundIndex(index => (index + 1) % customBackgrounds.length), seconds * 1000);
+
+    if (visualConfiguration?.hero.backgroundMode !== 'image' || customBackgrounds.length < 2 || visualConfiguration.hero.backgroundAutoplay===false || editing || paused || reducedMotion) return;
+    const seconds = Math.min(60, Math.max(3, visualConfiguration.hero.backgroundIntervalSeconds));
+    const timer = window.setInterval(() => !document.hidden && setCustomBackgroundIndex(index => (index + 1) % customBackgrounds.length), seconds * 1000);
     return () => window.clearInterval(timer);
-  }, [visualConfiguration?.hero.backgroundMode, visualConfiguration?.hero.backgroundIntervalSeconds, customBackgrounds.length]);
+  }, [visualConfiguration?.hero.backgroundMode, visualConfiguration?.hero.backgroundIntervalSeconds, customBackgrounds.length, visualConfiguration?.hero.backgroundAutoplay, editing, paused, reducedMotion]);
 
   // Close type dropdown on outside click
   useEffect(() => {
@@ -190,12 +194,19 @@ export const HeroLuxurySection: React.FC<HeroLuxurySectionProps> = ({ visualConf
   const heroStyle = hero?.backgroundMode === 'solid'
     ? { backgroundColor: hero.solidColor }
     : hero?.backgroundMode === 'gradient'
-      ? { background: `linear-gradient(135deg, ${hero.gradientStart}, ${hero.gradientEnd})` }
+      ? { background: `linear-gradient(${hero.gradientAngle ?? 135}deg, ${hero.gradientStart}, ${hero.gradientEnd})` }
       : undefined;
 
   return (
-    <section className="portal-hero" data-background-mode={hero?.backgroundMode || 'image'} data-template={visualConfiguration?.templateId || 'essencial'} style={heroStyle}>
-      <EditableImage id="hero.background" label="Imagem da apresentação" className="portal-hero-background" src={backgroundSource} style={{ "--hero-background-desktop-position": background.desktopPosition, "--hero-background-mobile-position": background.mobilePosition } as React.CSSProperties} />
+    <section data-custom-height={hero?.minHeight !== undefined} data-custom-overlay={hero?.overlayOpacity !== undefined} data-show-scene={hero?.showPropertyScene !== false} data-canvas-id="hero.background" data-canvas-kind="hero" data-canvas-label="Apresentação e miniaturas" onMouseEnter={()=>setPaused(true)} onMouseLeave={()=>setPaused(false)} className="portal-hero" data-background-mode={hero?.backgroundMode || 'image'} data-template={visualConfiguration?.templateId || 'essencial'} style={{...heroStyle, '--hero-min-height':hero?.minHeight ? hero.minHeight+'px':undefined,'--hero-overlay-opacity':hero?.overlayOpacity === undefined ? undefined : hero.overlayOpacity/100} as React.CSSProperties & Record<string, unknown>}>
+      <div className="portal-hero-background" style={{"--hero-background-desktop-position":hero?.backgroundPositionX === undefined ? background.desktopPosition : `${hero.backgroundPositionX}% ${hero.backgroundPositionY ?? 50}%`, "--hero-background-mobile-position":hero?.backgroundPositionX === undefined ? background.mobilePosition : `${hero.backgroundPositionX}% ${hero.backgroundPositionY ?? 50}%`} as React.CSSProperties}>
+        <img key={backgroundSource} src={backgroundSource} alt="" style={{objectFit:hero?.backgroundFit||'cover',animation:hero?.backgroundTransition==='none'||reducedMotion?'none':`hero-background-arrival ${hero?.backgroundTransitionSeconds ?? .5}s ease both`}}/>
+      </div>
+      {customBackgrounds.length>1&&<div className="hero-background-navigation" data-canvas-tools={editing?true:undefined}>
+        <button type="button" aria-label="Fundo anterior" onClick={()=>setCustomBackgroundIndex(index=>(index-1+customBackgrounds.length)%customBackgrounds.length)}>‹</button>
+        <span>{customBackgroundIndex % customBackgrounds.length+1}/{customBackgrounds.length}</span>
+        <button type="button" aria-label="Próximo fundo" onClick={()=>setCustomBackgroundIndex(index=>(index+1)%customBackgrounds.length)}>›</button>
+      </div>}
 
       <div className="portal-hero-composition">
         <div className="portal-hero-copy">

@@ -59,6 +59,8 @@
 - Novas páginas devem reutilizar esse padrão. Qualquer exceção visual precisa ser apresentada e confirmada pelo usuário antes da implementação.
 
 ## 9. Editor Visual do Portal
+- Durante a edição, bloquear centralmente as ações e a navegação do portal inteiro (incluindo cabeçalho, rodapé e navegação mobile), permitindo apenas seleção, texto, rolagem e ferramentas do editor. Novos componentes não podem abrir brechas nesse bloqueio.
+- Manter a prévia temporária na memória da página ao fechar/reabrir o editor; somente Publicar persiste a configuração. Os atalhos de um mesmo elemento devem usar controles e dados compartilhados, sem estados paralelos.
 - O modo Editar Portal deve permitir seleção e edição no próprio elemento, com ferramentas contextuais. Não substituir esta experiência por um formulário lateral obrigatório.
 - Modelos devem variar composição, ordem, tipografia e distribuição dos elementos, não apenas cores. Usar os componentes compartilhados do canvas e IDs estáveis para manter as personalizações.
 - Toda funcionalidade visual nova deve ser criada como componente reutilizável e registrada no Editor visual antes de ser disponibilizada no portal; não criar páginas administrativas paralelas para editar conteúdo ou aparência de um portal.

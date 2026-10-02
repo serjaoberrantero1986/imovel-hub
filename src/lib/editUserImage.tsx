@@ -9,6 +9,7 @@ export async function editUserImage(file: File, purpose: 'photo' | 'avatar' | 'l
   if (!validation.valid) throw new Error(validation.error || 'Imagem inválida.');
   return new Promise(resolve => {
     const host = document.createElement('div');
+    host.setAttribute('data-image-editor-host', 'true');
     document.body.appendChild(host);
     const root = createRoot(host);
     const url = URL.createObjectURL(file);
