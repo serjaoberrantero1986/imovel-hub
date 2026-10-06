@@ -13,12 +13,10 @@ import {
   Mail, 
   Phone, 
   ExternalLink,
-  HelpCircle,
-  Sparkles
+  HelpCircle
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { CanvasInsertedBlocks, EditableBox, EditableText } from '../components/visual-editor/PortalCanvas';
-import { usePortalEditorShell } from '../components/visual-editor/PortalEditorProvider';
 
 export type LegalTab = 'terms' | 'privacy' | 'consumer' | 'security' | 'cookies';
 
@@ -28,7 +26,6 @@ interface InstitutionalLegalViewProps {
 
 export const InstitutionalLegalView: React.FC<InstitutionalLegalViewProps> = ({ initialTab = 'terms' }) => {
   const { setCurrentView, addToast, activeLegalTab, setActiveLegalTab } = useApp();
-  const editor = usePortalEditorShell();
   const activeTab = activeLegalTab || initialTab;
   const setActiveTab = (tab: LegalTab) => setActiveLegalTab(tab);
 
@@ -49,10 +46,7 @@ export const InstitutionalLegalView: React.FC<InstitutionalLegalViewProps> = ({ 
             <span>Voltar ao Portal</span>
           </button>
 
-          <div className="flex items-center gap-2">
-            {editor.canEdit && !editor.editing && <button type="button" disabled={editor.busy} onClick={() => void editor.openEditor(`legal.${activeTab}.document`)} className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-3 py-2 text-xs font-bold text-white shadow-lg hover:bg-slate-800 disabled:opacity-60 dark:bg-white dark:text-slate-900"><Sparkles className="h-4 w-4 text-rose-500" />Editar portal</button>}
-            <span className="text-[11px] text-slate-500 font-mono">Última atualização: Setembro/2026</span>
-          </div>
+          <span className="text-[11px] text-slate-500 font-mono">Última atualização: Setembro/2026</span>
         </div>
 
         {/* Page Header */}
