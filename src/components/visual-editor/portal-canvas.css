@@ -49,6 +49,9 @@
 .portal-search-position-tools{position:absolute;left:50%;top:-38px;transform:translateX(-50%);z-index:40;display:flex;gap:6px}
 .portal-search-position-tools button{border:1px solid #fecdd3;border-radius:9px;background:#fff;color:#9f1239;padding:6px 10px;font:700 11px Outfit,Arial,sans-serif;box-shadow:0 5px 18px #0f172a2b;white-space:nowrap}
 .dark .portal-search-position-tools button{background:#0f172a;color:#fda4af;border-color:#881337}
+.canvas-page-switcher{position:fixed;left:16px;bottom:20px;z-index:89;display:flex;gap:6px;padding:7px;border:1px solid #e2e8f0;border-radius:14px;background:#fff;box-shadow:0 12px 35px #0f172a2b;font:700 11px Outfit,Arial,sans-serif}
+.canvas-page-switcher button,.canvas-page-switcher summary{display:flex;align-items:center;gap:5px;padding:7px 10px;border-radius:9px;color:#475569;cursor:pointer;white-space:nowrap}.canvas-page-switcher button[aria-pressed=true]{background:#e11d48;color:#fff}.canvas-page-switcher details{position:relative}.canvas-page-switcher details>div{position:absolute;bottom:42px;left:0;display:grid;gap:4px;min-width:140px;padding:7px;border:1px solid #e2e8f0;border-radius:12px;background:#fff;box-shadow:0 12px 35px #0f172a2b}.dark .canvas-page-switcher,.dark .canvas-page-switcher details>div{background:#0f172a;border-color:#334155}.dark .canvas-page-switcher button,.dark .canvas-page-switcher summary{color:#cbd5e1}
+@media(max-width:767px){.canvas-page-switcher{left:8px;bottom:72px}.canvas-page-switcher button,.canvas-page-switcher summary{padding:6px 8px;font-size:10px}}
 .portal-canvas .portal-hero-background::after{opacity:var(--hero-overlay-opacity,1)}
 @media(min-width:1024px){.portal-canvas .portal-hero[data-custom-height=true]{min-height:var(--hero-min-height)}.hero-property-scene[data-variant=cards] .hero-property-stage{grid-template-columns:repeat(var(--property-count),minmax(0,1fr))}}
 @media(max-width:767px){.canvas-preview-status{bottom:145px;right:12px;font-size:10px}.canvas-context-menu{max-height:calc(100dvh - 112px)}}
@@ -63,3 +66,4 @@
 .canvas-text{position:relative;isolation:isolate}
 .canvas-text::before{content:'';position:absolute;inset:0;z-index:-1;pointer-events:none;border-radius:inherit;background:var(--canvas-block-background,transparent)}
 .portal-canvas .portal-hero[data-custom-overlay=true] .portal-hero-background::after{display:block}
+.canvas-inserted-blocks{display:grid;gap:24px;margin-top:24px}

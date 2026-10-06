@@ -69,6 +69,8 @@
 - Novos blocos devem prever prévia responsiva, comportamento no celular, acessibilidade e limites de desempenho desde sua implementação inicial.
 - Janelas e painéis flutuantes do editor devem reutilizar `useDraggableSurface`, permanecer limitados à área visível e oferecer restauração da posição; não criar popups de edição fixos que possam encobrir permanentemente o conteúdo.
 - Elementos reposicionáveis do portal devem salvar coordenadas por breakpoint (desktop, tablet e celular). Formatação rica aplicada a uma seleção de texto deve permanecer restrita ao trecho selecionado, sem converter o estilo do bloco inteiro.
+- A sessão do Editor visual é global ao portal e deve permanecer ativa ao alternar entre a página inicial, o rodapé e os documentos institucionais. Todos usam o mesmo `visual_draft` e `visual_published`; não recriar a antiga página ou rota “Configurações do Site”.
+- Termos, privacidade, defesa do consumidor, segurança e cookies podem ter conteúdo e aparência personalizados, mas suas ações funcionais, links oficiais e estrutura mínima não podem ser removidos pelo editor. Blocos inseridos devem registrar seu `scope` para não aparecerem em outra página.
 
 ## 10. Entrega de Alterações
 - Após toda alteração local, a resposta final deve incluir um script PowerShell para adicionar somente os arquivos daquela implementação, criar o commit e executar o `git push`.

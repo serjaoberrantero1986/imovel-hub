@@ -204,5 +204,7 @@ export const VISUAL_EDITOR_REGISTRY = {
     templates: PORTAL_TEMPLATES,
     elementKinds: ['text', 'box', 'image', 'icon'],
     insertableBlocks: ['text', 'image', 'button', 'icon']
-  }
+  },
+  footer: { elementKinds: ['text', 'box', 'image'], protectedActions: ['search', 'legal-navigation', 'newsletter'] },
+  legal: { pages: ['terms', 'privacy', 'consumer', 'security', 'cookies'], elementKinds: ['text', 'box'], protectedActions: ['cookie-consent', 'official-links', 'fraud-report'] }
 } as const;

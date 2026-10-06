@@ -7,6 +7,7 @@ import { ToastContainer } from './components/ui/ToastContainer';
 import { PropertyWizardModal } from './components/properties/PropertyWizardModal';
 import { AuthModal } from './components/modals/AuthModal';
 import { OfflineBanner } from './components/layout/OfflineBanner';
+import { PortalEditorProvider } from './components/visual-editor/PortalEditorProvider';
 
 // Views
 import { PortalHomeView } from './views/PortalHomeView';
@@ -23,7 +24,6 @@ import { ProfileView } from './views/ProfileView';
 import { InstitutionalLegalView } from './views/InstitutionalLegalView';
 import { SavedSearchesView } from './views/SavedSearchesView';
 import { AdminCreciReviewView } from './views/AdminCreciReviewView';
-import { AdminSiteSettingsView } from './views/AdminSiteSettingsView';
 
 const MainContent: React.FC = () => {
   const { currentView, activeLegalTab } = useApp();
@@ -49,7 +49,6 @@ const MainContent: React.FC = () => {
         {currentView === 'design_system' && <DesignSystemView />}
         {currentView === 'profile' && <ProfileView />}
         {currentView === 'admin_creci' && <AdminCreciReviewView />}
-        {currentView === 'admin_settings' && <AdminSiteSettingsView />}
         {currentView === 'legal' && <InstitutionalLegalView initialTab={activeLegalTab} />}
       </main>
 
@@ -65,7 +64,7 @@ const MainContent: React.FC = () => {
 export default function App() {
   return (
     <AppProvider>
-      <MainContent />
+      <PortalEditorProvider><MainContent /></PortalEditorProvider>
     </AppProvider>
   );
 }

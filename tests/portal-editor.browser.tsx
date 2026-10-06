@@ -1,7 +1,7 @@
 import React,{useState} from 'react';
 import {createRoot} from 'react-dom/client';
 import {flushSync} from 'react-dom';
-import {PortalCanvas,EditableText,CanvasSection} from '../src/components/visual-editor/PortalCanvas';
+import {PortalCanvas,EditableText,CanvasSection,CanvasInsertedBlocks} from '../src/components/visual-editor/PortalCanvas';
 import {DEFAULT_VISUAL_PORTAL_CONFIGURATION} from '../src/lib/visualPortalEditor';
 import {applyMarks,markState,gradientState,insertMarkedText,toggleList} from '../src/lib/portalRichText';
 import {cleanRichText} from '../src/lib/portalCanvas';
@@ -25,6 +25,7 @@ function Harness(){
     <PortalCanvas value={value} editing={editing} busy={false} ownerId="" onChange={next=>{updates++;setValue(next);}} onPublish={()=>{}} onClose={()=>setEditing(false)} onSettings={()=>{}} unpublished={true} onDiscard={()=>{}} onUndo={()=>{}} onRedo={()=>{}} canUndo={false} canRedo={false} onPrepareImage={async()=>null}>
       <section data-canvas-id="hero.background" data-canvas-kind="hero" data-canvas-label="Hero">Hero</section>
       <EditableText id="text" label="Texto" as="div">Texto para formatar</EditableText>
+      <EditableText id="legal-test" label="Cláusula obrigatória" as="div" hideable={false} defaultHtml="<strong>Cláusula:</strong> conteúdo protegido"/>
       <CanvasSection sectionId="map"><button id="action" onClick={()=>websiteActions++}>Ação</button><form onSubmit={e=>{e.preventDefault();websiteActions++;}}><input id="portal-input"/><button>Enviar</button></form></CanvasSection>
     </PortalCanvas></>;
 }
@@ -62,6 +63,12 @@ async function run(){
     assert(normaliseVisualConfiguration(config).hero.backgroundImages.length===1,'migração idempotente');
   });
   await test('histórico central desfaz alterações de qualquer painel',()=>{const initial={value:DEFAULT_VISUAL_PORTAL_CONFIGURATION,past:[],future:[]};const next=sessionReducer(initial,{type:'change',value:{...initial.value,hero:{...initial.value.hero,backgroundIntervalSeconds:12}}});assert(sessionReducer(next,{type:'undo'}).value.hero.backgroundIntervalSeconds===8,'undo');assert(sessionReducer(sessionReducer(next,{type:'undo'}),{type:'redo'}).value.hero.backgroundIntervalSeconds===12,'redo');});
+  await test('blocos inseridos permanecem no escopo da página',async()=>{
+    const host=document.createElement('div');document.body.append(host);const scoped=createRoot(host);
+    const config={...DEFAULT_VISUAL_PORTAL_CONFIGURATION,blocks:[{id:'home-block',kind:'text' as const,scope:'home'},{id:'footer-block',kind:'text' as const,scope:'footer'}],elements:{'home-block':{html:'Bloco inicial'},'footer-block':{html:'Bloco rodapé'}}};
+    flushSync(()=>scoped.render(<PortalCanvas value={config} editing={false} busy={false} ownerId="" scope="home" onChange={()=>{}} onPublish={()=>{}} onClose={()=>{}} onSettings={()=>{}} unpublished={false} onDiscard={()=>{}} onUndo={()=>{}} onRedo={()=>{}} canUndo={false} canRedo={false} onPrepareImage={async()=>null}><CanvasInsertedBlocks/><CanvasInsertedBlocks scope="footer"/></PortalCanvas>));await wait();
+    assert(host.textContent?.includes('Bloco inicial')&&host.textContent?.includes('Bloco rodapé'),'escopos renderizados');scoped.unmount();host.remove();
+  });
   await test('galeria aceita cinco cards, respeita visibilidade e não exibe setas manuais',async()=>{
     const host=document.createElement('div');document.body.append(host);const gallery=createRoot(host);
     const properties=Array.from({length:6},(_,index)=>({id:String(index),title:'Imóvel '+index,status:'active',price:100000+index,type:'house',purpose:'sale',city:'Sorocaba',neighborhood:'Centro',media:[],images:[]})) as any;
@@ -82,6 +89,10 @@ async function run(){
     const root=document.querySelector('[data-canvas-id=text]') as HTMLElement;select(root,0,5);await wait();
     (document.querySelector('[title=Negrito]') as HTMLElement).click();await wait();assert(root.innerHTML.includes('font-weight:700'),'negrito aplicado');
     (document.querySelector('[title=Negrito]') as HTMLElement).click();await wait();assert(root.innerHTML.includes('font-weight:400'),'negrito removido');assert(updates>=2,'alterações no estado');
+  });
+  await test('documento obrigatório aceita HTML seguro e não pode ser ocultado',async()=>{
+    const legal=document.querySelector('[data-canvas-id=legal-test]') as HTMLElement;assert(!!legal.querySelector('strong'),'HTML inicial preservado');legal.click();await wait();
+    assert(!Array.from(document.querySelectorAll('.canvas-context-menu button')).some(button=>button.textContent==='Ocultar'),'sem ação de ocultar');
   });
   await test('hero usa o mesmo painel compartilhado pelo atalho direto',async()=>{
     (document.querySelector('[data-canvas-kind=hero]') as HTMLElement).click();await wait();

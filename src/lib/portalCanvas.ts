@@ -29,6 +29,7 @@ export interface CanvasElement {
 export interface CanvasBlock {
   id: string;
   kind: 'text' | 'image' | 'button' | 'icon';
+  scope?: string;
 }
 export const CANVAS_FONTS = ['Outfit', 'Arial', 'Georgia', 'Verdana', 'Courier New'];
 const cssKeys = ['color', 'backgroundColor', 'fontFamily', 'fontSize', 'fontWeight', 'fontStyle',

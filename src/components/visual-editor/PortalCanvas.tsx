@@ -11,7 +11,7 @@ import { CANVAS_FONTS, CanvasElement, CanvasBlock, cleanRichText, escapeText, sa
 
 import './portal-canvas.css';
 
-type Selection = { id: string; label: string; kind: 'text' | 'box' | 'image' | 'icon' | 'hero'; node: HTMLElement };
+type Selection = { id: string; label: string; kind: 'text' | 'box' | 'image' | 'icon' | 'hero'; node: HTMLElement; hideable?: boolean };
 interface CanvasContextValue {
   editing: boolean;
   viewport: 'desktop'|'tablet'|'mobile';
@@ -22,6 +22,7 @@ interface CanvasContextValue {
   updateHero: (patch: Partial<VisualPortalConfiguration['hero']>) => void;
   selected: string | undefined;
   reorder: (from: string, to: string) => void;
+  scope: string;
 }
 const CanvasContext = createContext<CanvasContextValue | null>(null);
 export const usePortalEditing = () => useContext(CanvasContext)?.editing || false;
@@ -29,8 +30,9 @@ export const usePortalEditor = () => useContext(CanvasContext);
 const icons = { Home, MapPin, ShieldCheck, Star, Heart, Phone };
 const iconLabels = { Home: 'Casa', MapPin: 'Localização', ShieldCheck: 'Segurança', Star: 'Estrela', Heart: 'Coração', Phone: 'Telefone' };
 
-export function PortalCanvas({ children, value, editing, busy, onChange, onPublish, onClose, onSettings, unpublished, onDiscard, onUndo, onRedo, canUndo, canRedo, onPrepareImage }:
+export function PortalCanvas({ children, value, editing, busy, scope='home', onChange, onPublish, onClose, onSettings, unpublished, onDiscard, onUndo, onRedo, canUndo, canRedo, onPrepareImage }:
   { children: React.ReactNode; value: VisualPortalConfiguration; editing: boolean; busy: boolean; ownerId: string;
+    scope?: string;
     onChange: (v: VisualPortalConfiguration) => void; unpublished: boolean; onDiscard: () => void; onUndo: () => void; onRedo: () => void; canUndo: boolean; canRedo: boolean; onPrepareImage: HeroControlsProps['onPrepareImage']; onPublish: () => void; onClose: () => void; onSettings: () => void }) {
   const [viewport,setViewport]=useState<'desktop'|'tablet'|'mobile'>(window.innerWidth<768?'mobile':window.innerWidth<1024?'tablet':'desktop');
   const [styleTarget,setStyleTarget]=useState<'desktop'|'tablet'|'mobile'>('desktop');
@@ -124,7 +126,7 @@ export function PortalCanvas({ children, value, editing, busy, onChange, onPubli
   guardHandlers.current={select,undo};
   useEffect(()=>{
     if(!editing)return;
-    return installPortalEditorGuard(element=>guardHandlers.current.select({id:element.dataset.canvasId!,label:element.dataset.canvasLabel||'Elemento',kind:(element.dataset.canvasKind as Selection['kind'])||'box',node:element}),redo=>guardHandlers.current.undo(redo));
+    return installPortalEditorGuard(element=>guardHandlers.current.select({id:element.dataset.canvasId!,label:element.dataset.canvasLabel||'Elemento',kind:(element.dataset.canvasKind as Selection['kind'])||'box',node:element,hideable:element.dataset.canvasHideable!=='false'}),redo=>guardHandlers.current.undo(redo));
   },[editing]);
   const gradientControl=(key:'textGradient'|'backgroundGradient',label:string)=>{
     const gradient=item[key];
@@ -134,7 +136,8 @@ export function PortalCanvas({ children, value, editing, busy, onChange, onPubli
   const insert = (kind: CanvasBlock['kind']) => {
     const id = crypto.randomUUID();
     const current=latest.current;
-    const blocks=[...(current.blocks||[]),{ id,kind }];
+    const targetScope=selection?.id.startsWith('footer.')?'footer':scope;
+    const blocks=[...(current.blocks||[]),{ id,kind,scope:targetScope }];
     const text=kind==='button'?'Saiba mais':kind==='text'?'Clique aqui e escreva seu conteúdo.':'';
     change({...current,blocks,elements:{...current.elements,[id]:{html:escapeText(text),icon:'Star'}}});
     window.setTimeout(()=>document.querySelector<HTMLElement>('[data-canvas-id="'+id+'"]')?.scrollIntoView({block:'center',behavior:'smooth'}),0);
@@ -202,24 +205,24 @@ export function PortalCanvas({ children, value, editing, busy, onChange, onPubli
         </>}
         {tab==='layout'&&<>{(['padding','marginTop','marginBottom'] as const).map((key,i)=><label key={key}>{['Espaço interno','Espaço acima','Espaço abaixo'][i]}<input type="number" min={0} max={160} value={Number(selectedStyle?.[key])||0} onChange={e=>style({[key]:Math.max(0,Math.min(160,+e.target.value))})}/></label>)}<div className="canvas-row"><button onClick={()=>move(-1)}><ArrowUp size={16}/>Subir seção</button><button onClick={()=>move(1)}><ArrowDown size={16}/>Descer seção</button></div></>}
         <div className="canvas-row">
-          {selection.kind!=='hero'&&<button onClick={()=>update(selection.id,{hidden:!item.hidden})}>{item.hidden?'Mostrar':'Ocultar'}</button>}
+          {selection.kind!=='hero'&&selection.hideable!==false&&<button onClick={()=>update(selection.id,{hidden:!item.hidden})}>{item.hidden?'Mostrar':'Ocultar'}</button>}
           {(value.blocks||[]).some(b=>b.id===selection.id)&&<><button onClick={()=>{const id=crypto.randomUUID();const block=value.blocks!.find(b=>b.id===selection.id)!;change({...value,blocks:[...value.blocks!,{...block,id}],elements:{...value.elements,[id]:{...item}}});}} title="Duplicar"><Copy size={16}/></button><button onClick={()=>{change({...value,blocks:value.blocks!.filter(b=>b.id!==selection.id)});setSelection(undefined);}} title="Excluir"><Trash2 size={16}/></button></>}
         </div>
       </fieldset>
     </div>}
   </>;
-  return <CanvasContext.Provider value={{editing:editing&&!busy,viewport,pendingMarks,value,select,update,updateHero,reorder,selected:selection?.id}}>
+  return <CanvasContext.Provider value={{editing:editing&&!busy,viewport,pendingMarks,value,select,update,updateHero,reorder,scope,selected:selection?.id}}>
     <div className="portal-canvas" data-editing={editing} data-composition={value.templateId}>{children}</div>
     {editing && createPortal(controls,document.body)}
   </CanvasContext.Provider>;
 }
 
-interface EditableProps { id: string; label: string; children?: React.ReactNode; className?: string; as?: 'div'|'section'|'span'|'h1'|'h2'|'h3'|'p'; style?: React.CSSProperties; }
-export function EditableText({id,label,children,className='',as='span',style:baseStyle}:EditableProps) {
+interface EditableProps { id: string; label: string; children?: React.ReactNode; className?: string; as?: 'div'|'section'|'span'|'h1'|'h2'|'h3'|'p'; style?: React.CSSProperties; defaultHtml?: string; hideable?: boolean; }
+export function EditableText({id,label,children,className='',as='span',style:baseStyle,defaultHtml,hideable=true}:EditableProps) {
   const context=useContext(CanvasContext);
   const ref=useRef<HTMLElement>(null);
   const stored=context?.value.elements?.[id];
-  const html=cleanRichText(stored?.html??escapeText(String(children??'')));
+  const html=cleanRichText(stored?.html??(defaultHtml!==undefined?defaultHtml:escapeText(String(children??''))));
   const contextRef=useRef(context); contextRef.current=context;
   useEffect(()=>{
     const node=ref.current;if(!node||!context?.editing)return;
@@ -237,22 +240,22 @@ export function EditableText({id,label,children,className='',as='span',style:bas
   if(stored?.hidden&&!context?.editing)return null;
   return React.createElement(as,{
     ref,className:className+' canvas-text',style:{...baseStyle,...elementStyle(stored,context?.viewport||'desktop'),...(stored?.hidden?{opacity:.3}:{})},
-    'data-canvas-id':id,'data-canvas-label':label,'data-canvas-kind':'text','data-selected':selected,
+    'data-canvas-id':id,'data-canvas-label':label,'data-canvas-kind':'text','data-canvas-hideable':String(hideable),'data-selected':selected,
     contentEditable:context?.editing||false,suppressContentEditableWarning:true,
     role:context?.editing?'textbox':undefined,'aria-label':context?.editing?label:undefined,'aria-multiline':context?.editing?true:undefined,
-    onFocus:()=>context?.editing&&ref.current&&context.select({id,label,kind:'text',node:ref.current}),
-    onClick:(e:React.MouseEvent)=>{if(context?.editing){e.stopPropagation();ref.current&&context.select({id,label,kind:'text',node:ref.current});}},
+    onFocus:()=>context?.editing&&ref.current&&context.select({id,label,kind:'text',node:ref.current,hideable}),
+    onClick:(e:React.MouseEvent)=>{if(context?.editing){e.stopPropagation();ref.current&&context.select({id,label,kind:'text',node:ref.current,hideable});}},
     onInput:()=>{if(ref.current)context?.update(id,{html:cleanRichText(ref.current.innerHTML)});},
     onPaste:(e:React.ClipboardEvent)=>{if(!context?.editing)return;e.preventDefault();const s=window.getSelection();if(!s?.rangeCount)return;const r=s.getRangeAt(0);r.deleteContents();const node=document.createTextNode(e.clipboardData.getData('text/plain'));r.insertNode(node);r.setStartAfter(node);r.collapse(true);s.removeAllRanges();s.addRange(r);if(ref.current)context.update(id,{html:cleanRichText(ref.current.innerHTML)});}
   });
 }
-export function EditableBox({id,label,children,className='',as='div',style:baseStyle}:EditableProps) {
+export function EditableBox({id,label,children,className='',as='div',style:baseStyle,hideable=true}:EditableProps) {
   const context=useContext(CanvasContext),stored=context?.value.elements?.[id];
   if(stored?.hidden&&!context?.editing)return null;
   return React.createElement(as,{className:className+' canvas-box',style:{...baseStyle,...elementStyle(stored,context?.viewport||'desktop'),...(stored?.hidden?{opacity:.3}:{})},
-    'data-canvas-id':id,'data-canvas-label':label,'data-canvas-kind':'box','data-selected':context?.selected===id,tabIndex:context?.editing?0:undefined,
-    onClick:(e:React.MouseEvent<HTMLElement>)=>{if(context?.editing){e.stopPropagation();context.select({id,label,kind:'box',node:e.currentTarget});}},
-    onKeyDown:(e:React.KeyboardEvent<HTMLElement>)=>{if(context?.editing&&e.key==='Enter'&&e.target===e.currentTarget){e.preventDefault();context.select({id,label,kind:'box',node:e.currentTarget});}}
+    'data-canvas-id':id,'data-canvas-label':label,'data-canvas-kind':'box','data-canvas-hideable':String(hideable),'data-selected':context?.selected===id,tabIndex:context?.editing?0:undefined,
+    onClick:(e:React.MouseEvent<HTMLElement>)=>{if(context?.editing){e.stopPropagation();context.select({id,label,kind:'box',node:e.currentTarget,hideable});}},
+    onKeyDown:(e:React.KeyboardEvent<HTMLElement>)=>{if(context?.editing&&e.key==='Enter'&&e.target===e.currentTarget){e.preventDefault();context.select({id,label,kind:'box',node:e.currentTarget,hideable});}}
   },children);
 }
 export function EditableImage({id,label,src,alt='',className='',style:baseStyle}:{id:string;label:string;src:string;alt?:string;className?:string;style?:React.CSSProperties}) {
@@ -268,9 +271,15 @@ export function CanvasSections({children}:{children:React.ReactNode}) {
   const context=useContext(CanvasContext);
   const order=context?.value.sectionOrder||TEMPLATE_ORDERS[context?.value.templateId||'essencial'];
   const nodes=React.Children.toArray(children).filter(React.isValidElement) as React.ReactElement<{sectionId?:string}>[];
-  const items=[...nodes,...(context?.value.blocks||[]).map(block=><CanvasSection key={block.id} sectionId={block.id}><CustomBlock block={block}/></CanvasSection>)];
+  const items=[...nodes,...(context?.value.blocks||[]).filter(block=>(block.scope||'home')===(context?.scope||'home')).map(block=><CanvasSection key={block.id} sectionId={block.id}><CustomBlock block={block}/></CanvasSection>)];
   items.sort((a,b)=>{const rank=(x:typeof a)=>{const i=order.indexOf(x.props.sectionId||'');return i<0?999:i;};return rank(a)-rank(b);});
   return <div className="canvas-sections">{items}</div>;
+}
+export function CanvasInsertedBlocks({scope}:{scope?:string}) {
+  const context=useContext(CanvasContext),target=scope||context?.scope||'home';
+  const blocks=(context?.value.blocks||[]).filter(block=>(block.scope||'home')===target);
+  if(!blocks.length)return null;
+  return <div className="canvas-inserted-blocks">{blocks.map(block=><CanvasSection key={block.id} sectionId={block.id}><CustomBlock block={block}/></CanvasSection>)}</div>;
 }
 export function CanvasSection({sectionId,children}:{sectionId:string;children:React.ReactNode}) {
   const context=useContext(CanvasContext);
