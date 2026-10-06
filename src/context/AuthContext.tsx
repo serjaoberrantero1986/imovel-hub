@@ -16,6 +16,7 @@ export interface AuthContextType {
   setAuthModalTab: (tab: 'login' | 'signup' | 'forgot' | 'reset' | 'mfa') => void;
   openAuthModal: (tab?: 'login' | 'signup' | 'forgot' | 'reset' | 'mfa') => void; closeAuthModal: () => void;
   login: (email: string, password: string, captchaToken: string) => Promise<LoginResult>;
+  loginWithGoogle: () => Promise<boolean>;
   signUp: (data: { name: string; email: string; password: string; role: 'broker' | 'buyer'; phone?: string; creci?: string; captchaToken: string }) => Promise<SignupResult>;
   resendSignupConfirmation: (email: string, captchaToken: string) => Promise<boolean>;
   requestPasswordReset: (email: string, captchaToken: string) => Promise<boolean>;
@@ -130,6 +131,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode; addToast: (toas
     } catch (e: any) {
       console.warn('Authentication connection error:', e?.message || e);
       addToast({ type: 'error', title: 'Não foi possível entrar', message: 'Não foi possível conectar ao serviço de acesso. Tente novamente em instantes.' });
+      return false;
+    }
+  };
+  const loginWithGoogle = async () => {
+    try {
+      const { error } = await client().auth.signInWithOAuth({
+        provider: 'google',
+        options: { redirectTo: window.location.origin },
+      });
+      if (error) throw error;
+      return true;
+    } catch (error: any) {
+      console.warn('Google OAuth was not started:', error?.message || error);
+      addToast({
+        type: 'error',
+        title: 'Acesso com Google indisponível',
+        message: 'Não foi possível iniciar o Google OAuth. Verifique se o provedor está habilitado no Supabase.',
+      });
       return false;
     }
   };
@@ -290,6 +309,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode; addToast: (toas
     return true;
   };
   const switchUserRole = (_role: 'broker' | 'buyer') => addToast({ type: 'info', title: 'Tipo de conta fixo', message: 'O tipo de conta é definido no cadastro.' });
-  return <AuthContext.Provider value={{ currentUser, isAuthenticated, authModalOpen, setAuthModalOpen, authModalTab, setAuthModalTab, openAuthModal, closeAuthModal, login, signUp, resendSignupConfirmation, requestPasswordReset, changePassword, mfaChallengeFactors, selectMfaChallengeFactor: setMfaChallengeFactorId, verifyMfaChallenge, cancelMfaChallenge, listTotpFactors, enrollTotp, verifyTotpEnrollment, cancelTotpEnrollment, unenrollTotp, logout, deleteAccount, updateUserProfile, verifyCreci, requestCreciReview, switchUserRole }}>{children}</AuthContext.Provider>;
+  return <AuthContext.Provider value={{ currentUser, isAuthenticated, authModalOpen, setAuthModalOpen, authModalTab, setAuthModalTab, openAuthModal, closeAuthModal, login, loginWithGoogle, signUp, resendSignupConfirmation, requestPasswordReset, changePassword, mfaChallengeFactors, selectMfaChallengeFactor: setMfaChallengeFactorId, verifyMfaChallenge, cancelMfaChallenge, listTotpFactors, enrollTotp, verifyTotpEnrollment, cancelTotpEnrollment, unenrollTotp, logout, deleteAccount, updateUserProfile, verifyCreci, requestCreciReview, switchUserRole }}>{children}</AuthContext.Provider>;
 };
 export const useAuth = () => { const context = useContext(AuthContext); if (!context) throw new Error('useAuth must be used within an AuthProvider'); return context; };

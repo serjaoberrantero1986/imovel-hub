@@ -167,6 +167,7 @@ const AppCompositeProvider: React.FC<{
     openAuthModal: auth.openAuthModal,
     closeAuthModal: auth.closeAuthModal,
     login: auth.login,
+    loginWithGoogle: auth.loginWithGoogle,
     signUp: auth.signUp,
     resendSignupConfirmation: auth.resendSignupConfirmation,
     requestPasswordReset: auth.requestPasswordReset,
