@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { isStrongPassword, PASSWORD_REQUIREMENTS, passwordChecks } from '../../lib/passwordPolicy';
+import { TurnstileWidget, TURNSTILE_SITE_KEY } from '../auth/TurnstileWidget';
 
 export const AuthModal: React.FC = () => {
   const { 
@@ -26,9 +27,13 @@ export const AuthModal: React.FC = () => {
     setAuthModalTab, 
     login, 
     signUp, 
+    resendSignupConfirmation,
     requestPasswordReset,
     changePassword,
-    loginWithGoogle,
+    mfaChallengeFactors,
+    selectMfaChallengeFactor,
+    verifyMfaChallenge,
+    cancelMfaChallenge,
     openLegalPage
   } = useApp();
 
@@ -44,7 +49,11 @@ export const AuthModal: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [forgotSent, setForgotSent] = useState(false);
+  const [signupConfirmationSent, setSignupConfirmationSent] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const [captchaResetSignal, setCaptchaResetSignal] = useState(0);
+  const [mfaCode, setMfaCode] = useState('');
 
   useEffect(() => {
     if (!authModalOpen) return;
@@ -86,17 +95,50 @@ export const AuthModal: React.FC = () => {
     setCreci('');
     setErrorMessage(null);
     setForgotSent(false);
+    setSignupConfirmationSent(false);
+    setCaptchaToken(null);
+    setMfaCode('');
   };
 
   const handleSwitchTab = (tab: 'login' | 'signup' | 'forgot' | 'reset') => {
     setAuthModalTab(tab);
     setErrorMessage(null);
     setForgotSent(false);
+    setSignupConfirmationSent(false);
+    setCaptchaToken(null);
+    setCaptchaResetSignal(value => value + 1);
+  };
+
+  const handleClose = () => {
+    if (authModalTab === 'mfa') void cancelMfaChallenge();
+    else closeAuthModal();
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage(null);
+
+    if (authModalTab === 'mfa') {
+      if (mfaCode.replace(/\D/g, '').length !== 6) {
+        setErrorMessage('Digite o código de 6 dígitos do aplicativo autenticador.');
+        return;
+      }
+      setIsLoading(true);
+      try { await verifyMfaChallenge(mfaCode); }
+      finally { setIsLoading(false); }
+      return;
+    }
+
+    if (authModalTab !== 'reset') {
+      if (!TURNSTILE_SITE_KEY) {
+        setErrorMessage('A verificação Cloudflare não foi configurada. Contate o suporte.');
+        return;
+      }
+      if (!captchaToken) {
+        setErrorMessage('Conclua a verificação de segurança antes de continuar.');
+        return;
+      }
+    }
 
     if (authModalTab === 'forgot') {
       if (!email.trim() || !email.includes('@')) {
@@ -105,12 +147,14 @@ export const AuthModal: React.FC = () => {
       }
       setIsLoading(true);
       try {
-        const sent = await requestPasswordReset(email);
+        const sent = await requestPasswordReset(email, captchaToken);
         if (sent) setForgotSent(true);
       } catch (err: any) {
         setErrorMessage(err.message || 'Erro ao enviar e-mail de recuperação.');
       } finally {
         setIsLoading(false);
+        setCaptchaToken(null);
+        setCaptchaResetSignal(value => value + 1);
       }
       return;
     }
@@ -169,32 +213,44 @@ export const AuthModal: React.FC = () => {
 
       setIsLoading(true);
       try {
-        const success = await signUp({
+        const result = await signUp({
           name: name.trim(),
           email: email.trim().toLowerCase(),
           password,
           role,
           phone: phone.trim() || undefined,
-          creci: role === 'broker' ? creci.trim() : undefined
+          creci: role === 'broker' ? creci.trim() : undefined,
+          captchaToken
         });
 
-        if (success) {
+        if (result === 'authenticated') {
           resetForm();
           closeAuthModal();
+        } else if (result === 'confirmation_required') {
+          setSignupConfirmationSent(true);
+          setPassword('');
+          setConfirmPassword('');
         }
       } catch (err: any) {
         setErrorMessage(err.message || 'Falha ao criar conta. Tente novamente.');
       } finally {
         setIsLoading(false);
+        setCaptchaToken(null);
+        setCaptchaResetSignal(value => value + 1);
       }
     } else {
       // Login
       setIsLoading(true);
       try {
-        const success = await login(email.trim().toLowerCase(), password);
-        if (success) {
+        const result = await login(email.trim().toLowerCase(), password, captchaToken);
+        if (result === 'authenticated') {
           resetForm();
           closeAuthModal();
+        } else if (result === 'mfa_required') {
+          setPassword('');
+          setErrorMessage(null);
+        } else if (result === 'security_error') {
+          setErrorMessage('A verificação Cloudflare não foi aceita. Atualize a página e conclua um novo desafio antes de entrar.');
         } else {
           setErrorMessage('Não foi possível realizar o login. Verifique seus dados ou cadastre-se caso ainda não possua conta.');
         }
@@ -202,27 +258,34 @@ export const AuthModal: React.FC = () => {
         setErrorMessage(err.message || 'Erro ao realizar login.');
       } finally {
         setIsLoading(false);
+        setCaptchaToken(null);
+        setCaptchaResetSignal(value => value + 1);
       }
     }
   };
 
-  const handleGoogleLogin = async () => {
-    setIsLoading(true);
+  const handleResendSignupConfirmation = async () => {
     setErrorMessage(null);
+    if (!captchaToken) {
+      setErrorMessage('Conclua a verificação de segurança antes de reenviar o link.');
+      return;
+    }
+    setIsLoading(true);
     try {
-      await loginWithGoogle();
-      closeAuthModal();
+      await resendSignupConfirmation(email, captchaToken);
     } catch (err: any) {
-      setErrorMessage(err.message || 'Erro ao conectar com conta Google.');
+      setErrorMessage(err.message || 'Não foi possível reenviar o link de confirmação.');
     } finally {
       setIsLoading(false);
+      setCaptchaToken(null);
+      setCaptchaResetSignal(value => value + 1);
     }
   };
 
   return (
     <div 
       className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-in fade-in duration-200"
-      onClick={closeAuthModal}
+      onClick={handleClose}
     >
       <div 
         id="auth-modal-dialog"
@@ -233,7 +296,7 @@ export const AuthModal: React.FC = () => {
         <div className="relative px-6 pt-6 pb-4 border-b border-slate-100 dark:border-slate-800 bg-gradient-to-r from-rose-50/50 via-white to-indigo-50/50 dark:from-slate-900 dark:via-slate-900 dark:to-indigo-950/30">
           <button
             id="btn-close-auth-modal"
-            onClick={closeAuthModal}
+            onClick={handleClose}
             className="absolute top-5 right-5 p-1.5 rounded-full text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
           >
             <X className="w-5 h-5" />
@@ -253,12 +316,14 @@ export const AuthModal: React.FC = () => {
             {authModalTab === 'signup' && 'Crie sua conta gratuita'}
             {authModalTab === 'forgot' && 'Recuperar senha'}
             {authModalTab === 'reset' && 'Defina uma nova senha'}
+            {authModalTab === 'mfa' && 'Confirme sua identidade'}
           </h2>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
             {authModalTab === 'login' && 'Entre para gerenciar seus imóveis, leads e buscas salvas.'}
             {authModalTab === 'signup' && 'Junte-se a corretores, imobiliárias e compradores em todo o Brasil.'}
             {authModalTab === 'forgot' && 'Informe seu e-mail cadastrado para receber as instruções.'}
             {authModalTab === 'reset' && 'Crie uma senha forte e exclusiva para proteger sua conta.'}
+            {authModalTab === 'mfa' && 'Digite o código atual de 6 dígitos do seu aplicativo autenticador.'}
           </p>
         </div>
 
@@ -302,7 +367,78 @@ export const AuthModal: React.FC = () => {
             </div>
           )}
 
-          {forgotSent ? (
+          {authModalTab === 'mfa' ? (
+            <form onSubmit={handleSubmit} className="space-y-4 py-2">
+              <div className="flex justify-center">
+                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-indigo-100 text-indigo-600 dark:bg-indigo-950/60 dark:text-indigo-300">
+                  <ShieldCheck className="h-7 w-7" />
+                </div>
+              </div>
+              <div>
+                {mfaChallengeFactors.length > 1 && (
+                  <div className="mb-3">
+                    <label className="mb-1 block text-xs font-bold text-slate-700 dark:text-slate-300">Aplicativo autenticador</label>
+                    <select
+                      onChange={event => selectMfaChallengeFactor(event.target.value)}
+                      className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs font-bold text-slate-900 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                    >
+                      {mfaChallengeFactors.map(factor => <option key={factor.id} value={factor.id}>{factor.friendlyName}</option>)}
+                    </select>
+                  </div>
+                )}
+                <label className="mb-1 block text-xs font-bold text-slate-700 dark:text-slate-300">Código de autenticação</label>
+                <input
+                  id="input-mfa-code"
+                  type="text"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  maxLength={6}
+                  autoFocus
+                  value={mfaCode}
+                  onChange={event => setMfaCode(event.target.value.replace(/\D/g, '').slice(0, 6))}
+                  placeholder="000000"
+                  className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-center font-mono text-2xl font-black tracking-[0.35em] text-slate-900 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                />
+              </div>
+              <button type="submit" disabled={isLoading || mfaCode.length !== 6} className="flex w-full items-center justify-center gap-2 rounded-2xl bg-indigo-600 px-4 py-3 text-xs font-extrabold text-white shadow-lg shadow-indigo-500/20 hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50">
+                {isLoading ? <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" /> : <><span>Verificar e Entrar</span><ArrowRight className="h-4 w-4" /></>}
+              </button>
+              <button type="button" onClick={() => void cancelMfaChallenge()} className="w-full text-xs font-semibold text-slate-500 hover:text-slate-800 dark:hover:text-slate-200">Cancelar acesso</button>
+            </form>
+          ) : signupConfirmationSent ? (
+            <div className="space-y-4 py-6 text-center">
+              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400">
+                <Mail className="h-6 w-6" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-slate-900 dark:text-white">Confirme seu e-mail</h3>
+                <p className="mx-auto mt-1 max-w-xs text-xs text-slate-500 dark:text-slate-400">
+                  Enviamos um link de uso único para <strong>{email}</strong>. Abra o link antes de entrar no portal.
+                </p>
+              </div>
+              <TurnstileWidget
+                action="signup"
+                resetSignal={captchaResetSignal}
+                onToken={setCaptchaToken}
+                onError={setErrorMessage}
+              />
+              <button
+                type="button"
+                disabled={isLoading || !captchaToken}
+                onClick={() => void handleResendSignupConfirmation()}
+                className="w-full rounded-xl bg-slate-100 px-4 py-2.5 text-xs font-bold text-slate-800 transition-colors hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+              >
+                {isLoading ? 'Reenviando...' : 'Reenviar link de confirmação'}
+              </button>
+              <button
+                type="button"
+                onClick={() => handleSwitchTab('login')}
+                className="w-full text-xs font-semibold text-slate-500 hover:text-slate-800 dark:hover:text-slate-200"
+              >
+                Já confirmou? <span className="font-bold text-rose-600">Fazer login</span>
+              </button>
+            </div>
+          ) : forgotSent ? (
             <div className="text-center py-6 space-y-4">
               <div className="w-12 h-12 rounded-2xl bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mx-auto">
                 <CheckCircle2 className="w-6 h-6" />
@@ -324,49 +460,6 @@ export const AuthModal: React.FC = () => {
             </div>
           ) : (
             <>
-              {/* Google OAuth Quick Button */}
-              {(authModalTab === 'login' || authModalTab === 'signup') && (
-                <div className="space-y-3 mb-4">
-                  <button
-                    id="btn-google-oauth-login"
-                    type="button"
-                    onClick={handleGoogleLogin}
-                    disabled={isLoading}
-                    className="w-full py-2.5 px-4 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/80 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-bold flex items-center justify-center gap-3 transition-colors shadow-xs"
-                  >
-                    <svg className="w-4 h-4" viewBox="0 0 24 24">
-                      <path
-                        fill="#4285F4"
-                        d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-                      />
-                      <path
-                        fill="#34A853"
-                        d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-                      />
-                      <path
-                        fill="#FBBC05"
-                        d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
-                      />
-                      <path
-                        fill="#EA4335"
-                        d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
-                      />
-                    </svg>
-                    <span>
-                      {authModalTab === 'login' ? 'Continuar com Google' : 'Cadastre-se com Google'}
-                    </span>
-                  </button>
-
-                  <div className="relative flex items-center justify-center my-3">
-                    <div className="border-t border-slate-200 dark:border-slate-800 w-full"></div>
-                    <span className="bg-white dark:bg-slate-900 px-3 text-[11px] text-slate-400 font-medium uppercase tracking-wider">
-                      ou
-                    </span>
-                    <div className="border-t border-slate-200 dark:border-slate-800 w-full"></div>
-                  </div>
-                </div>
-              )}
-
               <form onSubmit={handleSubmit} className="space-y-3.5">
                 {/* Account Type Selector for Sign Up */}
                 {authModalTab === 'signup' && (
@@ -597,6 +690,15 @@ export const AuthModal: React.FC = () => {
                       </button>.
                     </span>
                   </label>
+                )}
+
+                {(authModalTab === 'login' || authModalTab === 'signup' || authModalTab === 'forgot') && (
+                  <TurnstileWidget
+                    action={authModalTab === 'forgot' ? 'password_reset' : authModalTab}
+                    resetSignal={captchaResetSignal}
+                    onToken={setCaptchaToken}
+                    onError={setErrorMessage}
+                  />
                 )}
 
                 {/* Submit button */}

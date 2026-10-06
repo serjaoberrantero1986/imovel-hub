@@ -28,7 +28,10 @@ import {
   HelpCircle,
   RefreshCw,
   Trash2,
-  AlertTriangle
+  AlertTriangle,
+  Smartphone,
+  Copy,
+  ShieldOff
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { UserProfile, PropertyType, PropertyPurpose } from '../types';
@@ -43,6 +46,8 @@ import { CreciDocumentManager } from '../components/profile/CreciDocumentManager
 import { CreciDocument } from '../lib/creciDocuments';
 import { UserAvatar } from '../components/ui/UserAvatar';
 import { isStrongPassword, PASSWORD_REQUIREMENTS, passwordChecks } from '../lib/passwordPolicy';
+import { TotpEnrollment, TotpFactorSummary } from '../context/AuthContext';
+import { TurnstileWidget, TURNSTILE_SITE_KEY } from '../components/auth/TurnstileWidget';
 
 export const ProfileView: React.FC = () => {
   const { 
@@ -50,6 +55,11 @@ export const ProfileView: React.FC = () => {
     isAuthenticated,
     openAuthModal,
     changePassword,
+    listTotpFactors,
+    enrollTotp,
+    verifyTotpEnrollment,
+    cancelTotpEnrollment,
+    unenrollTotp,
     updateUserProfile, 
     requestCreciReview,
     logout, 
@@ -68,6 +78,9 @@ export const ProfileView: React.FC = () => {
   const [deleteConfirmationText, setDeleteConfirmationText] = useState('');
   const [deletePassword, setDeletePassword] = useState('');
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
+  const [deleteCaptchaToken, setDeleteCaptchaToken] = useState<string | null>(null);
+  const [deleteCaptchaResetSignal, setDeleteCaptchaResetSignal] = useState(0);
+  const [deleteMfaCode, setDeleteMfaCode] = useState('');
 
   // Form State initialized from currentUser
   const [formData, setFormData] = useState<UserProfile>({ ...currentUser });
@@ -77,6 +90,10 @@ export const ProfileView: React.FC = () => {
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const [totpFactors, setTotpFactors] = useState<TotpFactorSummary[]>([]);
+  const [totpEnrollment, setTotpEnrollment] = useState<TotpEnrollment | null>(null);
+  const [totpCode, setTotpCode] = useState('');
+  const [isMfaBusy, setIsMfaBusy] = useState(false);
 
   // File input ref for avatar
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -89,6 +106,42 @@ export const ProfileView: React.FC = () => {
   useEffect(() => {
     if (currentUser.role === 'admin' && activeTab === 'role_specific') setActiveTab('general');
   }, [activeTab, currentUser.role]);
+
+  const refreshTotpFactors = async () => setTotpFactors(await listTotpFactors());
+  useEffect(() => {
+    if (activeTab === 'security' && isAuthenticated) void refreshTotpFactors().catch(() => {
+      addToast({ type: 'error', title: 'MFA indisponível', message: 'Não foi possível consultar os aplicativos autenticadores.' });
+    });
+  }, [activeTab, currentUser.id, isAuthenticated]);
+
+  const handleStartTotp = async () => {
+    setIsMfaBusy(true);
+    try { setTotpEnrollment(await enrollTotp()); setTotpCode(''); }
+    catch { addToast({ type: 'error', title: 'Não foi possível iniciar', message: 'Tente novamente em instantes.' }); }
+    finally { setIsMfaBusy(false); }
+  };
+  const handleVerifyTotp = async () => {
+    if (!totpEnrollment || totpCode.length !== 6) return;
+    setIsMfaBusy(true);
+    try {
+      if (await verifyTotpEnrollment(totpEnrollment.factorId, totpCode)) {
+        setTotpEnrollment(null); setTotpCode(''); await refreshTotpFactors();
+      }
+    } finally { setIsMfaBusy(false); }
+  };
+  const handleCancelTotp = async () => {
+    if (!totpEnrollment) return;
+    setIsMfaBusy(true);
+    try { await cancelTotpEnrollment(totpEnrollment.factorId); setTotpEnrollment(null); setTotpCode(''); }
+    catch { addToast({ type: 'error', title: 'Não foi possível cancelar a configuração' }); }
+    finally { setIsMfaBusy(false); }
+  };
+  const handleUnenrollTotp = async (factorId: string) => {
+    if (!window.confirm('Desativar a autenticação em duas etapas para esta conta?')) return;
+    setIsMfaBusy(true);
+    try { if (await unenrollTotp(factorId)) await refreshTotpFactors(); }
+    finally { setIsMfaBusy(false); }
+  };
 
   const editProfileImage = async (file: File | undefined, field: 'avatarUrl' | 'agencyLogo') => {
     if (!file) return;
@@ -216,7 +269,15 @@ export const ProfileView: React.FC = () => {
 
     setIsDeletingAccount(true);
     try {
-      const deleted = await deleteAccount(deletePassword);
+      if (!totpFactors.length && !deleteCaptchaToken) {
+        addToast({ type: 'warning', title: 'Verificação necessária', message: 'Conclua a verificação Cloudflare antes de excluir a conta.' });
+        return;
+      }
+      if (totpFactors.length && deleteMfaCode.length !== 6) {
+        addToast({ type: 'warning', title: 'Código necessário', message: 'Informe o código atual do aplicativo autenticador.' });
+        return;
+      }
+      const deleted = await deleteAccount(deletePassword, deleteCaptchaToken || '', deleteMfaCode);
       if (!deleted) return;
       setIsDeleteModalOpen(false);
       setDeleteConfirmationText('');
@@ -230,6 +291,8 @@ export const ProfileView: React.FC = () => {
       });
     } finally {
       setIsDeletingAccount(false);
+      setDeleteCaptchaToken(null);
+      setDeleteCaptchaResetSignal(value => value + 1);
     }
   };
 
@@ -870,6 +933,39 @@ export const ProfileView: React.FC = () => {
         {/* TAB 3: Segurança & Conta */}
         {activeTab === 'security' && (
           <div className="space-y-6">
+
+            {/* Box: MFA por aplicativo autenticador */}
+            <div className="space-y-4 rounded-3xl border border-indigo-200 bg-white p-6 shadow-sm dark:border-indigo-900/60 dark:bg-slate-900">
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex items-start gap-3">
+                  <div className="rounded-2xl bg-indigo-100 p-3 text-indigo-600 dark:bg-indigo-950/60 dark:text-indigo-300"><Smartphone className="h-6 w-6" /></div>
+                  <div>
+                    <h3 className="text-base font-extrabold text-slate-900 dark:text-white">Autenticação em duas etapas</h3>
+                    <p className="mt-1 text-xs leading-relaxed text-slate-500 dark:text-slate-400">Proteja a conta com códigos temporários do Google Authenticator, Microsoft Authenticator, Authy ou outro aplicativo TOTP.</p>
+                  </div>
+                </div>
+                <span className={`shrink-0 rounded-full px-2.5 py-1 text-[10px] font-black uppercase ${totpFactors.length ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300' : 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300'}`}>{totpFactors.length ? 'Ativada' : 'Desativada'}</span>
+              </div>
+
+              {totpEnrollment ? (
+                <div className="grid gap-5 rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800/60 sm:grid-cols-[180px_1fr]">
+                  <div className="mx-auto rounded-2xl bg-white p-3 shadow-sm"><img src={totpEnrollment.qrCode} alt="QR Code para configurar o aplicativo autenticador" className="h-40 w-40" /></div>
+                  <div className="space-y-3">
+                    <div><h4 className="text-sm font-extrabold text-slate-900 dark:text-white">1. Escaneie o QR Code</h4><p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Depois, informe abaixo o código atual de 6 dígitos.</p></div>
+                    <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 dark:border-slate-700 dark:bg-slate-900"><code className="min-w-0 flex-1 break-all text-[11px] font-bold text-slate-700 dark:text-slate-200">{totpEnrollment.secret}</code><button type="button" onClick={() => void navigator.clipboard.writeText(totpEnrollment.secret)} title="Copiar chave manual" className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"><Copy className="h-4 w-4" /></button></div>
+                    <input type="text" inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={totpCode} onChange={event => setTotpCode(event.target.value.replace(/\D/g, '').slice(0, 6))} placeholder="000000" className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-center font-mono text-xl font-black tracking-[0.3em] text-slate-900 dark:border-slate-700 dark:bg-slate-900 dark:text-white" />
+                    <div className="flex flex-wrap gap-2"><button type="button" disabled={isMfaBusy || totpCode.length !== 6} onClick={() => void handleVerifyTotp()} className="rounded-xl bg-indigo-600 px-4 py-2.5 text-xs font-bold text-white hover:bg-indigo-700 disabled:opacity-50">Confirmar e ativar</button><button type="button" disabled={isMfaBusy} onClick={() => void handleCancelTotp()} className="rounded-xl border border-slate-200 px-4 py-2.5 text-xs font-bold text-slate-600 dark:border-slate-700 dark:text-slate-300">Cancelar</button></div>
+                  </div>
+                </div>
+              ) : totpFactors.length ? (
+                <div className="space-y-2">
+                  {totpFactors.map(factor => <div key={factor.id} className="flex items-center justify-between gap-3 rounded-2xl border border-emerald-200 bg-emerald-50/60 p-3 dark:border-emerald-900/60 dark:bg-emerald-950/20"><div className="flex items-center gap-2"><ShieldCheck className="h-4 w-4 text-emerald-600" /><div><span className="block text-xs font-bold text-slate-900 dark:text-white">{factor.friendlyName}</span><span className="text-[10px] text-slate-500">Fator TOTP verificado</span></div></div><button type="button" disabled={isMfaBusy} onClick={() => void handleUnenrollTotp(factor.id)} className="flex items-center gap-1.5 rounded-xl border border-red-200 px-3 py-2 text-[11px] font-bold text-red-600 hover:bg-red-50 dark:border-red-900"><ShieldOff className="h-3.5 w-3.5" />Desativar</button></div>)}
+                  {totpFactors.length < 10 && <button type="button" disabled={isMfaBusy} onClick={() => void handleStartTotp()} className="mt-2 inline-flex items-center gap-2 rounded-xl border border-indigo-200 px-4 py-2.5 text-xs font-bold text-indigo-600 hover:bg-indigo-50 disabled:opacity-50 dark:border-indigo-900 dark:text-indigo-300 dark:hover:bg-indigo-950/30"><Smartphone className="h-4 w-4" />Adicionar outro autenticador</button>}
+                </div>
+              ) : (
+                <button type="button" disabled={isMfaBusy} onClick={() => void handleStartTotp()} className="inline-flex items-center gap-2 rounded-2xl bg-indigo-600 px-5 py-2.5 text-xs font-extrabold text-white shadow-lg shadow-indigo-500/20 hover:bg-indigo-700 disabled:opacity-50"><Smartphone className="h-4 w-4" />Configurar aplicativo autenticador</button>
+              )}
+            </div>
             
             {/* Box: Alteração de Senha */}
             <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
@@ -981,6 +1077,9 @@ export const ProfileView: React.FC = () => {
                   onClick={() => {
                     setDeleteConfirmationText('');
                     setDeletePassword('');
+                    setDeleteCaptchaToken(null);
+                    setDeleteMfaCode('');
+                    setDeleteCaptchaResetSignal(value => value + 1);
                     setIsDeleteModalOpen(true);
                   }}
                   className="px-5 py-2.5 rounded-2xl bg-red-600 hover:bg-red-700 active:scale-95 text-white font-bold text-xs shadow-md shadow-red-600/20 flex items-center gap-2 transition-all cursor-pointer"
@@ -1026,7 +1125,7 @@ export const ProfileView: React.FC = () => {
                 />
               </div>
 
-              <div>
+              {!totpFactors.length && <div>
                 <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">Confirme sua senha atual</label>
                 <input
                   id="input-confirm-delete-password"
@@ -1037,7 +1136,15 @@ export const ProfileView: React.FC = () => {
                   placeholder="Sua senha"
                   className="w-full px-3.5 py-2 rounded-xl bg-white dark:bg-slate-900 border border-red-300 dark:border-red-800 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-red-500"
                 />
-              </div>
+              </div>}
+
+              {totpFactors.length ? (
+                <div><label className="mb-1 block text-[11px] font-bold text-slate-700 dark:text-slate-300">Código do aplicativo autenticador</label><input type="text" inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={deleteMfaCode} onChange={event => setDeleteMfaCode(event.target.value.replace(/\D/g, '').slice(0, 6))} placeholder="000000" className="w-full rounded-xl border border-red-300 bg-white px-3.5 py-2 text-center font-mono text-lg font-black tracking-[0.3em] text-slate-900 dark:border-red-800 dark:bg-slate-900 dark:text-white" /></div>
+              ) : TURNSTILE_SITE_KEY ? (
+                <TurnstileWidget action="login" resetSignal={deleteCaptchaResetSignal} onToken={setDeleteCaptchaToken} onError={message => addToast({ type: 'error', title: 'Verificação Cloudflare', message })} />
+              ) : (
+                <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-xs text-red-700">A Site Key do Cloudflare Turnstile não está configurada.</div>
+              )}
 
               <div className="grid grid-cols-2 gap-3 pt-2">
                 <button
@@ -1048,6 +1155,8 @@ export const ProfileView: React.FC = () => {
                     setIsDeleteModalOpen(false);
                     setDeleteConfirmationText('');
                     setDeletePassword('');
+                    setDeleteCaptchaToken(null);
+                    setDeleteMfaCode('');
                   }}
                   className="py-2.5 px-4 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
                 >
@@ -1057,7 +1166,7 @@ export const ProfileView: React.FC = () => {
                 <button
                   id="btn-confirm-delete-account-permanently"
                   type="button"
-                  disabled={isDeletingAccount || deleteConfirmationText.trim().toUpperCase() !== 'EXCLUIR' || !deletePassword}
+                  disabled={isDeletingAccount || deleteConfirmationText.trim().toUpperCase() !== 'EXCLUIR' || (totpFactors.length ? deleteMfaCode.length !== 6 : (!deletePassword || !deleteCaptchaToken))}
                   onClick={handleDeleteAccount}
                   className="py-2.5 px-4 rounded-xl bg-red-600 hover:bg-red-700 active:scale-95 text-white text-xs font-extrabold shadow-lg shadow-red-600/30 flex items-center justify-center gap-1.5 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                 >
