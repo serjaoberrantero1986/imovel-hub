@@ -10,6 +10,7 @@ import { isSupabaseConfigured } from '../lib/supabaseClient';
 import { Toast } from './appTypes';
 import { UserProfile } from '../types';
 import { generatePropertyCode } from '../lib/utils';
+import { useTenant } from './TenantContext';
 
 export interface PropertyContextType {
   properties: Property[];
@@ -29,6 +30,7 @@ export const PropertyProvider: React.FC<{
   currentUser: UserProfile;
   addToast: (toast: Omit<Toast, 'id'>) => void;
 }> = ({ children, currentUser, addToast }) => {
+  const { portal, loading: loadingTenant } = useTenant();
   const [properties, setProperties] = useState<Property[]>(() => {
     // If Supabase is configured, start with empty array so only real remote listings are rendered
     if (isSupabaseConfigured) {
@@ -53,6 +55,8 @@ export const PropertyProvider: React.FC<{
   }, []);
 
   const refreshProperties = useCallback(async () => {
+    if (loadingTenant) return;
+    if (portal.mode === 'not_found') { setProperties([]); return; }
     if (!isSupabaseConfigured) {
       try {
         const localBrokerProps = JSON.parse(localStorage.getItem('imovelhub_broker_properties') || '[]');
@@ -64,7 +68,7 @@ export const PropertyProvider: React.FC<{
     }
 
     try {
-      const remoteProps = await fetchPropertiesFromSupabase();
+      const remoteProps = await fetchPropertiesFromSupabase(portal.ownerProfileId || undefined);
       if (remoteProps !== null) {
         // Fonte única da verdade: apenas o que existe no banco Supabase
         setProperties(remoteProps);
@@ -77,7 +81,7 @@ export const PropertyProvider: React.FC<{
     } catch (e) {
       console.warn('Error fetching properties from Supabase:', e);
     }
-  }, []);
+  }, [loadingTenant, portal.mode, portal.ownerProfileId]);
 
   // Initial load from Supabase if configured and whenever user changes
   useEffect(() => {

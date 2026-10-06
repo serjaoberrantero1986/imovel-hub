@@ -147,10 +147,10 @@ export function mapDbPropertyToApp(
 // REAL PROPERTIES CRUD API
 // ============================================================================
 
-export async function fetchPropertiesFromSupabase(): Promise<Property[] | null> {
+export async function fetchPropertiesFromSupabase(ownerProfileId?: string): Promise<Property[] | null> {
   if (!supabase) return null;
   try {
-    const { data: dbProperties, error } = await supabase
+    let query = supabase
       .from('properties')
       .select(`
         *,
@@ -158,8 +158,9 @@ export async function fetchPropertiesFromSupabase(): Promise<Property[] | null> 
         property_public_locations (*),
         property_images (*),
         property_features (*)
-      `)
-      .order('created_at', { ascending: false });
+      `);
+    if (ownerProfileId) query = query.eq('user_id', ownerProfileId);
+    const { data: dbProperties, error } = await query.order('created_at', { ascending: false });
 
     if (error) {
       console.warn('Supabase fetch properties error:', error);

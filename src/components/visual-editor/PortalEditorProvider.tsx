@@ -13,6 +13,7 @@ import {
 import { PortalCanvas } from './PortalCanvas';
 import { PortalVisualEditor } from './PortalVisualEditor';
 import { usePortalSession } from './usePortalSession';
+import { useTenant } from '../../context/TenantContext';
 
 interface PortalEditorState {
   configuration: VisualPortalConfiguration;
@@ -33,6 +34,7 @@ export const usePortalEditorShell = () => {
 
 export function PortalEditorProvider({ children }: { children: React.ReactNode }) {
   const { currentUser, isAuthenticated, currentView, activeLegalTab, setCurrentView, setActiveLegalTab, addToast } = useApp();
+  const { portal, loading: loadingTenant, refreshTenant } = useTenant();
   const session = usePortalSession(currentUser.id);
   const [editing, setEditing] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -41,14 +43,15 @@ export function PortalEditorProvider({ children }: { children: React.ReactNode }
   const [published, setPublished] = useState<VisualPortalConfiguration | null>(null);
   const [pendingTarget, setPendingTarget] = useState<string | null>(null);
   const ownerRef = useRef(currentUser.id); ownerRef.current = currentUser.id;
-  const canEdit = isAuthenticated && (currentUser.role === 'broker' || currentUser.role === 'agency');
-  const configuration = sessionOwner === currentUser.id && canEdit ? session.value : published || DEFAULT_VISUAL_PORTAL_CONFIGURATION;
+  const isProfessional = isAuthenticated && (currentUser.role === 'broker' || currentUser.role === 'agency');
+  const canEdit = !loadingTenant && isProfessional && (portal.mode === 'root' || portal.ownerProfileId === currentUser.id);
+  const configuration = sessionOwner === currentUser.id && canEdit ? session.value : published || portal.visualPublished || DEFAULT_VISUAL_PORTAL_CONFIGURATION;
   const unpublished = sessionOwner === currentUser.id && JSON.stringify(session.value) !== JSON.stringify(published);
 
   useEffect(() => {
     let cancelled = false;
     setEditing(false); setSettingsOpen(false); setSessionOwner(null);
-    if (!canEdit) { setPublished(null); return () => { cancelled = true; }; }
+    if (!canEdit) return () => { cancelled = true; };
     void (async () => {
       try {
         await ensureMyVisualPortalConfiguration(currentUser.id);
@@ -58,6 +61,10 @@ export function PortalEditorProvider({ children }: { children: React.ReactNode }
     })();
     return () => { cancelled = true; };
   }, [canEdit, currentUser.id]);
+
+  useEffect(() => {
+    if (!canEdit) setPublished(portal.visualPublished);
+  }, [canEdit, portal.visualPublished]);
 
   useEffect(() => {
     if (!unpublished) return;
@@ -72,10 +79,11 @@ export function PortalEditorProvider({ children }: { children: React.ReactNode }
     if (sessionOwner === currentUser.id) { setEditing(true); return; }
     const owner = currentUser.id; setBusy(true);
     try {
-      await ensureMyVisualPortalConfiguration(owner);
+      const ensured = await ensureMyVisualPortalConfiguration(owner);
       const result = await fetchMyVisualPortalConfiguration(owner);
       if (ownerRef.current !== owner) return;
       session.reset(result.published); setPublished(result.published); setSessionOwner(owner); setEditing(true);
+      if (portal.mode === 'root') addToast({ type: 'info', title: 'Endereço do seu portal', message: ensured.url });
     } catch (error) {
       addToast({ type: 'error', title: 'Editor indisponível', message: error instanceof Error ? error.message : 'Não foi possível abrir o editor.' });
     } finally { setBusy(false); }
@@ -107,6 +115,7 @@ export function PortalEditorProvider({ children }: { children: React.ReactNode }
       await publishMyVisualPortalConfiguration(owner, ready);
       if (ownerRef.current !== owner) return;
       session.commitAssets(ready); session.reset(ready); setPublished(ready);
+      if (portal.ownerProfileId === owner) await refreshTenant();
       addToast({ type: 'success', title: 'Versão publicada', message: 'Página inicial, rodapé e documentos foram publicados juntos.' });
     } catch (error) {
       addToast({ type: 'error', title: 'Publicação não concluída', message: error instanceof Error ? error.message : 'Tente novamente.' });
@@ -120,7 +129,7 @@ export function PortalEditorProvider({ children }: { children: React.ReactNode }
   const value: PortalEditorState = { configuration, editing, canEdit, busy: busy || session.preparing, unpublished, openEditor, isVisible: id => isSectionVisible(configuration, id) };
 
   return <PortalEditorContext.Provider value={value}>
-    <PortalCanvas value={configuration} editing={editing && canEdit} busy={busy || session.preparing} ownerId={currentUser.id} scope={currentView==='legal'?`legal.${activeLegalTab}`:'home'}
+    <PortalCanvas value={configuration} editing={editing && canEdit} busy={busy || session.preparing} ownerId={canEdit ? currentUser.id : portal.ownerProfileId || 'default'} scope={currentView==='legal'?`legal.${activeLegalTab}`:'home'}
       onChange={session.change} unpublished={unpublished} onDiscard={() => void discard()} onUndo={session.undo} onRedo={session.redo}
       canUndo={session.canUndo} canRedo={session.canRedo} onPrepareImage={session.prepareImage} onPublish={() => void publish()}
       onClose={() => { setEditing(false); setSettingsOpen(false); }} onSettings={() => setSettingsOpen(true)}>

@@ -375,6 +375,7 @@ export interface Database {
         Row: {
           id: string;
           owner_profile_id: string | null;
+          subdomain_slug: string | null;
           footer: Json;
           identity: Json;
           home_page: Json;
@@ -386,6 +387,7 @@ export interface Database {
         Insert: {
           id: string;
           owner_profile_id?: string | null;
+          subdomain_slug?: string | null;
           footer?: Json;
           identity?: Json;
           home_page?: Json;

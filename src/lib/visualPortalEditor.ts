@@ -165,16 +165,14 @@ export async function fetchMyVisualPortalConfiguration(ownerId: string): Promise
   };
 }
 
-export async function ensureMyVisualPortalConfiguration(ownerId: string): Promise<void> {
+export async function ensureMyVisualPortalConfiguration(ownerId: string): Promise<{ slug: string; url: string }> {
   if (!supabase) throw new Error('Serviço temporariamente indisponível.');
   const initial = DEFAULT_VISUAL_PORTAL_CONFIGURATION;
-  const { error } = await (supabase as any).from('portal_settings').upsert({
-    id: ownerId,
-    owner_profile_id: ownerId,
-    visual_draft: initial,
-    visual_published: initial
-  }, { onConflict: 'id', ignoreDuplicates: true });
+  const { data, error } = await (supabase as any).rpc('ensure_my_portal_settings', { p_initial: initial });
   if (error) throw error;
+  if (!data?.slug || !data?.url) throw new Error('O endereço automático do portal não foi confirmado.');
+  if (data.id !== ownerId) throw new Error('O portal retornado não pertence à conta autenticada.');
+  return { slug: data.slug, url: data.url };
 }
 
 export async function saveMyVisualPortalDraft(ownerId: string, draft: VisualPortalConfiguration): Promise<void> {
