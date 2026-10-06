@@ -3,14 +3,11 @@ import {
   Building2, 
   PlusCircle, 
   Search, 
-  Filter, 
-  MoreVertical, 
   Edit3, 
   Trash2, 
   Eye, 
-  Play, 
   Pause, 
-  Sparkles, 
+  Star,
   MapPin, 
   CheckCircle2, 
   AlertCircle,
@@ -150,9 +147,7 @@ export const MyPropertiesView: React.FC = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const isProfessional = isAuthenticated && ['broker', 'agency', 'admin', 'owner'].includes(currentUser?.role || '');
-
-  // Ownership check: matches by user ID, advertiser ID, advertiser email, or active broker session
+  // Ownership is strict: public listings from other brokers never become manageable here.
   const rawMyProperties = properties.filter(p => {
     if (!isAuthenticated) return false;
     if (currentUser?.role === 'admin') return true;
@@ -170,26 +165,6 @@ export const MyPropertiesView: React.FC = () => {
 
     // 2. Direct email match (advertiser email matches current user email)
     if (currentEmail && propAdvertiserEmail && propAdvertiserEmail === currentEmail) {
-      return true;
-    }
-
-    // 3. Match from local storage created in this account
-    try {
-      const stored: Property[] = JSON.parse(localStorage.getItem('imovelhub_broker_properties') || '[]');
-      if (stored.some(storedProp => storedProp.id === p.id || storedProp.code === p.code)) {
-        return true;
-      }
-    } catch {
-      // ignore
-    }
-
-    // 4. Fallback for professional broker/agency session:
-    // If the property has default portal email, or empty userId, or was published in this environment
-    if (isProfessional) {
-      if (!propAdvertiserEmail || propAdvertiserEmail === 'contato@imovelhub.com.br' || propAdvertiserEmail === 'corretor@webimovel.com.br' || !propUserId) {
-        return true;
-      }
-      // If the property belongs to this broker
       return true;
     }
 
@@ -263,14 +238,12 @@ export const MyPropertiesView: React.FC = () => {
 
   const handleSelectStatus = async (propId: string, newStatus: PropertyStatus) => {
     setStatusMenuOpenPropertyId(null);
+    if (['sold', 'rented', 'archived'].includes(newStatus)) {
+      const label = STATUS_CONFIG[newStatus].label.toLowerCase();
+      if (!window.confirm(`Confirmar que este anúncio será marcado como ${label}? Ele deixará de aparecer no portal.`)) return;
+    }
     try {
       await togglePropertyStatus(propId, newStatus);
-      const label = STATUS_CONFIG[newStatus]?.label || newStatus;
-      addToast({
-        type: 'success',
-        title: 'Status Atualizado',
-        message: `O anúncio agora está marcado como "${label}".`
-      });
     } catch (e) {
       addToast({
         type: 'error',
@@ -278,6 +251,9 @@ export const MyPropertiesView: React.FC = () => {
         message: 'Não foi possível alterar o status no momento.'
       });
     }
+  };
+  const handleToggleFeatured = async (property: Property) => {
+    await updateProperty(property.id, { featured: !property.featured });
   };
 
   // Access Gating for unauthenticated users or buyers
@@ -491,7 +467,7 @@ export const MyPropertiesView: React.FC = () => {
                 className="p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs hover:shadow-md transition-all flex flex-col md:flex-row items-start md:items-center justify-between gap-5"
               >
                 {/* Image & Title Info */}
-                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4 flex-1 min-w-0 w-full overflow-hidden">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4 flex-1 min-w-0 w-full">
                   <div className="relative w-full sm:w-36 h-40 sm:h-24 rounded-2xl overflow-hidden bg-slate-200 dark:bg-slate-800 shrink-0">
                     <img
                       src={prop.media[0]?.thumbnailUrl || prop.media[0]?.url || 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?auto=format&fit=crop&w=400&q=80'}
@@ -536,7 +512,7 @@ export const MyPropertiesView: React.FC = () => {
                             <div className="px-3 py-1 text-[10px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-100 dark:border-slate-800 mb-1">
                               Alterar Status do Imóvel:
                             </div>
-                            {(Object.keys(STATUS_CONFIG) as PropertyStatus[]).map((st) => {
+                            {(Object.keys(STATUS_CONFIG) as PropertyStatus[]).filter(st => st !== 'pending_moderation' && (st !== 'sold' || !['rent','seasonal'].includes(prop.purpose)) && (st !== 'rented' || ['rent','seasonal'].includes(prop.purpose))).map((st) => {
                               const cfg = STATUS_CONFIG[st];
                               const ItemIcon = cfg.icon;
                               const isCurrent = prop.status === st;
@@ -626,13 +602,13 @@ export const MyPropertiesView: React.FC = () => {
                       <Edit3 className="w-4 h-4" />
                     </button>
 
-                    {/* Quick Active/Pause Toggle */}
                     <button
-                      onClick={() => handleSelectStatus(prop.id, prop.status === 'active' ? 'paused' : 'active')}
-                      title={prop.status === 'active' ? 'Pausar Anúncio' : 'Ativar Anúncio'}
-                      className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 transition-colors cursor-pointer"
+                      onClick={() => void handleToggleFeatured(prop)}
+                      title={prop.featured ? 'Remover dos destaques' : 'Marcar como destaque'}
+                      aria-pressed={prop.featured}
+                      className={`p-2 rounded-xl transition-colors cursor-pointer ${prop.featured ? 'bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300' : 'bg-slate-100 text-slate-500 hover:bg-amber-50 hover:text-amber-600 dark:bg-slate-800 dark:hover:bg-amber-950/40'}`}
                     >
-                      {prop.status === 'active' ? <Pause className="w-4 h-4 text-amber-500" /> : <Play className="w-4 h-4 text-emerald-500" />}
+                      <Star className={`w-4 h-4 ${prop.featured ? 'fill-current' : ''}`} />
                     </button>
 
                     <button

@@ -41,7 +41,7 @@ export const Navbar: React.FC = () => {
     setIsWizardOpen,
     setEditingProperty,
     setFilters,
-    properties,
+    publicProperties,
     isDbConnected,
     isSyncing,
     refreshData,
@@ -95,8 +95,8 @@ export const Navbar: React.FC = () => {
   };
 
   const codeMatches = navCodeInput.trim()
-    ? properties.filter(p => p.code.toLowerCase().includes(navCodeInput.trim().toLowerCase()))
-    : properties.slice(0, 4);
+    ? publicProperties.filter(p => p.code.toLowerCase().includes(navCodeInput.trim().toLowerCase()))
+    : publicProperties.slice(0, 4);
 
   return (
     <header className="sticky top-0 z-40 w-full border-b border-slate-200/80 dark:border-slate-800/80 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md transition-colors duration-200">

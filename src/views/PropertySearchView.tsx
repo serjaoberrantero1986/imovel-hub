@@ -22,7 +22,7 @@ import { Property } from '../types';
 import { filterProperties } from '../lib/propertyFilters';
 
 export const PropertySearchView: React.FC = () => {
-  const { properties, filters, setFilters, resetFilters } = useApp();
+  const { publicProperties, filters, setFilters, resetFilters } = useApp();
   const [viewMode, setViewMode] = useState<'split' | 'grid' | 'map'>('grid');
   const [hoveredPropertyId, setHoveredPropertyId] = useState<string | null>(null);
   const [isFilterDrawerOpen, setIsFilterDrawerOpen] = useState(false);
@@ -51,8 +51,8 @@ export const PropertySearchView: React.FC = () => {
 
   // Filter properties based on current filter state
   const filteredProperties = useMemo(() => {
-    return filterProperties(properties, filters);
-  }, [properties, filters]);
+    return filterProperties(publicProperties, filters);
+  }, [publicProperties, filters]);
 
   const activeFiltersCount = 
     (filters.purpose !== 'all' ? 1 : 0) +
@@ -205,14 +205,14 @@ export const PropertySearchView: React.FC = () => {
               <SearchX className="w-8 h-8" />
             </div>
             <h3 className="text-lg font-bold text-slate-900 dark:text-white font-['Outfit']">
-              {properties.length === 0 ? 'Nenhum imóvel anunciado no momento' : 'Nenhum imóvel encontrado com esses filtros'}
+              {publicProperties.length === 0 ? 'Nenhum imóvel anunciado no momento' : 'Nenhum imóvel encontrado com esses filtros'}
             </h3>
             <p className="text-xs text-slate-500 max-w-md mx-auto leading-relaxed">
-              {properties.length === 0
+              {publicProperties.length === 0
                 ? 'Não há imóveis disponíveis no banco de dados. Novos anúncios cadastrados aparecerão aqui imediatamente.'
                 : 'Tente ampliar a faixa de preço, selecionar outros bairros ou remover filtros de comodidades para ver mais opções.'}
             </p>
-            {properties.length > 0 && (
+            {publicProperties.length > 0 && (
               <button
                 onClick={resetFilters}
                 className="min-h-[44px] px-6 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold shadow-md inline-flex items-center gap-2 active:scale-95 transition-all"

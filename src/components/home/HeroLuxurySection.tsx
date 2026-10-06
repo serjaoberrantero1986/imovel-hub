@@ -43,7 +43,7 @@ interface HeroLuxurySectionProps {
 export const HeroLuxurySection: React.FC<HeroLuxurySectionProps> = ({ visualConfiguration }) => {
   const { activeAmenities, activePropertyTypes, propertyTypesError, portalIdentity, homePageSettings } = useCatalog();
   const { 
-    properties, 
+    publicProperties,
     filters, 
     setFilters, 
     resetFilters, 
@@ -220,7 +220,7 @@ export const HeroLuxurySection: React.FC<HeroLuxurySectionProps> = ({ visualConf
           </EditableText>
         </div>
         {hero?.showPropertyScene !== false && <HeroPropertyScene
-          properties={properties}
+          properties={publicProperties}
           onOpenProperty={openPropertyDetail}
           getTypeLabel={getPropertyTypeLabel}
           variant={hero?.propertySceneStyle || 'route'}

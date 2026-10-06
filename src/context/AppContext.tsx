@@ -169,6 +169,8 @@ const AppCompositeProvider: React.FC<{
     login: auth.login,
     loginWithGoogle: auth.loginWithGoogle,
     signUp: auth.signUp,
+    requestPasswordReset: auth.requestPasswordReset,
+    changePassword: auth.changePassword,
     logout: auth.logout,
     deleteAccount: auth.deleteAccount,
     updateUserProfile: auth.updateUserProfile,
@@ -177,6 +179,7 @@ const AppCompositeProvider: React.FC<{
     switchUserRole: auth.switchUserRole,
     // Property slice
     properties: propertyCtx.properties,
+    publicProperties: propertyCtx.publicProperties,
     addProperty: propertyCtx.addProperty,
     updateProperty: propertyCtx.updateProperty,
     deleteProperty: propertyCtx.deleteProperty,

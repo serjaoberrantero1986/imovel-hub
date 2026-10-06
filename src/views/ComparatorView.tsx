@@ -19,7 +19,7 @@ import { formatCurrency, formatArea } from '../lib/utils';
 export const ComparatorView: React.FC = () => {
   const { amenities } = useCatalog();
   const { 
-    properties, 
+    publicProperties,
     comparisonIds, 
     toggleComparison, 
     clearComparison, 
@@ -27,7 +27,7 @@ export const ComparatorView: React.FC = () => {
     setCurrentView 
   } = useApp();
 
-  const comparedProperties = properties.filter(p => comparisonIds.includes(p.id));
+  const comparedProperties = publicProperties.filter(p => comparisonIds.includes(p.id));
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 py-8 transition-colors">

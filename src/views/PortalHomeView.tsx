@@ -31,7 +31,7 @@ import { filterProperties, hasActiveFilters } from '../lib/propertyFilters';
 export const PortalHomeView: React.FC = () => {
   const { homePageSettings } = useCatalog();
   const { 
-    properties, 
+    publicProperties,
     setCurrentView, 
     filters,
     setFilters, 
@@ -61,8 +61,8 @@ export const PortalHomeView: React.FC = () => {
 
   // Filter properties dynamically
   const filteredProperties = useMemo(() => {
-    return filterProperties(properties, filters);
-  }, [properties, filters]);
+    return filterProperties(publicProperties, filters);
+  }, [publicProperties, filters]);
 
   // Brief shimmer effect on filter change for polished UX
   useEffect(() => {
@@ -75,14 +75,13 @@ export const PortalHomeView: React.FC = () => {
 
   // Real featured listings from active properties
   const featuredProperties = useMemo(() => {
-    const featured = properties.filter(p => p.featured);
-    return featured.length > 0 ? featured.slice(0, 6) : properties.slice(0, 6);
-  }, [properties]);
+    return publicProperties.filter(p => p.featured).slice(0, 6);
+  }, [publicProperties]);
 
   // Dynamic real neighborhoods extracted directly from active properties
   const dynamicNeighborhoods = useMemo(() => {
     const map = new Map<string, { name: string; city: string; count: number; image?: string }>();
-    properties.forEach(p => {
+    publicProperties.forEach(p => {
       const n = (p.neighborhood || '').trim();
       if (!n) return;
       const key = n.toLowerCase();
@@ -101,7 +100,7 @@ export const PortalHomeView: React.FC = () => {
       }
     });
     return Array.from(map.values());
-  }, [properties]);
+  }, [publicProperties]);
 
   const handleCategorySearch = (type: any, purpose: any = 'sale') => {
     setFilters(prev => ({ ...prev, types: [type], purpose }));
@@ -217,7 +216,7 @@ export const PortalHomeView: React.FC = () => {
                   </p>
                 </div>
 
-                {properties.length > 0 && (
+                {publicProperties.length > 0 && (
                   <button
                     onClick={() => {
                       setFilters(prev => ({ ...prev, purpose: 'sale' }));
@@ -225,14 +224,14 @@ export const PortalHomeView: React.FC = () => {
                     }}
                     className="flex items-center gap-1.5 text-xs sm:text-sm font-bold text-rose-600 hover:text-rose-700 dark:text-rose-400 group cursor-pointer"
                   >
-                    <span>Ver todos os {properties.length} imóveis</span>
+                    <span>Ver todos os {publicProperties.length} imóveis</span>
                     <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                   </button>
                 )}
               </div>
 
               {/* Cards Grid or Clean Empty State */}
-              {properties.length === 0 ? (
+              {publicProperties.length === 0 ? (
                 <div className="text-center py-16 px-4 bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 space-y-4 shadow-sm">
                   <div className="w-16 h-16 rounded-full bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 flex items-center justify-center mx-auto">
                     <Home className="w-8 h-8" />
@@ -266,11 +265,15 @@ export const PortalHomeView: React.FC = () => {
                     <span>Publicar Primeiro Imóvel</span>
                   </button>
                 </div>
-              ) : (
+              ) : featuredProperties.length > 0 ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                   {featuredProperties.map(property => (
                     <PropertyCard key={property.id} property={property} />
                   ))}
+                </div>
+              ) : (
+                <div className="rounded-3xl border border-dashed border-slate-300 bg-white px-6 py-10 text-center text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-900">
+                  Nenhum imóvel foi selecionado como destaque.
                 </div>
               )}
             </div>
@@ -362,7 +365,7 @@ export const PortalHomeView: React.FC = () => {
 
           <div className="lg:col-span-7 h-72 sm:h-96 rounded-2xl overflow-hidden shadow-inner border border-slate-700">
             <PropertyMap 
-              properties={properties} 
+              properties={publicProperties}
               hoveredPropertyId={hoveredMapPropId}
             />
           </div>

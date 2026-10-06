@@ -42,12 +42,14 @@ import { BRAZILIAN_STATES } from '../lib/brazilianStates';
 import { CreciDocumentManager } from '../components/profile/CreciDocumentManager';
 import { CreciDocument } from '../lib/creciDocuments';
 import { UserAvatar } from '../components/ui/UserAvatar';
+import { isStrongPassword, PASSWORD_REQUIREMENTS, passwordChecks } from '../lib/passwordPolicy';
 
 export const ProfileView: React.FC = () => {
   const { 
     currentUser, 
     isAuthenticated,
     openAuthModal,
+    changePassword,
     updateUserProfile, 
     requestCreciReview,
     logout, 
@@ -173,8 +175,8 @@ export const ProfileView: React.FC = () => {
   // Handle password update
   const handleSavePassword = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (newPassword.length < 6) {
-      addToast({ type: 'warning', title: 'Senha muito curta', message: 'A nova senha deve ter no mínimo 6 caracteres.' });
+    if (!isStrongPassword(newPassword)) {
+      addToast({ type: 'warning', title: 'Senha insuficiente', message: 'Use pelo menos 10 caracteres, incluindo maiúscula, minúscula, número e símbolo.' });
       return;
     }
     if (newPassword !== confirmPassword) {
@@ -183,12 +185,16 @@ export const ProfileView: React.FC = () => {
     }
 
     setIsChangingPassword(true);
-    await new Promise(r => setTimeout(r, 600));
-    setIsChangingPassword(false);
-    setCurrentPassword('');
-    setNewPassword('');
-    setConfirmPassword('');
-    addToast({ type: 'success', title: 'Senha Alterada', message: 'Sua senha de acesso foi atualizada com sucesso.' });
+    try {
+      const changed = await changePassword(newPassword, currentPassword);
+      if (changed) {
+        setCurrentPassword('');
+        setNewPassword('');
+        setConfirmPassword('');
+      }
+    } finally {
+      setIsChangingPassword(false);
+    }
   };
 
   // Handle Logout
@@ -881,6 +887,7 @@ export const ProfileView: React.FC = () => {
                     id="input-current-password"
                     type="password"
                     required
+                    autoComplete="current-password"
                     placeholder="••••••••"
                     value={currentPassword}
                     onChange={e => setCurrentPassword(e.target.value)}
@@ -896,11 +903,24 @@ export const ProfileView: React.FC = () => {
                     id="input-new-password"
                     type="password"
                     required
-                    placeholder="Mínimo 6 caracteres"
+                    autoComplete="new-password"
+                    placeholder="Mínimo 10 caracteres"
                     value={newPassword}
                     onChange={e => setNewPassword(e.target.value)}
                     className="w-full px-3.5 py-2.5 rounded-2xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-xs text-slate-900 dark:text-white"
                   />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 p-3 border border-slate-200 dark:border-slate-700">
+                  {PASSWORD_REQUIREMENTS.map(([key, label]) => {
+                    const met = passwordChecks(newPassword)[key];
+                    return (
+                      <span key={key} className={`flex items-center gap-1.5 text-[10px] font-semibold ${met ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-500 dark:text-slate-400'}`}>
+                        {met ? <CheckCircle2 className="w-3 h-3" /> : <span className="w-3 h-3 rounded-full border border-current" />}
+                        {label}
+                      </span>
+                    );
+                  })}
                 </div>
 
                 <div>
@@ -911,6 +931,7 @@ export const ProfileView: React.FC = () => {
                     id="input-confirm-new-password"
                     type="password"
                     required
+                    autoComplete="new-password"
                     placeholder="Repita a nova senha"
                     value={confirmPassword}
                     onChange={e => setConfirmPassword(e.target.value)}

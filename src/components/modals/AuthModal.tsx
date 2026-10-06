@@ -16,6 +16,7 @@ import {
   AlertCircle
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
+import { isStrongPassword, PASSWORD_REQUIREMENTS, passwordChecks } from '../../lib/passwordPolicy';
 
 export const AuthModal: React.FC = () => {
   const { 
@@ -25,6 +26,8 @@ export const AuthModal: React.FC = () => {
     setAuthModalTab, 
     login, 
     signUp, 
+    requestPasswordReset,
+    changePassword,
     loginWithGoogle,
     openLegalPage
   } = useApp();
@@ -32,6 +35,7 @@ export const AuthModal: React.FC = () => {
   // Form State
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [creci, setCreci] = useState('');
@@ -76,6 +80,7 @@ export const AuthModal: React.FC = () => {
   const resetForm = () => {
     setEmail('');
     setPassword('');
+    setConfirmPassword('');
     setName('');
     setPhone('');
     setCreci('');
@@ -83,7 +88,7 @@ export const AuthModal: React.FC = () => {
     setForgotSent(false);
   };
 
-  const handleSwitchTab = (tab: 'login' | 'signup' | 'forgot') => {
+  const handleSwitchTab = (tab: 'login' | 'signup' | 'forgot' | 'reset') => {
     setAuthModalTab(tab);
     setErrorMessage(null);
     setForgotSent(false);
@@ -100,11 +105,34 @@ export const AuthModal: React.FC = () => {
       }
       setIsLoading(true);
       try {
-        // Handle reset
-        await new Promise(r => setTimeout(r, 600));
-        setForgotSent(true);
+        const sent = await requestPasswordReset(email);
+        if (sent) setForgotSent(true);
       } catch (err: any) {
         setErrorMessage(err.message || 'Erro ao enviar e-mail de recuperação.');
+      } finally {
+        setIsLoading(false);
+      }
+      return;
+    }
+
+    if (authModalTab === 'reset') {
+      if (!isStrongPassword(password)) {
+        setErrorMessage('Use pelo menos 10 caracteres, com letra maiúscula, minúscula, número e símbolo.');
+        return;
+      }
+      if (password !== confirmPassword) {
+        setErrorMessage('A confirmação não corresponde à nova senha.');
+        return;
+      }
+      setIsLoading(true);
+      try {
+        const changed = await changePassword(password);
+        if (changed) {
+          resetForm();
+          closeAuthModal();
+        }
+      } catch (err: any) {
+        setErrorMessage(err.message || 'Não foi possível redefinir a senha. Solicite um novo link.');
       } finally {
         setIsLoading(false);
       }
@@ -116,7 +144,7 @@ export const AuthModal: React.FC = () => {
       return;
     }
 
-    if (password.length < 6) {
+    if (authModalTab === 'login' && password.length < 6) {
       setErrorMessage('A senha deve conter no mínimo 6 caracteres.');
       return;
     }
@@ -124,6 +152,14 @@ export const AuthModal: React.FC = () => {
     if (authModalTab === 'signup') {
       if (!name.trim()) {
         setErrorMessage('Por favor, informe seu nome completo.');
+        return;
+      }
+      if (!isStrongPassword(password)) {
+        setErrorMessage('Use pelo menos 10 caracteres, com letra maiúscula, minúscula, número e símbolo.');
+        return;
+      }
+      if (password !== confirmPassword) {
+        setErrorMessage('A confirmação não corresponde à senha.');
         return;
       }
       if (!acceptedTerms) {
@@ -216,16 +252,18 @@ export const AuthModal: React.FC = () => {
             {authModalTab === 'login' && 'Acesse sua conta'}
             {authModalTab === 'signup' && 'Crie sua conta gratuita'}
             {authModalTab === 'forgot' && 'Recuperar senha'}
+            {authModalTab === 'reset' && 'Defina uma nova senha'}
           </h2>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
             {authModalTab === 'login' && 'Entre para gerenciar seus imóveis, leads e buscas salvas.'}
             {authModalTab === 'signup' && 'Junte-se a corretores, imobiliárias e compradores em todo o Brasil.'}
             {authModalTab === 'forgot' && 'Informe seu e-mail cadastrado para receber as instruções.'}
+            {authModalTab === 'reset' && 'Crie uma senha forte e exclusiva para proteger sua conta.'}
           </p>
         </div>
 
         {/* Tab switchers (Login vs Signup) */}
-        {authModalTab !== 'forgot' && (
+        {(authModalTab === 'login' || authModalTab === 'signup') && (
           <div className="p-4 pb-0">
             <div className="grid grid-cols-2 p-1 bg-slate-100 dark:bg-slate-800/80 rounded-2xl">
               <button
@@ -287,7 +325,7 @@ export const AuthModal: React.FC = () => {
           ) : (
             <>
               {/* Google OAuth Quick Button */}
-              {authModalTab !== 'forgot' && (
+              {(authModalTab === 'login' || authModalTab === 'signup') && (
                 <div className="space-y-3 mb-4">
                   <button
                     id="btn-google-oauth-login"
@@ -397,8 +435,8 @@ export const AuthModal: React.FC = () => {
                   </div>
                 )}
 
-                {/* Email (All tabs) */}
-                <div>
+                {/* Email (login, signup and password request) */}
+                {authModalTab !== 'reset' && <div>
                   <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
                     E-mail
                   </label>
@@ -414,14 +452,14 @@ export const AuthModal: React.FC = () => {
                       className="w-full pl-10 pr-3.5 py-2.5 rounded-2xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-xs text-slate-800 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 transition-all"
                     />
                   </div>
-                </div>
+                </div>}
 
                 {/* Password (Login and Signup) */}
                 {authModalTab !== 'forgot' && (
                   <div>
                     <div className="flex items-center justify-between mb-1">
                       <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
-                        Senha
+                        {authModalTab === 'reset' ? 'Nova senha' : 'Senha'}
                       </label>
                       {authModalTab === 'login' && (
                         <button
@@ -440,7 +478,7 @@ export const AuthModal: React.FC = () => {
                         id="input-auth-password"
                         type={showPassword ? 'text' : 'password'}
                         required
-                        placeholder="Mínimo 6 caracteres"
+                        placeholder={authModalTab === 'login' ? 'Sua senha' : 'Mínimo 10 caracteres'}
                         value={password}
                         onChange={e => setPassword(e.target.value)}
                         className="w-full pl-10 pr-10 py-2.5 rounded-2xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-xs text-slate-800 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 transition-all"
@@ -454,6 +492,40 @@ export const AuthModal: React.FC = () => {
                       </button>
                     </div>
                   </div>
+                )}
+
+                {(authModalTab === 'signup' || authModalTab === 'reset') && (
+                  <>
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                        Confirmar senha
+                      </label>
+                      <div className="relative">
+                        <ShieldCheck className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                        <input
+                          id="input-auth-confirm-password"
+                          type={showPassword ? 'text' : 'password'}
+                          required
+                          autoComplete="new-password"
+                          placeholder="Repita a senha"
+                          value={confirmPassword}
+                          onChange={e => setConfirmPassword(e.target.value)}
+                          className="w-full pl-10 pr-3.5 py-2.5 rounded-2xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-xs text-slate-800 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 transition-all"
+                        />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 p-3 border border-slate-200 dark:border-slate-700">
+                      {PASSWORD_REQUIREMENTS.map(([key, label]) => {
+                        const met = passwordChecks(password)[key];
+                        return (
+                          <span key={key} className={`flex items-center gap-1.5 text-[10px] font-semibold ${met ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-500 dark:text-slate-400'}`}>
+                            {met ? <CheckCircle2 className="w-3 h-3" /> : <span className="w-3 h-3 rounded-full border border-current" />}
+                            {label}
+                          </span>
+                        );
+                      })}
+                    </div>
+                  </>
                 )}
 
                 {/* Additional fields for Broker on Sign Up */}
@@ -542,6 +614,7 @@ export const AuthModal: React.FC = () => {
                         {authModalTab === 'login' && 'Entrar na Conta'}
                         {authModalTab === 'signup' && 'Concluir Cadastro'}
                         {authModalTab === 'forgot' && 'Enviar Instruções'}
+                        {authModalTab === 'reset' && 'Salvar Nova Senha'}
                       </span>
                       <ArrowRight className="w-4 h-4" />
                     </>
@@ -558,7 +631,7 @@ export const AuthModal: React.FC = () => {
                     >
                       Lembrou sua senha? <span className="text-rose-600 font-bold">Faça Login</span>
                     </button>
-                  ) : authModalTab === 'login' ? (
+                  ) : authModalTab === 'reset' ? null : authModalTab === 'login' ? (
                     <button
                       type="button"
                       onClick={() => handleSwitchTab('signup')}

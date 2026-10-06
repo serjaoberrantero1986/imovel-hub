@@ -3,14 +3,17 @@ import { UserProfile } from '../types';
 import { isSupabaseConfigured, supabase } from '../lib/supabaseClient';
 import { verifyCreciNational, CreciVerificationResult } from '../lib/creciVerification';
 import { Toast } from './appTypes';
+import { isStrongPassword } from '../lib/passwordPolicy';
 
 export interface AuthContextType {
   currentUser: UserProfile; isAuthenticated: boolean; authModalOpen: boolean;
-  setAuthModalOpen: (open: boolean) => void; authModalTab: 'login' | 'signup' | 'forgot';
-  setAuthModalTab: (tab: 'login' | 'signup' | 'forgot') => void;
-  openAuthModal: (tab?: 'login' | 'signup' | 'forgot') => void; closeAuthModal: () => void;
+  setAuthModalOpen: (open: boolean) => void; authModalTab: 'login' | 'signup' | 'forgot' | 'reset';
+  setAuthModalTab: (tab: 'login' | 'signup' | 'forgot' | 'reset') => void;
+  openAuthModal: (tab?: 'login' | 'signup' | 'forgot' | 'reset') => void; closeAuthModal: () => void;
   login: (email: string, password: string) => Promise<boolean>; loginWithGoogle: () => Promise<void>;
   signUp: (data: { name: string; email: string; password: string; role: 'broker' | 'buyer'; phone?: string; creci?: string }) => Promise<boolean>;
+  requestPasswordReset: (email: string) => Promise<boolean>;
+  changePassword: (newPassword: string, currentPassword?: string) => Promise<boolean>;
   logout: () => Promise<void>; deleteAccount: (password: string) => Promise<boolean>;
   updateUserProfile: (updates: Partial<UserProfile>) => Promise<void>;
   verifyCreci: (creci: string, uf: string) => Promise<CreciVerificationResult>;
@@ -38,7 +41,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode; addToast: (toas
   const [currentUser, setCurrentUser] = useState<UserProfile>(GUEST_USER);
   const [preferencesReady, setPreferencesReady] = useState(false);
   const [authModalOpen, setAuthModalOpen] = useState(false);
-  const [authModalTab, setAuthModalTab] = useState<'login' | 'signup' | 'forgot'>('login');
+  const [authModalTab, setAuthModalTab] = useState<'login' | 'signup' | 'forgot' | 'reset'>('login');
 
   const clearLegacy = useCallback(() => {
     ['imovelhub_is_authenticated','imovelhub_current_user','imovelhub_registered_accounts','imovelhub_deleted_accounts','imovelhub_supabase_url','imovelhub_supabase_anon_key','imovelhub_supabase_bucket'].forEach(k => localStorage.removeItem(k));
@@ -61,12 +64,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode; addToast: (toas
     clearLegacy();
     if (!isSupabaseConfigured || !supabase) return;
     void sync();
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => { void sync(session?.user); });
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'PASSWORD_RECOVERY') { setAuthModalTab('reset'); setAuthModalOpen(true); }
+      void sync(session?.user);
+    });
     return () => subscription.unsubscribe();
   }, [clearLegacy, sync]);
 
   const client = () => { if (!supabase || !isSupabaseConfigured) throw new Error('Supabase não configurado na implantação.'); return supabase; };
-  const openAuthModal = useCallback((tab: 'login' | 'signup' | 'forgot' = 'login') => { setAuthModalTab(tab); setAuthModalOpen(true); }, []);
+  const openAuthModal = useCallback((tab: 'login' | 'signup' | 'forgot' | 'reset' = 'login') => { setAuthModalTab(tab); setAuthModalOpen(true); }, []);
   const closeAuthModal = useCallback(() => setAuthModalOpen(false), []);
   const login = async (email: string, password: string) => {
     try { const { data, error } = await client().auth.signInWithPassword({ email: email.trim().toLowerCase(), password });
@@ -83,14 +89,36 @@ export const AuthProvider: React.FC<{ children: React.ReactNode; addToast: (toas
     }
   };
   const signUp = async (form: { name: string; email: string; password: string; role: 'broker' | 'buyer'; phone?: string; creci?: string }) => {
-    try { const { data, error } = await client().auth.signUp({ email: form.email.trim().toLowerCase(), password: form.password, options: { data: { name: form.name.trim(), role: form.role, phone: form.phone || null, creci: form.creci || null } } });
+    if (!isStrongPassword(form.password)) { addToast({ type: 'warning', title: 'Senha insuficiente', message: 'Use pelo menos 10 caracteres, incluindo maiúscula, minúscula, número e símbolo.' }); return false; }
+    try { const { data, error } = await client().auth.signUp({ email: form.email.trim().toLowerCase(), password: form.password, options: { emailRedirectTo: window.location.origin, data: { name: form.name.trim(), role: form.role, phone: form.phone || null, creci: form.creci || null } } });
       if (error || !data.user) {
         if (error) console.warn('Account registration was not completed:', error.message);
         addToast({ type: 'error', title: 'Cadastro não concluído', message: 'Não foi possível criar a conta agora. Confira os dados e tente novamente.' });
         return false;
       }
-      if (data.session) await sync(data.user); addToast({ type: 'success', title: 'Conta criada', message: 'Cadastro realizado com sucesso.' }); return true;
+      if (data.session) await sync(data.user);
+      addToast({ type: 'success', title: data.session ? 'Conta criada' : 'Confirme seu e-mail', message: data.session ? 'Cadastro realizado com sucesso.' : 'Enviamos um link de uso único. Confirme o endereço antes de entrar.' }); return true;
     } catch (e: any) { addToast({ type: 'error', title: 'Erro de conexão', message: e.message }); return false; }
+  };
+  const requestPasswordReset = async (email: string) => {
+    const { error } = await client().auth.resetPasswordForEmail(email.trim().toLowerCase(), { redirectTo: window.location.origin });
+    if (error) { addToast({ type: 'error', title: 'Recuperação não enviada', message: 'Aguarde alguns instantes e tente novamente.' }); return false; }
+    return true;
+  };
+  const changePassword = async (newPassword: string, currentPassword?: string) => {
+    if (!isStrongPassword(newPassword)) { addToast({ type: 'warning', title: 'Senha insuficiente', message: 'A nova senha não atende aos requisitos de segurança.' }); return false; }
+    const authClient = client();
+    if (currentPassword) {
+      const { data: userData } = await authClient.auth.getUser();
+      const email = userData.user?.email;
+      if (!email) return false;
+      const { error: reauthenticationError } = await authClient.auth.signInWithPassword({ email, password: currentPassword });
+      if (reauthenticationError) { addToast({ type: 'error', title: 'Senha atual incorreta', message: 'Confira a senha atual e tente novamente.' }); return false; }
+    }
+    const { error } = await authClient.auth.updateUser({ password: newPassword });
+    if (error) { addToast({ type: 'error', title: 'Senha não alterada', message: currentPassword ? 'Confira a senha atual e tente novamente.' : 'O link pode ter expirado. Solicite uma nova recuperação.' }); return false; }
+    addToast({ type: 'success', title: 'Senha alterada', message: 'Sua senha foi atualizada com segurança.' });
+    return true;
   };
   const logout = async () => { if (supabase) await supabase.auth.signOut(); setIsAuthenticated(false); setCurrentUser(GUEST_USER); setPreferencesReady(false); };
   const updateUserProfile = async (patch: Partial<UserProfile>) => {
@@ -164,6 +192,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode; addToast: (toas
     return true;
   };
   const switchUserRole = (_role: 'broker' | 'buyer') => addToast({ type: 'info', title: 'Tipo de conta fixo', message: 'O tipo de conta é definido no cadastro.' });
-  return <AuthContext.Provider value={{ currentUser, isAuthenticated, authModalOpen, setAuthModalOpen, authModalTab, setAuthModalTab, openAuthModal, closeAuthModal, login, loginWithGoogle, signUp, logout, deleteAccount, updateUserProfile, verifyCreci, requestCreciReview, switchUserRole }}>{children}</AuthContext.Provider>;
+  return <AuthContext.Provider value={{ currentUser, isAuthenticated, authModalOpen, setAuthModalOpen, authModalTab, setAuthModalTab, openAuthModal, closeAuthModal, login, loginWithGoogle, signUp, requestPasswordReset, changePassword, logout, deleteAccount, updateUserProfile, verifyCreci, requestCreciReview, switchUserRole }}>{children}</AuthContext.Provider>;
 };
 export const useAuth = () => { const context = useContext(AuthContext); if (!context) throw new Error('useAuth must be used within an AuthProvider'); return context; };

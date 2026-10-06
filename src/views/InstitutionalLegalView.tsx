@@ -46,7 +46,6 @@ export const InstitutionalLegalView: React.FC<InstitutionalLegalViewProps> = ({ 
             <span>Voltar ao Portal</span>
           </button>
 
-          <span className="text-[11px] text-slate-500 font-mono">Última atualização: Setembro/2026</span>
         </div>
 
         {/* Page Header */}

@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { Property, PropertyStatus } from '../types';
 import { 
   fetchPropertiesFromSupabase,
@@ -13,6 +13,7 @@ import { generatePropertyCode } from '../lib/utils';
 
 export interface PropertyContextType {
   properties: Property[];
+  publicProperties: Property[];
   addProperty: (propertyData: Omit<Property, 'id' | 'code' | 'createdAt' | 'updatedAt' | 'viewsCount' | 'leadsCount' | 'favoritesCount' | 'sharesCount' | 'advertiser' | 'userId'>) => Promise<Property | null>;
   updateProperty: (id: string, propertyData: Partial<Property>) => Promise<boolean>;
   deleteProperty: (id: string) => Promise<void>;
@@ -39,6 +40,7 @@ export const PropertyProvider: React.FC<{
       return [];
     }
   });
+  const publicProperties = useMemo(() => properties.filter(property => property.status === 'active'), [properties]);
 
   // Do not purge real broker properties
   useEffect(() => {
@@ -151,8 +153,8 @@ export const PropertyProvider: React.FC<{
 
       addToast({
         type: 'success',
-        title: 'Imóvel Publicado no Supabase!',
-        message: `Anúncio "${newProp.title}" gravado e confirmado com sucesso no banco de dados.`
+        title: newProp.status === 'draft' ? 'Rascunho salvo' : newProp.status === 'pending_moderation' ? 'Anúncio enviado para análise' : 'Imóvel publicado',
+        message: `Anúncio "${newProp.title || code}" gravado e confirmado com sucesso no banco de dados.`
       });
 
       return finalProp;
@@ -161,8 +163,8 @@ export const PropertyProvider: React.FC<{
       setProperties(prev => [newProp, ...prev.filter(p => p.id !== newProp.id)]);
       addToast({
         type: 'success',
-        title: 'Imóvel Publicado!',
-        message: `Anúncio "${newProp.title}" cadastrado com sucesso sob o código ${code}.`
+        title: newProp.status === 'draft' ? 'Rascunho salvo' : newProp.status === 'pending_moderation' ? 'Anúncio enviado para análise' : 'Imóvel publicado',
+        message: `Anúncio "${newProp.title || code}" cadastrado com sucesso sob o código ${code}.`
       });
       return newProp;
     }
@@ -266,6 +268,7 @@ export const PropertyProvider: React.FC<{
     <PropertyContext.Provider
       value={{
         properties,
+        publicProperties,
         addProperty,
         updateProperty,
         deleteProperty,

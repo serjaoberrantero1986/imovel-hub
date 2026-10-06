@@ -22,7 +22,7 @@ import {
   Search
 } from 'lucide-react';
 import { useApp, useCatalog } from '../../context/AppContext';
-import { Property, PropertyType, PropertyPurpose, PropertyMedia } from '../../types';
+import { Property, PropertyType, PropertyPurpose, PropertyMedia, PropertyStatus } from '../../types';
 import { formatCurrency, getPropertyTypeLabel, getPropertyPurposeLabel, generatePropertyCode } from '../../lib/utils';
 import { PropertyImageManager } from '../media/PropertyImageManager';
 import { geocodeAddress, resolvePropertyCoordinates } from '../../lib/geocoding';
@@ -49,7 +49,8 @@ export const PropertyWizardModal: React.FC = () => {
     setEditingProperty, 
     addProperty, 
     updateProperty,
-    openPropertyDetail 
+    openPropertyDetail,
+    currentUser
   } = useApp();
   const currentInactiveType = editingProperty ? propertyTypes.find(item => item.id === editingProperty.type && !item.isActive) : undefined;
   const availablePropertyTypes = propertyTypesError ? DEFAULT_PROPERTY_TYPES : currentInactiveType ? [...activePropertyTypes, currentInactiveType] : activePropertyTypes;
@@ -105,6 +106,7 @@ export const PropertyWizardModal: React.FC = () => {
   const [selectedAmenities, setSelectedAmenities] = useState<string[]>([]);
   const [mediaList, setMediaList] = useState<PropertyMedia[]>([]);
   const [videoUrl, setVideoUrl] = useState('');
+  const [featured, setFeatured] = useState(false);
 
   // Pre-fill when editing or reset when creating
   useEffect(() => {
@@ -138,6 +140,7 @@ export const PropertyWizardModal: React.FC = () => {
       setSelectedAmenities(editingProperty.amenities || []);
       setMediaList(editingProperty.media && editingProperty.media.length > 0 ? editingProperty.media : []);
       setVideoUrl(editingProperty.videoUrl || '');
+      setFeatured(Boolean(editingProperty.featured));
       setLatitude(editingProperty.latitude || null);
       setLongitude(editingProperty.longitude || null);
       setGeocodeStatus(editingProperty.latitude && editingProperty.longitude ? `Geolocalizado: ${editingProperty.city}/${editingProperty.state}` : null);
@@ -172,6 +175,7 @@ export const PropertyWizardModal: React.FC = () => {
       setSelectedAmenities([]);
       setMediaList([]); // 100% livre de fotos fictícias
       setVideoUrl('');
+      setFeatured(false);
     }
   }, [editingProperty, isWizardOpen]);
 
@@ -358,12 +362,14 @@ export const PropertyWizardModal: React.FC = () => {
     setCurrentStep(targetStep);
   };
 
-  const handleSaveListing = async () => {
-    // Validação final de revisão
-    for (let s = 1; s <= 6; s++) {
-      if (!validateStep(s)) {
-        setCurrentStep(s);
-        return;
+  const handleSaveListing = async (requestedStatus?: PropertyStatus) => {
+    // Drafts may be incomplete; publishing still requires every step.
+    if (requestedStatus !== 'draft') {
+      for (let s = 1; s <= 6; s++) {
+        if (!validateStep(s)) {
+          setCurrentStep(s);
+          return;
+        }
       }
     }
 
@@ -405,7 +411,7 @@ export const PropertyWizardModal: React.FC = () => {
       description: description.trim() || 'Excelente imóvel com ótima localização e total infraestrutura.',
       type,
       purpose,
-      status: 'active' as const,
+      status: requestedStatus || editingProperty?.status || (currentUser.verified ? 'active' : 'pending_moderation'),
       price,
       condoFee: condoFee || 0,
       iptuFee: iptuFee || 0,
@@ -428,7 +434,7 @@ export const PropertyWizardModal: React.FC = () => {
       condoName: condoName.trim() || undefined,
       latitude: finalResolvedLat,
       longitude: finalResolvedLng,
-      featured: true,
+      featured,
       isExclusive: false,
       amenities: selectedAmenities,
       media: mediaList,
@@ -1036,6 +1042,11 @@ export const PropertyWizardModal: React.FC = () => {
                   {mediaList.length} foto(s) anexada(s) • {selectedAmenities.length} comodidade(s) selecionada(s)
                 </div>
               </div>
+              <label className="flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50/70 p-4 text-left dark:border-amber-900/60 dark:bg-amber-950/20">
+                <input type="checkbox" checked={featured} onChange={event => setFeatured(event.target.checked)} className="mt-0.5 h-4 w-4 accent-amber-500" />
+                <span><strong className="block text-sm text-slate-900 dark:text-white">Exibir como imóvel em destaque</strong><span className="mt-0.5 block text-xs text-slate-500">Quando ativo e publicado, o anúncio poderá aparecer na seção de destaques e nas composições da hero.</span></span>
+              </label>
+              {!editingProperty && !currentUser.verified && <div className="rounded-2xl border border-sky-200 bg-sky-50 p-4 text-xs text-sky-800 dark:border-sky-900 dark:bg-sky-950/30 dark:text-sky-300">Como o perfil profissional ainda não está verificado, o anúncio será enviado para análise antes de aparecer publicamente.</div>}
             </div>
           )}
 
@@ -1063,10 +1074,11 @@ export const PropertyWizardModal: React.FC = () => {
                 <span>Próximo Passo</span>
                 <ChevronRight className="w-4 h-4" />
               </button>
-            ) : (
+            ) : (<>
+              <button type="button" onClick={() => void handleSaveListing('draft')} disabled={isSubmitting} className="px-5 py-3 rounded-2xl border border-slate-300 bg-white text-slate-700 text-xs font-bold hover:bg-slate-100 disabled:opacity-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200">Salvar como rascunho</button>
               <button
                 type="button"
-                onClick={handleSaveListing}
+                onClick={() => void handleSaveListing()}
                 disabled={isSubmitting}
                 className="px-8 py-3 rounded-2xl bg-gradient-to-r from-rose-600 to-rose-700 hover:from-rose-700 hover:to-rose-800 disabled:opacity-50 text-white text-sm font-extrabold shadow-lg shadow-rose-600/30 flex items-center gap-2 active:scale-98 cursor-pointer"
               >
@@ -1081,7 +1093,7 @@ export const PropertyWizardModal: React.FC = () => {
                     <span>{editingProperty ? 'Salvar Alterações' : 'Publicar Anúncio Agora'}</span>
                   </>
                 )}
-              </button>
+              </button></>
             )}
           </div>
         </div>

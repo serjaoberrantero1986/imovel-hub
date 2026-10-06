@@ -6,11 +6,11 @@ import { CanvasInsertedBlocks, EditableBox, EditableImage, EditableText } from '
 import { usePortalEditorShell } from '../visual-editor/PortalEditorProvider';
 
 export const Footer: React.FC = () => {
-  const { properties, setCurrentView, setFilters, openLegalPage, currentView } = useApp();
+  const { publicProperties, setCurrentView, setFilters, openLegalPage, currentView } = useApp();
   const editor = usePortalEditorShell();
   const { activePropertyTypes, propertyTypesError, footerSettings, portalIdentity } = useCatalog();
-  const availableCities = React.useMemo(() => Array.from(new Set(properties.map(item => item.city?.trim()).filter(Boolean) as string[])).sort(), [properties]);
-  const availableNeighborhoods = React.useMemo(() => Array.from(new Set(properties.map(item => item.neighborhood?.trim()).filter(Boolean) as string[])).sort(), [properties]);
+  const availableCities = React.useMemo(() => Array.from(new Set(publicProperties.map(item => item.city?.trim()).filter(Boolean) as string[])).sort(), [publicProperties]);
+  const availableNeighborhoods = React.useMemo(() => Array.from(new Set(publicProperties.map(item => item.neighborhood?.trim()).filter(Boolean) as string[])).sort(), [publicProperties]);
   const fallbackPropertyTypes = [{id:'apartment',label:'Apartamento'},{id:'house',label:'Casa de Bairro'},{id:'condo_house',label:'Casa em Condomínio'},{id:'land',label:'Terreno'},{id:'chacara',label:'Chácara'},{id:'farm',label:'Sítio/Fazenda'},{id:'commercial',label:'Comercial'},{id:'launch',label:'Lançamento'}];
   const propertyTypes = propertyTypesError ? fallbackPropertyTypes : activePropertyTypes.map(item => ({ id:item.id,label:item.name }));
   const openSearch = (searchTerm:string, city?:string) => { setFilters(current => ({...current,city:city||current.city,searchTerm})); setCurrentView('search'); window.scrollTo({top:0,behavior:'smooth'}); };

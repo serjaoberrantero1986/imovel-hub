@@ -51,7 +51,8 @@ interface PendingPropertyContact {
 export const PropertyDetailView: React.FC = () => {
   const { amenities } = useCatalog();
   const { 
-    properties, 
+    properties,
+    publicProperties,
     selectedPropertyId, 
     setCurrentView, 
     toggleFavorite, 
@@ -282,7 +283,7 @@ export const PropertyDetailView: React.FC = () => {
   };
 
   // Similar properties
-  const similarProps = properties.filter(p => p.id !== property.id && (p.city === property.city || p.type === property.type)).slice(0, 3);
+  const similarProps = publicProperties.filter(p => p.id !== property.id && (p.city === property.city || p.type === property.type)).slice(0, 3);
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 py-6 transition-colors">

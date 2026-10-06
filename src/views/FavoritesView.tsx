@@ -4,9 +4,9 @@ import { useApp } from '../context/AppContext';
 import { PropertyCard } from '../components/properties/PropertyCard';
 
 export const FavoritesView: React.FC = () => {
-  const { properties, favoriteIds, setCurrentView, isAuthenticated, openAuthModal } = useApp();
+  const { publicProperties, favoriteIds, setCurrentView, isAuthenticated, openAuthModal } = useApp();
 
-  const favoritedProperties = properties.filter(p => favoriteIds.includes(p.id));
+  const favoritedProperties = publicProperties.filter(p => favoriteIds.includes(p.id));
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 py-8 transition-colors">

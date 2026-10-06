@@ -176,7 +176,7 @@ export async function fetchPropertiesFromSupabase(): Promise<Property[] | null> 
     if (userIds.length > 0) {
       try {
         const { data: profiles } = await supabase
-          .from('profiles')
+          .from('public_profile_cards')
           .select('*')
           .in('id', userIds);
 
@@ -229,43 +229,9 @@ export async function insertPropertyToSupabase(property: Property): Promise<Inse
     const rawUserId = sessionUser?.id || property.userId || property.advertiser?.id;
     const targetUserId = ensureValidUuid(rawUserId);
 
-    // 2. Ensure user has a corresponding row in public.profiles table (Foreign Key constraint)
-    try {
-      const { data: existingProfile, error: profileCheckErr } = await supabase
-        .from('profiles')
-        .select('id, role, email')
-        .eq('id', targetUserId)
-        .maybeSingle();
-
-      const meta = sessionUser?.user_metadata || {};
-      const fallbackName = property.advertiser?.name || meta.name || sessionUser?.email?.split('@')[0] || 'Corretor';
-      const fallbackEmail = property.advertiser?.email || sessionUser?.email || meta.email || 'corretor@webimovel.com.br';
-      const fallbackRole = property.advertiser?.role || meta.role || 'broker';
-      const fallbackPhone = property.advertiser?.phone || meta.phone || null;
-      const fallbackCreci = property.advertiser?.creci || meta.creci || null;
-
-      if (!existingProfile || profileCheckErr) {
-        const { error: profileUpsertErr } = await supabase.from('profiles').upsert({
-          id: targetUserId,
-          name: fallbackName,
-          email: fallbackEmail,
-          role: fallbackRole,
-          phone: fallbackPhone,
-          creci: fallbackCreci,
-          verified: true
-        }, { onConflict: 'id' });
-
-        if (profileUpsertErr) {
-          console.warn('Profile sync notice before inserting property:', profileUpsertErr.message);
-        }
-      }
-    } catch (profErr) {
-      console.warn('Profile check notice:', profErr);
-    }
-
     const propertyId = ensureValidUuid(property.id);
 
-    // 3. Insert Property Row
+    // 2. Insert Property Row. The auth trigger owns profile creation; clients must never self-verify.
     const { error: propError } = await supabase.from('properties').insert({
       id: propertyId,
       code: property.code,
@@ -447,6 +413,7 @@ export async function updatePropertyInSupabase(
     if (updates.purpose !== undefined) dbUpdates.purpose = updates.purpose;
     if (updates.type !== undefined) dbUpdates.type = updates.type;
     if (updates.status !== undefined) dbUpdates.status = updates.status;
+    if (updates.featured !== undefined) dbUpdates.featured = updates.featured;
     if (updates.videoUrl !== undefined) dbUpdates.video_url = updates.videoUrl || null;
     if (updates.viewsCount !== undefined) dbUpdates.views_count = updates.viewsCount;
     if (updates.leadsCount !== undefined) dbUpdates.leads_count = updates.leadsCount;
@@ -834,7 +801,7 @@ export async function fetchConversationsFromSupabase(userId: string): Promise<Co
     if (profileIds.size > 0) {
       try {
         const { data: profiles } = await supabase
-          .from('profiles')
+          .from('conversation_participant_cards')
           .select('id, name, email, role, avatar_url, verified, agency_name')
           .in('id', Array.from(profileIds));
         (profiles || []).forEach((p: any) => {

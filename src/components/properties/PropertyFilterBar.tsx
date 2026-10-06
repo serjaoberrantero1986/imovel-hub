@@ -26,7 +26,7 @@ import { DEFAULT_PROPERTY_TYPES } from '../../lib/propertyTypesCatalog';
 import { getPropertyTypeIcon } from '../ui/propertyTypeIcons';
 
 export const PropertyFilterBar: React.FC = () => {
-  const { filters, setFilters, resetFilters, saveCurrentSearch, properties, openPropertyDetail } = useApp();
+  const { filters, setFilters, resetFilters, saveCurrentSearch, publicProperties, openPropertyDetail } = useApp();
   const { activeAmenities, activePropertyTypes, propertyTypesError } = useCatalog();
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [saveSearchModalOpen, setSaveSearchModalOpen] = useState(false);
@@ -105,8 +105,8 @@ export const PropertyFilterBar: React.FC = () => {
 
   // Code search matched suggestions
   const codeMatches = codeQuery.trim()
-    ? properties.filter(p => p.code.toLowerCase().includes(codeQuery.trim().toLowerCase()))
-    : properties.slice(0, 4);
+    ? publicProperties.filter(p => p.code.toLowerCase().includes(codeQuery.trim().toLowerCase()))
+    : publicProperties.slice(0, 4);
 
   return (
     <div className="w-full bg-white dark:bg-slate-900 rounded-3xl p-4 sm:p-6 shadow-xl border border-slate-200/80 dark:border-slate-800/80 space-y-4 transition-colors">
