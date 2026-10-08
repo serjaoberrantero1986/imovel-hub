@@ -221,11 +221,15 @@ export async function processAndCompressImage(
     quality?: number;
     outputType?: 'image/webp' | 'image/jpeg';
     preserveTransparency?: boolean;
+    maxFileSizeBytes?: number;
+    minQuality?: number;
   } = {}
 ): Promise<ProcessedImageResult> {
   const maxDim = options.maxDimension || MAX_IMAGE_DIMENSION;
   const quality = options.quality ?? 0.85;
   const outputType = options.outputType || 'image/webp';
+  const maxFileSizeBytes = options.maxFileSizeBytes ?? MAX_FILE_SIZE_BYTES;
+  const minQuality = options.minQuality ?? 0.6;
 
   let srcUrl = '';
   let originalSize = 0;
@@ -337,11 +341,11 @@ export async function processAndCompressImage(
   });
 
   let finalQuality = quality;
-  while (mainBlob.size > MAX_FILE_SIZE_BYTES && finalQuality > 0.6) {
-    finalQuality = Math.max(0.6, finalQuality - 0.08);
+  while (mainBlob.size > maxFileSizeBytes && finalQuality > minQuality) {
+    finalQuality = Math.max(minQuality, finalQuality - 0.08);
     mainBlob = await new Promise<Blob>((resolve, reject) => canvas.toBlob(b => b ? resolve(b) : reject(new Error('Não foi possível otimizar a imagem.')), outputType, finalQuality));
   }
-  while (mainBlob.size > MAX_FILE_SIZE_BYTES && Math.min(canvas.width, canvas.height) > 800) {
+  while (mainBlob.size > maxFileSizeBytes && Math.min(canvas.width, canvas.height) > 800) {
     const reduced = document.createElement('canvas');
     reduced.width = Math.round(canvas.width * 0.85);
     reduced.height = Math.round(canvas.height * 0.85);
@@ -351,7 +355,7 @@ export async function processAndCompressImage(
     ctx.drawImage(reduced, 0, 0);
     mainBlob = await new Promise<Blob>((resolve, reject) => canvas.toBlob(b => b ? resolve(b) : reject(new Error('Falha ao otimizar.')), outputType, finalQuality));
   }
-  if (!mainBlob.size || mainBlob.size > MAX_FILE_SIZE_BYTES) throw new Error('Não foi possível atingir o tamanho de envio com boa qualidade. Reduza a resolução da imagem.');
+  if (!mainBlob.size || mainBlob.size > maxFileSizeBytes) throw new Error('Não foi possível atingir o tamanho de envio com boa qualidade. Reduza a resolução da imagem.');
   // Create Thumbnail Canvas (max 400x300)
   const thumbCanvas = document.createElement('canvas');
   const thumbRatio = Math.min(400 / canvas.width, 300 / canvas.height, 1);

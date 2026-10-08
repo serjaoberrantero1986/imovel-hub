@@ -158,6 +158,8 @@ const AppCompositeProvider: React.FC<{
     addToast,
     removeToast,
     // Auth slice
+    creciNotifications: auth.creciNotifications,
+    markCreciNotificationRead: auth.markCreciNotificationRead,
     currentUser: auth.currentUser,
     isAuthenticated: auth.isAuthenticated,
     authModalOpen: auth.authModalOpen,

@@ -24,6 +24,7 @@ export const CreciDocumentManager: React.FC<Props> = ({ user, addToast, onDocume
   const [busy, setBusy] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const locked = user.creciReviewStatus === 'pending' || user.creciReviewStatus === 'approved';
+  const cirpImageCount = documents.filter(item => item.documentKind === 'cirp' && item.mimeType.startsWith('image/')).length;
 
   const refresh = async () => {
     try {
@@ -39,6 +40,9 @@ export const CreciDocumentManager: React.FC<Props> = ({ user, addToast, onDocume
 
   const handleUpload = async (file?: File) => {
     if (!file || locked) return;
+    if (kind === 'cirp' && file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf') && cirpImageCount >= 2) {
+      addToast({ type: 'warning', title: 'Limite de imagens', message: 'Anexe no máximo duas imagens da CIRP, para frente e verso. Remova uma imagem para substituí-la.' }); return;
+    }
     setBusy(true);
     try {
       let prepared = file;
@@ -51,7 +55,7 @@ export const CreciDocumentManager: React.FC<Props> = ({ user, addToast, onDocume
       await refresh();
       addToast({ type: 'success', title: 'Documento adicionado', message: 'O arquivo privado foi anexado à solicitação.' });
     } catch (error: any) {
-      addToast({ type: 'error', title: 'Upload não realizado', message: error.message || 'Não foi possível enviar o documento.' });
+      addToast({ type: 'error', title: 'Upload não realizado', message: error instanceof Error ? error.message : 'Não foi possível enviar o documento. Confira o limite de imagens e tente novamente.' });
     } finally {
       setBusy(false);
       if (inputRef.current) inputRef.current.value = '';
@@ -88,7 +92,8 @@ export const CreciDocumentManager: React.FC<Props> = ({ user, addToast, onDocume
     <div className="rounded-2xl border border-indigo-100 dark:border-indigo-900/60 bg-indigo-50/40 dark:bg-indigo-950/20 p-4 space-y-3">
       <div>
         <h4 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2"><FileCheck className="w-4 h-4 text-indigo-600" /> Documentos comprobatórios</h4>
-        <p className="text-[11px] text-slate-500 mt-1">Envie sua CIRP em PDF, JPEG ou PNG, com até 8 MB. A certidão de regularidade pode ser anexada como documento complementar. Os arquivos são privados.</p>
+        <p className="text-[11px] text-slate-500 mt-1">Envie sua CIRP em PDF ou até duas imagens JPEG ou PNG, para frente e verso. Cada arquivo deve ter até 8 MB após a otimização. A certidão de regularidade é complementar. Os arquivos são privados.</p>
+        <p className="mt-1 text-[11px] font-bold text-indigo-600 dark:text-indigo-300">Imagens da CIRP: {cirpImageCount}/2</p>
       </div>
 
       {!locked && (

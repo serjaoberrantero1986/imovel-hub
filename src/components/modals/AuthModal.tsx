@@ -17,6 +17,9 @@ import {
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { isStrongPassword, PASSWORD_REQUIREMENTS, passwordChecks } from '../../lib/passwordPolicy';
+import { PortalBrand } from '../ui/PortalBrand';
+import { useResendCooldown } from '../../hooks/useResendCooldown';
+import { formatPersonName, formatPhoneInput, normalizeEmailInput, formatProfessionalCreci, isValidProfessionalCreci, isValidEmail, isValidPhone } from '../../lib/formInput';
 import { TurnstileWidget, TURNSTILE_SITE_KEY } from '../auth/TurnstileWidget';
 
 export const AuthModal: React.FC = () => {
@@ -55,6 +58,8 @@ export const AuthModal: React.FC = () => {
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const [captchaResetSignal, setCaptchaResetSignal] = useState(0);
   const [mfaCode, setMfaCode] = useState('');
+  const { remaining: resendSeconds, start: startResendCooldown, isBlocked: isResendBlocked } = useResendCooldown();
+
 
   useEffect(() => {
     if (!authModalOpen) return;
@@ -218,6 +223,12 @@ export const AuthModal: React.FC = () => {
         setErrorMessage('A confirmação não corresponde à senha.');
         return;
       }
+      if (!isValidEmail(email) || !name.trim() || (phone && !isValidPhone(phone))) {
+        setErrorMessage('Confira seu nome, e-mail e telefone com DDD.'); return;
+      }
+      if (role === 'broker' && !isValidProfessionalCreci(creci)) {
+        setErrorMessage('Informe o CRECI com 4 a 7 dígitos e o sufixo F ou J. Exemplo: 123456-F.'); return;
+      }
       if (!acceptedTerms) {
         setErrorMessage('Você deve concordar com os Termos de Uso e Política de Privacidade.');
         return;
@@ -240,6 +251,7 @@ export const AuthModal: React.FC = () => {
           closeAuthModal();
         } else if (result === 'confirmation_required') {
           setSignupConfirmationSent(true);
+          startResendCooldown();
           setPassword('');
           setConfirmPassword('');
         }
@@ -277,6 +289,7 @@ export const AuthModal: React.FC = () => {
   };
 
   const handleResendSignupConfirmation = async () => {
+    if (isResendBlocked() || isLoading) return;
     setErrorMessage(null);
     if (!captchaToken) {
       setErrorMessage('Conclua a verificação de segurança antes de reenviar o link.');
@@ -284,9 +297,9 @@ export const AuthModal: React.FC = () => {
     }
     setIsLoading(true);
     try {
-      await resendSignupConfirmation(email, captchaToken);
+      if (await resendSignupConfirmation(email, captchaToken)) startResendCooldown();
     } catch (err: any) {
-      setErrorMessage(err.message || 'Não foi possível reenviar o link de confirmação.');
+      setErrorMessage('Não foi possível reenviar o link agora. Aguarde e tente novamente.');
     } finally {
       setIsLoading(false);
       setCaptchaToken(null);
@@ -314,14 +327,7 @@ export const AuthModal: React.FC = () => {
             <X className="w-5 h-5" />
           </button>
 
-          <div className="flex items-center gap-2 mb-2">
-            <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-amber-600 via-rose-600 to-indigo-600 flex items-center justify-center text-white shadow-sm">
-              <Building2 className="w-4 h-4 stroke-[2.2]" />
-            </div>
-            <span className="font-extrabold text-base tracking-tight text-slate-900 dark:text-white font-['Outfit']">
-              Web <span className="text-rose-600 dark:text-rose-500">Imóvel</span>
-            </span>
-          </div>
+          <div className="mb-2"><PortalBrand compact /></div>
 
           <h2 className="text-xl font-extrabold text-slate-900 dark:text-white">
             {authModalTab === 'login' && 'Acesse sua conta'}
@@ -436,11 +442,11 @@ export const AuthModal: React.FC = () => {
               />
               <button
                 type="button"
-                disabled={isLoading || !captchaToken}
+                disabled={isLoading || !captchaToken || resendSeconds > 0}
                 onClick={() => void handleResendSignupConfirmation()}
                 className="w-full rounded-xl bg-slate-100 px-4 py-2.5 text-xs font-bold text-slate-800 transition-colors hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
               >
-                {isLoading ? 'Reenviando...' : 'Reenviar link de confirmação'}
+                {isLoading ? 'Reenviando...' : resendSeconds > 0 ? `Reenviar em ${resendSeconds} s` : 'Reenviar link de confirmação'}
               </button>
               <button
                 type="button"
@@ -556,7 +562,7 @@ export const AuthModal: React.FC = () => {
                         required
                         placeholder="Ex: Carlos Mendes de Oliveira"
                         value={name}
-                        onChange={e => setName(e.target.value)}
+                        onChange={e => setName(formatPersonName(e.target.value))}
                         className="w-full pl-10 pr-3.5 py-2.5 rounded-2xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-xs text-slate-800 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 transition-all"
                       />
                     </div>
@@ -576,7 +582,7 @@ export const AuthModal: React.FC = () => {
                       required
                       placeholder="seu.email@exemplo.com.br"
                       value={email}
-                      onChange={e => setEmail(e.target.value)}
+                      onChange={e => setEmail(normalizeEmailInput(e.target.value))}
                       className="w-full pl-10 pr-3.5 py-2.5 rounded-2xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-xs text-slate-800 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 transition-all"
                     />
                   </div>
@@ -668,7 +674,7 @@ export const AuthModal: React.FC = () => {
                         type="text"
                         placeholder="Ex: 185420-F"
                         value={creci}
-                        onChange={e => setCreci(e.target.value.toUpperCase())}
+                        onChange={e => setCreci(formatProfessionalCreci(e.target.value))}
                         className="w-full px-3 py-2.5 rounded-2xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-xs text-slate-800 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
                       />
                     </div>
@@ -681,7 +687,7 @@ export const AuthModal: React.FC = () => {
                         type="tel"
                         placeholder="(15) 99123-4567"
                         value={phone}
-                        onChange={e => setPhone(e.target.value)}
+                        onChange={e => setPhone(formatPhoneInput(e.target.value))}
                         className="w-full px-3 py-2.5 rounded-2xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-xs text-slate-800 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
                       />
                     </div>

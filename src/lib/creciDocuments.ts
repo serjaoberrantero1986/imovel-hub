@@ -23,6 +23,37 @@ export interface PendingCreciReview {
   documents: CreciDocument[];
 }
 
+export type CreciReviewStatus = 'pending' | 'approved' | 'rejected' | 'expired';
+export interface CreciReview extends PendingCreciReview {
+  status: CreciReviewStatus;
+  revision: string;
+  reviewedAt?: string;
+  expiresAt?: string;
+  history: { id: string; decision: 'approved' | 'rejected'; note?: string; createdAt: string; reviewerName: string; expiresAt?: string }[];
+}
+
+export async function listCreciReviews(): Promise<CreciReview[]> {
+  if (!supabase) throw new Error('Serviço indisponível.');
+  const { data, error } = await supabase.rpc('get_creci_reviews');
+  if (error) throw error;
+  return (data || []).map((row: any) => ({
+    profileId: row.profile_id, name: row.name, email: row.email, creci: row.creci,
+    creciUf: row.creci_uf, requestedAt: row.requested_at, status: row.status,
+    revision: row.updated_at, reviewedAt: row.reviewed_at, expiresAt: row.expires_at,
+    documents: (row.documents || []).map(mapDocument),
+    history: (row.history || []).map((item: any) => ({ id: item.id, decision: item.decision, note: item.note, createdAt: item.created_at, reviewerName: item.reviewer_name || 'Administrador', expiresAt: item.expires_at }))
+  }));
+}
+
+export async function reviseCreciDecision(review: CreciReview, approved: boolean, note: string, expiresAt?: string): Promise<void> {
+  if (!supabase) throw new Error('Serviço indisponível.');
+  const { error } = await supabase.rpc('review_creci_decision', {
+    p_profile_id: review.profileId, p_approved: approved, p_note: note.trim() || null,
+    p_expires_at: expiresAt || null, p_expected_revision: review.revision
+  });
+  if (error) throw error;
+}
+
 const BUCKET = 'creci-verification';
 const MAX_SIZE = 8 * 1024 * 1024;
 

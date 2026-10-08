@@ -4,6 +4,7 @@ import { isSupabaseConfigured, supabase } from '../lib/supabaseClient';
 import { verifyCreciNational, CreciVerificationResult } from '../lib/creciVerification';
 import { Toast } from './appTypes';
 import { isStrongPassword } from '../lib/passwordPolicy';
+import { useCreciReviewNotifications, CreciReviewNotification } from '../hooks/useCreciReviewNotifications';
 
 export type LoginResult = 'authenticated' | 'mfa_required' | 'security_error' | false;
 export type SignupResult = 'authenticated' | 'confirmation_required' | false;
@@ -11,6 +12,8 @@ export interface TotpFactorSummary { id: string; friendlyName: string; createdAt
 export interface TotpEnrollment { factorId: string; qrCode: string; secret: string; }
 
 export interface AuthContextType {
+  creciNotifications: CreciReviewNotification[];
+  markCreciNotificationRead: (id: string) => Promise<void>;
   currentUser: UserProfile; isAuthenticated: boolean; authModalOpen: boolean;
   setAuthModalOpen: (open: boolean) => void; authModalTab: 'login' | 'signup' | 'forgot' | 'reset' | 'mfa';
   setAuthModalTab: (tab: 'login' | 'signup' | 'forgot' | 'reset' | 'mfa') => void;
@@ -98,6 +101,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode; addToast: (toas
     setMfaChallengeFactorId(null);
     setMfaChallengeFactors([]);
     setCurrentUser(toProfile(user, data, privateData?.preferences || {})); setIsAuthenticated(true);
+    if (sessionStorage.getItem('webimovel_oauth_welcome') === 'pending') {
+      sessionStorage.removeItem('webimovel_oauth_welcome');
+      addToast({ type: 'success', title: 'Bem-vindo!', message: 'Seu acesso foi concluído. Aproveite o portal!' });
+    }
     return true;
   }, []);
   useEffect(() => {
@@ -111,10 +118,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode; addToast: (toas
     return () => subscription.unsubscribe();
   }, [clearLegacy, sync]);
 
+  const { notifications: creciNotifications, markRead: markCreciNotificationRead } = useCreciReviewNotifications(isAuthenticated ? currentUser.id : null, addToast, sync);
   const client = () => { if (!supabase || !isSupabaseConfigured) throw new Error('Supabase não configurado na implantação.'); return supabase; };
   const openAuthModal = useCallback((tab: 'login' | 'signup' | 'forgot' | 'reset' | 'mfa' = 'login') => { setAuthModalTab(tab); setAuthModalOpen(true); }, []);
   const closeAuthModal = useCallback(() => setAuthModalOpen(false), []);
   const login = async (email: string, password: string, captchaToken: string): Promise<LoginResult> => {
+    sessionStorage.removeItem('webimovel_oauth_welcome');
     try { const { data, error } = await client().auth.signInWithPassword({ email: email.trim().toLowerCase(), password, options: { captchaToken } });
       if (error || !data.user) {
         if (error) console.warn('Authentication was not completed:', error.message);
@@ -127,6 +136,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode; addToast: (toas
       }
       setMfaReturnTab(null);
       const fullyAuthenticated = await sync(data.user);
+      if (fullyAuthenticated) addToast({ type: 'success', title: 'Bem-vindo de volta!', message: 'Seu acesso foi realizado com sucesso.' });
       return fullyAuthenticated ? 'authenticated' : 'mfa_required';
     } catch (e: any) {
       console.warn('Authentication connection error:', e?.message || e);
@@ -136,6 +146,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode; addToast: (toas
   };
   const loginWithGoogle = async () => {
     try {
+      sessionStorage.setItem('webimovel_oauth_welcome', 'pending');
       const { error } = await client().auth.signInWithOAuth({
         provider: 'google',
         options: { redirectTo: window.location.origin },
@@ -143,6 +154,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode; addToast: (toas
       if (error) throw error;
       return true;
     } catch (error: any) {
+      sessionStorage.removeItem('webimovel_oauth_welcome');
       console.warn('Google OAuth was not started:', error?.message || error);
       addToast({
         type: 'error',
@@ -153,6 +165,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode; addToast: (toas
     }
   };
   const signUp = async (form: { name: string; email: string; password: string; role: 'broker' | 'buyer'; phone?: string; creci?: string; captchaToken: string }) => {
+    sessionStorage.removeItem('webimovel_oauth_welcome');
     if (!isStrongPassword(form.password)) { addToast({ type: 'warning', title: 'Senha insuficiente', message: 'Use pelo menos 10 caracteres, incluindo maiúscula, minúscula, número e símbolo.' }); return false; }
     try { const { data, error } = await client().auth.signUp({ email: form.email.trim().toLowerCase(), password: form.password, options: { captchaToken: form.captchaToken, emailRedirectTo: window.location.origin, data: { name: form.name.trim(), role: form.role, phone: form.phone || null, creci: form.creci || null } } });
       if (error || !data.user) {
@@ -161,7 +174,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode; addToast: (toas
         return false;
       }
       if (data.session) await sync(data.user);
-      addToast({ type: 'success', title: data.session ? 'Conta criada' : 'Confirme seu e-mail', message: data.session ? 'Cadastro realizado com sucesso.' : 'Enviamos um link de uso único. Confirme o endereço antes de entrar.' });
+      addToast({ type: 'success', title: 'Bem-vindo!', message: data.session ? 'Sua conta foi criada. Aproveite o portal!' : 'Seu cadastro foi recebido. Confirme seu e-mail para começar.' });
       return data.session ? 'authenticated' : 'confirmation_required';
     } catch (e: any) { addToast({ type: 'error', title: 'Erro de conexão', message: e.message }); return false; }
   };
@@ -198,7 +211,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode; addToast: (toas
     const { data: userData } = await client().auth.getUser();
     await sync(userData.user);
     if (mfaReturnTab === 'reset') { setMfaReturnTab(null); setAuthModalTab('reset'); setAuthModalOpen(true); }
-    else setAuthModalOpen(false);
+    else { setAuthModalOpen(false); addToast({ type: 'success', title: 'Bem-vindo de volta!', message: 'Sua identidade foi confirmada. Aproveite o portal!' }); }
     return true;
   };
   const cancelMfaChallenge = async () => {
@@ -309,6 +322,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode; addToast: (toas
     return true;
   };
   const switchUserRole = (_role: 'broker' | 'buyer') => addToast({ type: 'info', title: 'Tipo de conta fixo', message: 'O tipo de conta é definido no cadastro.' });
-  return <AuthContext.Provider value={{ currentUser, isAuthenticated, authModalOpen, setAuthModalOpen, authModalTab, setAuthModalTab, openAuthModal, closeAuthModal, login, loginWithGoogle, signUp, resendSignupConfirmation, requestPasswordReset, changePassword, mfaChallengeFactors, selectMfaChallengeFactor: setMfaChallengeFactorId, verifyMfaChallenge, cancelMfaChallenge, listTotpFactors, enrollTotp, verifyTotpEnrollment, cancelTotpEnrollment, unenrollTotp, logout, deleteAccount, updateUserProfile, verifyCreci, requestCreciReview, switchUserRole }}>{children}</AuthContext.Provider>;
+  return <AuthContext.Provider value={{ creciNotifications, markCreciNotificationRead, currentUser, isAuthenticated, authModalOpen, setAuthModalOpen, authModalTab, setAuthModalTab, openAuthModal, closeAuthModal, login, loginWithGoogle, signUp, resendSignupConfirmation, requestPasswordReset, changePassword, mfaChallengeFactors, selectMfaChallengeFactor: setMfaChallengeFactorId, verifyMfaChallenge, cancelMfaChallenge, listTotpFactors, enrollTotp, verifyTotpEnrollment, cancelTotpEnrollment, unenrollTotp, logout, deleteAccount, updateUserProfile, verifyCreci, requestCreciReview, switchUserRole }}>{children}</AuthContext.Provider>;
 };
 export const useAuth = () => { const context = useContext(AuthContext); if (!context) throw new Error('useAuth must be used within an AuthProvider'); return context; };

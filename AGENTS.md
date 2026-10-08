@@ -77,3 +77,11 @@
 - Quando a implementação criar ou alterar estruturas, políticas ou funções do Supabase, a resposta final também deve indicar claramente o arquivo SQL/migration que precisa ser executado antes do teste em produção.
 - Arquivos pendentes de outras tarefas não podem ser incluídos automaticamente no script de push.
 
+## 11. Autenticação, formulários e identidade compartilhada
+- Em alterações de autenticação, formulários, notificações, identidade ou uploads, consultar a skill local `.agents/skills/webimovel-product-consistency/SKILL.md`.
+- Notificações transitórias devem usar `addToast/ToastContainer`, em português, no canto inferior direito, incluindo boas-vindas após cadastro aceito e autenticação concluída. Decisões administrativas devem também produzir avisos persistentes para o próximo acesso.
+- Reutilizar os formatadores e validadores de `src/lib/formInput.ts`. CRECI deve inserir hífen após o sexto dígito e permitir F/J; telefones usam DDD, nomes preservam acentos e pontuação legítima, e-mails são normalizados e validados sem alterar seu significado.
+- A identidade de navegação e autenticação deve usar `PortalBrand` e o portal aberto. Templates de e-mail precisam acompanhar a marca aprovada e preservar os links oficiais do Supabase.
+- Documentos mantêm o editor avançado compartilhado e sua composição visual, com controles documentais de orientação e otimização, sem recortes ou filtros estéticos. CIRP permite até duas imagens e mantém PDFs e certidões complementares no fluxo documental.
+- Revisões administrativas de decisões exigem justificativa, histórico preservado, controle de concorrência e aviso persistente na mesma transação. Retirar aprovação preserva os anúncios existentes; alterações nessa regra exigem novo escopo aprovado.
+

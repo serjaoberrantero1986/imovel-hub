@@ -97,7 +97,8 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
     setContrast(0);
     setSaturation(0);
     setWarmth(0);
-  }, [isOpen, imageUrl]);
+    setAspectRatio(purpose === 'avatar' ? '1:1' : 'free');
+  }, [isOpen, imageUrl, purpose]);
 
   // Redraw canvas whenever adjustments change
   useEffect(() => {
@@ -298,6 +299,8 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
         maxDimension,
         quality: purpose === 'document' ? 0.92 : 0.85,
         outputType: purpose === 'document' ? 'image/jpeg' : 'image/webp',
+        maxFileSizeBytes: purpose === 'document' ? 8 * 1024 * 1024 : undefined,
+        minQuality: purpose === 'document' ? 0.9 : undefined,
         preserveTransparency: purpose === 'logo'
       });
 
@@ -315,30 +318,30 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
       <div ref={node=>{movable.surfaceRef.current=node;}} style={movable.surfaceStyle} className="w-full max-w-6xl bg-white dark:bg-slate-900 text-slate-900 dark:text-white rounded-3xl overflow-hidden shadow-2xl border border-slate-200 dark:border-slate-800 flex flex-col max-h-[92vh]">
         
         {/* Header */}
-        <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50 dark:bg-slate-950/60">
+        <div className="px-4 sm:px-6 py-4 gap-2 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50 dark:bg-slate-950/60">
           <button type="button" className="canvas-window-drag mr-2" {...movable.handleProps}>⠿</button>
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-rose-600/20 text-rose-400 flex items-center justify-center">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-9 h-9 rounded-xl bg-rose-600/20 text-rose-400 hidden sm:flex items-center justify-center shrink-0">
               <Sparkles className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="text-base font-extrabold text-slate-900 dark:text-white font-['Outfit']">
+              <h3 className="text-sm sm:text-base font-extrabold text-slate-900 dark:text-white font-['Outfit']">
                 Estúdio de Edição de Imagem
               </h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
-                Recorte, ajuste, gire e comprima mantendo qualidade de alto padrão
+              <p className="hidden sm:block text-xs text-slate-500 dark:text-slate-400">
+                {purpose === 'document' ? 'Oriente e otimize preservando o documento inteiro e a legibilidade' : 'Recorte, ajuste, gire e comprima mantendo qualidade de alto padrão'}
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 shrink-0">
             <button
               onClick={handleReset}
               title="Restaurar valores padrão"
               className="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5 transition-colors cursor-pointer"
             >
               <RefreshCw className="w-3.5 h-3.5" />
-              <span>Restaurar</span>
+              <span className="hidden sm:inline">Restaurar</span>
             </button>
             <button
               onClick={onClose}
@@ -429,7 +432,7 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
               {/* Tool Tabs */}
               <div className="grid grid-cols-[1fr_1fr_1.4fr] gap-1 bg-slate-100 dark:bg-slate-950 p-1 rounded-2xl border border-slate-200 dark:border-slate-800">
                 <button
-                  disabled={purpose === 'document'} onClick={() => setActiveTab('crop')}
+                  onClick={() => setActiveTab('crop')}
                   className={`py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1 transition-all cursor-pointer ${
                     activeTab === 'crop'
                       ? 'bg-rose-600 text-white shadow-md'
@@ -440,7 +443,7 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
                   <span>Proporção</span>
                 </button>
                 <button
-                  disabled={purpose === 'document'} onClick={() => setActiveTab('adjust')}
+                  onClick={() => setActiveTab('adjust')}
                   className={`py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1 transition-all cursor-pointer ${
                     activeTab === 'adjust'
                       ? 'bg-rose-600 text-white shadow-md'
@@ -451,7 +454,7 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
                   <span>Ajustes</span>
                 </button>
                 <button
-                  disabled={purpose === 'document'} onClick={() => setActiveTab('transform')}
+                  onClick={() => setActiveTab('transform')}
                   className={`py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1 transition-all cursor-pointer ${
                     activeTab === 'transform'
                       ? 'bg-rose-600 text-white shadow-md'
@@ -464,6 +467,11 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
               </div>
 
               {/* Tab 1: Aspect Ratio / Crop */}
+              {purpose === 'document' && <div className="space-y-4 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 p-4">
+                {activeTab === 'crop' && <><h3 className="text-xs font-bold text-slate-900 dark:text-white">Documento inteiro</h3><p className="text-xs text-slate-500 dark:text-slate-400">A proporção original é preservada para manter todos os dados, bordas e assinaturas visíveis.</p><p className="text-xs font-mono text-slate-600 dark:text-slate-300">{originalDimensions.width} × {originalDimensions.height} px</p></>}
+                {activeTab === 'adjust' && <><h3 className="text-xs font-bold text-slate-900 dark:text-white">Otimização para análise</h3><p className="text-xs text-slate-500 dark:text-slate-400">A imagem será otimizada com alta qualidade. Cores e conteúdo permanecem preservados, sem filtros. O limite de 8 MB é verificado no arquivo preparado.</p></>}
+                {activeTab === 'transform' && <><h3 className="text-xs font-bold text-slate-900 dark:text-white">Orientação do documento</h3><div className="flex gap-2"><button type="button" aria-label="Girar documento à esquerda" onClick={() => setRotation(value => (value + 270) % 360)} className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-3"><RotateCcw className="w-4 h-4" /></button><button type="button" aria-label="Girar documento à direita" onClick={() => setRotation(value => (value + 90) % 360)} className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-3"><RotateCw className="w-4 h-4" /></button></div><p className="text-xs text-slate-500 dark:text-slate-400">Rotação: {rotation}°. Confira se todo o documento está legível antes de aplicar.</p></>}
+              </div>}
               {purpose !== 'document' && activeTab === 'crop' && (
                 <div className="space-y-4 animate-in fade-in">
                   <div>

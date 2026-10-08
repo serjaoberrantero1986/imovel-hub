@@ -37,11 +37,12 @@ import { useApp } from '../context/AppContext';
 import { UserProfile, PropertyType, PropertyPurpose } from '../types';
 import { 
   BRAZILIAN_CRECI_REGIONS, 
-  formatCreciInput,
-  verifyCreciNational
+  validateCreciFormat
 } from '../lib/creciVerification';
 import { formatCurrency } from '../lib/utils';
 import { BRAZILIAN_STATES } from '../lib/brazilianStates';
+import { formatPersonName, formatPhoneInput, normalizeEmailInput, formatProfessionalCreci, isValidPhone } from '../lib/formInput';
+import { CreciReviewNotice } from '../components/profile/CreciReviewNotice';
 import { CreciDocumentManager } from '../components/profile/CreciDocumentManager';
 import { CreciDocument } from '../lib/creciDocuments';
 import { UserAvatar } from '../components/ui/UserAvatar';
@@ -84,6 +85,7 @@ export const ProfileView: React.FC = () => {
 
   // Form State initialized from currentUser
   const [formData, setFormData] = useState<UserProfile>({ ...currentUser });
+  const previousProfile = useRef(currentUser);
 
   // Password change state
   const [currentPassword, setCurrentPassword] = useState('');
@@ -100,7 +102,18 @@ export const ProfileView: React.FC = () => {
   const logoInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    setFormData({ ...currentUser });
+    const before = previousProfile.current;
+    setFormData(draft => {
+      if (before.id !== currentUser.id) return { ...currentUser };
+      const next = { ...draft };
+      for (const key of Object.keys(currentUser) as (keyof UserProfile)[]) {
+        if (key === 'verified' || key.startsWith('creciReview') || key === 'creciStatus' || JSON.stringify(draft[key]) === JSON.stringify(before[key])) {
+          (next as any)[key] = currentUser[key];
+        }
+      }
+      return next;
+    });
+    previousProfile.current = currentUser;
   }, [currentUser]);
 
   useEffect(() => {
@@ -166,16 +179,16 @@ export const ProfileView: React.FC = () => {
     }
     setIsRequestingCreciReview(true);
     try {
-      const validation = await verifyCreciNational(formData.creci, formData.creciUf, formData.name);
-      if (!validation.isValid || !validation.isAccredited) {
-        addToast({ type: 'error', title: 'CRECI inválido', message: validation.message });
+      const validation = validateCreciFormat(formData.creci, formData.creciUf);
+      if (!validation.valid) {
+        addToast({ type: 'error', title: 'CRECI inválido', message: validation.reason });
         return;
       }
       const profileToReview = {
         ...formData,
-        creci: validation.creciNumber,
-        creciUf: validation.creciUf,
-        creciType: validation.category,
+        creci: formData.creci.trim().toUpperCase(),
+        creciUf: formData.creciUf,
+        creciType: formData.creci.endsWith('-J') ? 'J' as const : formData.creci.endsWith('-E') ? 'E' as const : 'F' as const,
         creciStatus: 'pending' as const,
         verified: false
       };
@@ -185,7 +198,7 @@ export const ProfileView: React.FC = () => {
       await requestCreciReview();
       addToast({ type: 'success', title: 'Análise solicitada', message: 'Seu registro ficará pendente até a conferência em fonte oficial.' });
     } catch (err: any) {
-      addToast({ type: 'error', title: 'Solicitação não enviada', message: err.message || 'Não foi possível solicitar a análise.' });
+      addToast({ type: 'error', title: 'Solicitação não enviada', message: 'Confira o CRECI, o conselho regional e a CIRP anexada. Recarregue a página e tente novamente.' });
     } finally {
       setIsRequestingCreciReview(false);
     }
@@ -206,6 +219,9 @@ export const ProfileView: React.FC = () => {
 
   // Save changes
   const handleSaveProfile = async () => {
+    if (!formData.name.trim() || (formData.phone && !isValidPhone(formData.phone)) || (formData.whatsapp && !isValidPhone(formData.whatsapp))) {
+      addToast({ type: 'warning', title: 'Confira os dados', message: 'Informe seu nome e telefones válidos com DDD.' }); return;
+    }
     setIsSaving(true);
     try {
       await updateUserProfile(formData);
@@ -528,7 +544,7 @@ export const ProfileView: React.FC = () => {
                   id="input-profile-name"
                   type="text"
                   value={formData.name || ''}
-                  onChange={e => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                  onChange={e => setFormData(prev => ({ ...prev, name: formatPersonName(e.target.value) }))}
                   className="w-full px-3.5 py-2.5 rounded-2xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500"
                 />
               </div>
@@ -541,7 +557,7 @@ export const ProfileView: React.FC = () => {
                   id="input-profile-email"
                   type="email"
                   value={formData.email || ''}
-                  onChange={e => setFormData(prev => ({ ...prev, email: e.target.value }))}
+                  onChange={e => setFormData(prev => ({ ...prev, email: normalizeEmailInput(e.target.value) }))}
                   disabled={isAdmin}
                   title={isAdmin ? 'O e-mail é gerenciado pela autenticação da conta.' : undefined}
                   className="w-full px-3.5 py-2.5 rounded-2xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 disabled:opacity-70 disabled:cursor-not-allowed"
@@ -557,7 +573,7 @@ export const ProfileView: React.FC = () => {
                   type="tel"
                   placeholder="(15) 3232-9092"
                   value={formData.phone || ''}
-                  onChange={e => setFormData(prev => ({ ...prev, phone: e.target.value }))}
+                  onChange={e => setFormData(prev => ({ ...prev, phone: formatPhoneInput(e.target.value) }))}
                   className="w-full px-3.5 py-2.5 rounded-2xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500"
                 />
               </div>}
@@ -582,7 +598,7 @@ export const ProfileView: React.FC = () => {
                   type="tel"
                   placeholder="(15) 99123-4567"
                   value={formData.whatsapp || ''}
-                  onChange={e => setFormData(prev => ({ ...prev, whatsapp: e.target.value }))}
+                  onChange={e => setFormData(prev => ({ ...prev, whatsapp: formatPhoneInput(e.target.value) }))}
                   className="w-full px-3.5 py-2.5 rounded-2xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500"
                 />
               </div>}
@@ -656,14 +672,14 @@ export const ProfileView: React.FC = () => {
               <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-end pt-2">
                 <div className="sm:col-span-6">
                   <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                    Número do CRECI (com sufixo F, J ou E)
+                    Número do CRECI (com sufixo F ou J)
                   </label>
                   <input
                     id="input-creci-number"
                     type="text"
                     placeholder="Ex: 185420-F ou 9835-J"
                     value={formData.creci || ''}
-                    onChange={e => setFormData(prev => ({ ...prev, creci: formatCreciInput(e.target.value) }))}
+                    onChange={e => setFormData(prev => ({ ...prev, creci: formatProfessionalCreci(e.target.value) }))}
                     className="w-full px-3.5 py-2.5 rounded-2xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-xs font-mono font-bold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 uppercase"
                   />
                 </div>
@@ -674,10 +690,11 @@ export const ProfileView: React.FC = () => {
                   </label>
                   <select
                     id="select-creci-uf"
-                    value={formData.creciUf || formData.state || 'SP'}
+                    value={formData.creciUf || ''}
                     onChange={e => setFormData(prev => ({ ...prev, creciUf: e.target.value }))}
                     className="w-full px-3.5 py-2.5 rounded-2xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
                   >
+                    <option value="">Selecione o conselho</option>
                     {ufList.map(uf => (
                       <option key={uf} value={uf}>
                         {BRAZILIAN_CRECI_REGIONS[uf]?.name} ({uf})
@@ -696,6 +713,8 @@ export const ProfileView: React.FC = () => {
                 </div>
               </div>
 
+              <CreciReviewNotice />
+              {(!hasCirpDocument || !formData.creci || !formData.creciUf) && <p className="text-xs text-slate-500 dark:text-slate-400">Para solicitar análise, informe o CRECI, selecione o conselho regional e anexe a CIRP.</p>}
               <CreciDocumentManager user={formData} addToast={addToast} onDocumentsChange={setCreciDocuments} />
             </div>
 
