@@ -18,7 +18,7 @@ import {
   ShieldCheck
 } from 'lucide-react';
 import { useApp, useCatalog } from '../../context/AppContext';
-import { PortalBrand } from '../ui/PortalBrand';
+import { EditableImage } from '../visual-editor/PortalCanvas';
 import { UserMenu } from './UserMenu';
 import { Button } from '../ui/Button';
 import { formatCurrency } from '../../lib/utils';
@@ -111,7 +111,13 @@ export const Navbar: React.FC = () => {
               onClick={() => handleNavigate('portal')}
               className="flex items-center gap-3 group text-left focus:outline-none cursor-pointer"
             >
-              <PortalBrand />
+              <span className="flex items-center gap-3 min-w-0">
+                <EditableImage id="header.logo" label="Logotipo do cabeçalho" src={portalIdentity.logoUrl || '/icon.svg'} alt={`Logotipo ${portalIdentity.portalName}`} objectFit="contain" className="relative w-10 h-10 rounded-xl shrink-0 overflow-visible" />
+                <span className="hidden sm:block min-w-0">
+                  <span className="block font-extrabold tracking-tight text-slate-900 dark:text-white font-['Outfit'] text-xl">{portalIdentity.portalName}</span>
+                  <span className="text-[11px] text-slate-500 dark:text-slate-400 font-medium hidden md:block">{portalIdentity.slogan}</span>
+                </span>
+              </span>
             </button>
 
             {/* Desktop Navigation Links */}

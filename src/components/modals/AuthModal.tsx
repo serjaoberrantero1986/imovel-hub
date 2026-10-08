@@ -21,6 +21,7 @@ import { PortalBrand } from '../ui/PortalBrand';
 import { useResendCooldown } from '../../hooks/useResendCooldown';
 import { formatPersonName, formatPhoneInput, normalizeEmailInput, formatProfessionalCreci, isValidProfessionalCreci, isValidEmail, isValidPhone } from '../../lib/formInput';
 import { TurnstileWidget, TURNSTILE_SITE_KEY } from '../auth/TurnstileWidget';
+import { PortalAddressFields, PortalAddressCheck } from '../profile/PortalAddressFields';
 
 export const AuthModal: React.FC = () => {
   const { 
@@ -48,6 +49,9 @@ export const AuthModal: React.FC = () => {
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [creci, setCreci] = useState('');
+  const [portalTitle, setPortalTitle] = useState('');
+  const [portalSlug, setPortalSlug] = useState('');
+  const [portalAddressStatus, setPortalAddressStatus] = useState<PortalAddressCheck>('idle');
   const [role, setRole] = useState<'buyer' | 'broker'>('buyer');
   const [acceptedTerms, setAcceptedTerms] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
@@ -99,6 +103,9 @@ export const AuthModal: React.FC = () => {
     setName('');
     setPhone('');
     setCreci('');
+    setPortalTitle('');
+    setPortalSlug('');
+    setPortalAddressStatus('idle');
     setErrorMessage(null);
     setForgotSent(false);
     setSignupConfirmationSent(false);
@@ -229,6 +236,9 @@ export const AuthModal: React.FC = () => {
       if (role === 'broker' && !isValidProfessionalCreci(creci)) {
         setErrorMessage('Informe o CRECI com 4 a 7 dígitos e o sufixo F ou J. Exemplo: 123456-F.'); return;
       }
+      if (role === 'broker' && (portalTitle.trim().length < 3 || portalAddressStatus !== 'available')) {
+        setErrorMessage('Informe o título do site e escolha um endereço disponível.'); return;
+      }
       if (!acceptedTerms) {
         setErrorMessage('Você deve concordar com os Termos de Uso e Política de Privacidade.');
         return;
@@ -243,6 +253,8 @@ export const AuthModal: React.FC = () => {
           role,
           phone: phone.trim() || undefined,
           creci: role === 'broker' ? creci.trim() : undefined,
+          portalTitle: role === 'broker' ? portalTitle.trim() : undefined,
+          portalSlug: role === 'broker' ? portalSlug : undefined,
           captchaToken
         });
 
@@ -664,7 +676,9 @@ export const AuthModal: React.FC = () => {
 
                 {/* Additional fields for Broker on Sign Up */}
                 {authModalTab === 'signup' && role === 'broker' && (
-                  <div className="grid grid-cols-2 gap-2.5 pt-1">
+                  <div className="space-y-3 pt-1">
+                    <PortalAddressFields title={portalTitle} slug={portalSlug} onTitleChange={setPortalTitle} onSlugChange={setPortalSlug} onStatusChange={setPortalAddressStatus}/>
+                    <div className="grid grid-cols-2 gap-2.5">
                     <div>
                       <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
                         CRECI
@@ -690,6 +704,7 @@ export const AuthModal: React.FC = () => {
                         onChange={e => setPhone(formatPhoneInput(e.target.value))}
                         className="w-full px-3 py-2.5 rounded-2xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-xs text-slate-800 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
                       />
+                    </div>
                     </div>
                   </div>
                 )}
@@ -746,7 +761,7 @@ export const AuthModal: React.FC = () => {
                 <button
                   id="btn-auth-submit"
                   type="submit"
-                  disabled={isLoading}
+                  disabled={isLoading || (authModalTab === 'signup' && role === 'broker' && portalAddressStatus !== 'available')}
                   className="w-full py-3 px-4 rounded-2xl bg-gradient-to-r from-rose-600 to-indigo-600 hover:from-rose-700 hover:to-indigo-700 text-white text-xs font-extrabold shadow-lg shadow-rose-500/20 flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-60"
                 >
                   {isLoading ? (

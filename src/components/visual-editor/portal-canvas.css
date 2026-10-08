@@ -67,3 +67,4 @@
 .canvas-text::before{content:'';position:absolute;inset:0;z-index:-1;pointer-events:none;border-radius:inherit;background:var(--canvas-block-background,transparent)}
 .portal-canvas .portal-hero[data-custom-overlay=true] .portal-hero-background::after{display:block}
 .canvas-inserted-blocks{display:grid;gap:24px;margin-top:24px}
+.canvas-logo-drag{position:absolute;right:-10px;top:-10px;z-index:4;display:flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:999px;border:1px solid #fb7185;background:#fff;color:#e11d48;font-weight:900;line-height:1;box-shadow:0 4px 12px #0f172a33;cursor:grab}.canvas-logo-drag:active{cursor:grabbing}

@@ -24,11 +24,11 @@ export function usePortalSession(ownerId:string) {
     const next=typeof value==='function'?value(latest.current):value;
     latest.current=next;dispatch({type:'change',value:next});
   };
-  const prepareImage=async(file:File,kind:'hero'|'banner'='banner')=>{
+  const prepareImage=async(file:File,kind:'hero'|'banner'|'logo'='banner')=>{
     const epoch=generation.current;
     setPreparing(true);
     let processed;
-    try{processed=await editUserImage(file,'photo',2560);}finally{setPreparing(false);}
+    try{processed=await editUserImage(file,kind==='logo'?'logo':'photo',kind==='logo'?1200:2560);}finally{setPreparing(false);}
     if(!processed || epoch!==generation.current)return null;
     const url=URL.createObjectURL(processed.blob);
     const path=`${ownerId}/${kind}/${crypto.randomUUID()}.webp`;

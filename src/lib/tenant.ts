@@ -94,11 +94,13 @@ function normalisePortalPayload(payload: unknown, slug: string | null): PublicPo
     creci: profile.creci ? `CRECI ${profile.creci}` : DEFAULT_FOOTER_SETTINGS.creci,
   } : {};
   const homePage = asObject(row.home_page) as Partial<HomePageSettings>;
+  const visualPublished = normaliseVisualConfiguration(asObject(row.visual_published));
+  const publishedLogo = visualPublished.elements?.['header.logo']?.imageUrl;
   return {
     mode: slug ? 'tenant' : 'root',
     slug,
     ownerProfileId: row.owner_profile_id ? String(row.owner_profile_id) : null,
-    identity: { ...DEFAULT_PORTAL_IDENTITY, ...identityFallback, ...asObject(row.identity) },
+    identity: { ...DEFAULT_PORTAL_IDENTITY, ...identityFallback, ...asObject(row.identity), ...(publishedLogo ? { logoUrl: publishedLogo } : {}) },
     footer: { ...DEFAULT_FOOTER_SETTINGS, ...footerFallback, ...asObject(row.footer) },
     homePage: {
       ...DEFAULT_HOME_PAGE_SETTINGS,
@@ -106,7 +108,7 @@ function normalisePortalPayload(payload: unknown, slug: string | null): PublicPo
       infoCards: homePage.infoCards || DEFAULT_HOME_PAGE_SETTINGS.infoCards,
       banners: homePage.banners || DEFAULT_HOME_PAGE_SETTINGS.banners,
     },
-    visualPublished: normaliseVisualConfiguration(asObject(row.visual_published)),
+    visualPublished,
     profile,
   };
 }

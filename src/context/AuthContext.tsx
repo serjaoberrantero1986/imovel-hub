@@ -5,6 +5,7 @@ import { verifyCreciNational, CreciVerificationResult } from '../lib/creciVerifi
 import { Toast } from './appTypes';
 import { isStrongPassword } from '../lib/passwordPolicy';
 import { useCreciReviewNotifications, CreciReviewNotification } from '../hooks/useCreciReviewNotifications';
+import type { PortalAddress } from '../lib/portalAddress';
 
 export type LoginResult = 'authenticated' | 'mfa_required' | 'security_error' | false;
 export type SignupResult = 'authenticated' | 'confirmation_required' | false;
@@ -20,7 +21,7 @@ export interface AuthContextType {
   openAuthModal: (tab?: 'login' | 'signup' | 'forgot' | 'reset' | 'mfa') => void; closeAuthModal: () => void;
   login: (email: string, password: string, captchaToken: string) => Promise<LoginResult>;
   loginWithGoogle: () => Promise<boolean>;
-  signUp: (data: { name: string; email: string; password: string; role: 'broker' | 'buyer'; phone?: string; creci?: string; captchaToken: string }) => Promise<SignupResult>;
+  signUp: (data: { name: string; email: string; password: string; role: 'broker' | 'buyer'; phone?: string; creci?: string; portalTitle?: string; portalSlug?: string; captchaToken: string }) => Promise<SignupResult>;
   resendSignupConfirmation: (email: string, captchaToken: string) => Promise<boolean>;
   requestPasswordReset: (email: string, captchaToken: string) => Promise<boolean>;
   changePassword: (newPassword: string, currentPassword?: string) => Promise<boolean>;
@@ -34,7 +35,7 @@ export interface AuthContextType {
   cancelTotpEnrollment: (factorId: string) => Promise<void>;
   unenrollTotp: (factorId: string) => Promise<boolean>;
   logout: () => Promise<void>; deleteAccount: (password: string, captchaToken: string, mfaCode?: string) => Promise<boolean>;
-  updateUserProfile: (updates: Partial<UserProfile>) => Promise<void>;
+  updateUserProfile: (updates: Partial<UserProfile>, portalAddress?: PortalAddress) => Promise<void>;
   verifyCreci: (creci: string, uf: string) => Promise<CreciVerificationResult>;
   requestCreciReview: () => Promise<void>;
   switchUserRole: (role: 'broker' | 'buyer') => void;
@@ -164,10 +165,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode; addToast: (toas
       return false;
     }
   };
-  const signUp = async (form: { name: string; email: string; password: string; role: 'broker' | 'buyer'; phone?: string; creci?: string; captchaToken: string }) => {
+  const signUp = async (form: { name: string; email: string; password: string; role: 'broker' | 'buyer'; phone?: string; creci?: string; portalTitle?: string; portalSlug?: string; captchaToken: string }) => {
     sessionStorage.removeItem('webimovel_oauth_welcome');
     if (!isStrongPassword(form.password)) { addToast({ type: 'warning', title: 'Senha insuficiente', message: 'Use pelo menos 10 caracteres, incluindo maiúscula, minúscula, número e símbolo.' }); return false; }
-    try { const { data, error } = await client().auth.signUp({ email: form.email.trim().toLowerCase(), password: form.password, options: { captchaToken: form.captchaToken, emailRedirectTo: window.location.origin, data: { name: form.name.trim(), role: form.role, phone: form.phone || null, creci: form.creci || null } } });
+    try { const { data, error } = await client().auth.signUp({ email: form.email.trim().toLowerCase(), password: form.password, options: { captchaToken: form.captchaToken, emailRedirectTo: window.location.origin, data: { name: form.name.trim(), role: form.role, phone: form.phone || null, creci: form.creci || null, portal_title: form.role === 'broker' ? form.portalTitle?.trim() || null : null, portal_slug: form.role === 'broker' ? form.portalSlug || null : null } } });
       if (error || !data.user) {
         if (error) console.warn('Account registration was not completed:', error.message);
         addToast({ type: 'error', title: isCaptchaFailure(error) ? 'Verificação de segurança recusada' : 'Cadastro não concluído', message: isCaptchaFailure(error) ? 'Atualize a página, conclua novamente o Turnstile e tente cadastrar.' : 'Não foi possível criar a conta agora. Confira os dados e tente novamente.' });
@@ -243,7 +244,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode; addToast: (toas
     addToast({ type: 'success', title: 'Autenticação em duas etapas desativada' }); return true;
   };
   const logout = async () => { if (supabase) await supabase.auth.signOut(); setMfaChallengeFactorId(null); setMfaChallengeFactors([]); setMfaReturnTab(null); setIsAuthenticated(false); setCurrentUser(GUEST_USER); setPreferencesReady(false); };
-  const updateUserProfile = async (patch: Partial<UserProfile>) => {
+  const updateUserProfile = async (patch: Partial<UserProfile>, portalAddress?: PortalAddress) => {
     if (!isAuthenticated) throw new Error('Faça login para editar o perfil.');
     if (!preferencesReady) throw new Error('Recarregue suas preferências antes de salvar.');
     const updates = { ...currentUser, ...patch };
@@ -252,13 +253,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode; addToast: (toas
       throw new Error('Informe um preço máximo válido.');
     }
     const payload: any = { name: updates.name, phone: updates.phone ?? null, whatsapp: updates.whatsapp ?? null, avatar_url: updates.avatarUrl ?? null, creci: updates.creci ?? null, creci_uf: updates.creciUf ?? null, creci_type: updates.creciType ?? null, creci_status: updates.creciStatus ?? 'unverified', creci_verified_at: updates.creciVerifiedAt ?? null, creci_protocol: updates.creciProtocol ?? null, agency_name: updates.agencyName ?? null, agency_logo: updates.agencyLogo ?? null, city: updates.city ?? null, state: updates.state ?? null, bio: updates.bio ?? null, website: updates.website ?? null, instagram: updates.instagram ?? null, linkedin: updates.linkedin ?? null, available_weekend_visits: updates.availableWeekendVisits ?? false };
-    const { data, error } = await client().rpc('save_my_profile', {
-      p_profile: payload,
-      p_preferences: {
-        purpose: 'sale', alertEmail: true, alertWhatsapp: true, allowPartnerContact: true,
-        ...updates.preferences
-      }
-    });
+    const preferences = { purpose: 'sale', alertEmail: true, alertWhatsapp: true, allowPartnerContact: true, ...updates.preferences };
+    const { data, error } = portalAddress
+      ? await (client() as any).rpc('save_my_profile_and_portal', { p_profile: payload, p_preferences: preferences, p_title: portalAddress.title.trim(), p_slug: portalAddress.slug })
+      : await client().rpc('save_my_profile', { p_profile: payload, p_preferences: preferences });
     if (error || !data?.profile || !data?.preferences) throw error || new Error('Salvamento não confirmado.');
     setCurrentUser(toProfile({ id: currentUser.id, email: currentUser.email }, data.profile, data.preferences));
   };

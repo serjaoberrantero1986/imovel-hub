@@ -25,6 +25,8 @@ export interface CanvasElement {
   responsive?: Partial<Record<"tablet" | "mobile", CSSProperties>>;
   textGradient?: Gradient;
   backgroundGradient?: Gradient;
+  position?: Partial<Record<'desktop' | 'tablet' | 'mobile', { x: number; y: number }>>;
+  imageSize?: Partial<Record<'desktop' | 'tablet' | 'mobile', { value: number; unit: 'px' | '%' }>>;
 }
 export interface CanvasBlock {
   id: string;

@@ -201,6 +201,7 @@ export const VISUAL_EDITOR_REGISTRY = {
     sections: baseSections,
     templates: PORTAL_TEMPLATES,
     elementKinds: ['text', 'box', 'image', 'icon'],
+    globalElements: ['header.logo'],
     insertableBlocks: ['text', 'image', 'button', 'icon']
   },
   footer: { elementKinds: ['text', 'box', 'image'], protectedActions: ['search', 'legal-navigation', 'newsletter'] },

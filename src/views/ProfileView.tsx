@@ -49,8 +49,12 @@ import { UserAvatar } from '../components/ui/UserAvatar';
 import { isStrongPassword, PASSWORD_REQUIREMENTS, passwordChecks } from '../lib/passwordPolicy';
 import { TotpEnrollment, TotpFactorSummary } from '../context/AuthContext';
 import { TurnstileWidget, TURNSTILE_SITE_KEY } from '../components/auth/TurnstileWidget';
+import { PortalAddressFields, PortalAddressCheck } from '../components/profile/PortalAddressFields';
+import { getMyPortalAddress, PortalAddress } from '../lib/portalAddress';
+import { useTenant } from '../context/TenantContext';
 
 export const ProfileView: React.FC = () => {
+  const { refreshTenant } = useTenant();
   const { 
     currentUser, 
     isAuthenticated,
@@ -73,6 +77,9 @@ export const ProfileView: React.FC = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [isRequestingCreciReview, setIsRequestingCreciReview] = useState(false);
   const [creciDocuments, setCreciDocuments] = useState<CreciDocument[]>([]);
+  const [portalAddress, setPortalAddress] = useState<PortalAddress>({ title: '', slug: '' });
+  const [savedPortalAddress, setSavedPortalAddress] = useState<PortalAddress>({ title: '', slug: '' });
+  const [portalAddressStatus, setPortalAddressStatus] = useState<PortalAddressCheck>('idle');
 
   // Delete account confirmation state
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -119,6 +126,14 @@ export const ProfileView: React.FC = () => {
   useEffect(() => {
     if (currentUser.role === 'admin' && activeTab === 'role_specific') setActiveTab('general');
   }, [activeTab, currentUser.role]);
+
+  useEffect(() => {
+    if (!isAuthenticated || !['broker','agency'].includes(currentUser.role)) return;
+    void getMyPortalAddress().then(value => {
+      const next = value || { title: currentUser.agencyName || currentUser.name, slug: '' };
+      setPortalAddress(next); setSavedPortalAddress(next);
+    }).catch(() => addToast({ type: 'error', title: 'Portal indisponível', message: 'Não foi possível carregar o título e o endereço do seu site.' }));
+  }, [currentUser.id, currentUser.role, isAuthenticated]);
 
   const refreshTotpFactors = async () => setTotpFactors(await listTotpFactors());
   useEffect(() => {
@@ -222,9 +237,18 @@ export const ProfileView: React.FC = () => {
     if (!formData.name.trim() || (formData.phone && !isValidPhone(formData.phone)) || (formData.whatsapp && !isValidPhone(formData.whatsapp))) {
       addToast({ type: 'warning', title: 'Confira os dados', message: 'Informe seu nome e telefones válidos com DDD.' }); return;
     }
+    const isProfessional = formData.role === 'broker' || formData.role === 'agency';
+    if (isProfessional && (portalAddress.title.trim().length < 3 || portalAddressStatus !== 'available')) {
+      addToast({ type: 'warning', title: 'Confira o endereço do site', message: 'Informe um título e aguarde a confirmação de disponibilidade do endereço.' }); return;
+    }
+    if (isProfessional && portalAddress.slug !== savedPortalAddress.slug && !window.confirm(`Alterar o endereço para ${portalAddress.slug}.webimoveis.site? O endereço anterior deixará de abrir este portal.`)) return;
     setIsSaving(true);
     try {
-      await updateUserProfile(formData);
+      await updateUserProfile(formData, isProfessional ? portalAddress : undefined);
+      if (isProfessional) {
+        setSavedPortalAddress(portalAddress);
+        await refreshTenant();
+      }
       addToast({ 
         type: 'success', 
         title: 'Perfil Atualizado!', 
@@ -753,6 +777,11 @@ export const ProfileView: React.FC = () => {
                   />
                 </div>
               </div>
+
+              {isBroker && <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50/70 dark:bg-slate-800/40 p-4 space-y-2">
+                <div><h4 className="text-xs font-extrabold text-slate-800 dark:text-white">Título e endereço do seu site</h4><p className="text-[11px] text-slate-500">O endereço é exclusivo. Alterá-lo desativa imediatamente o endereço anterior.</p></div>
+                <PortalAddressFields title={portalAddress.title} slug={portalAddress.slug} onTitleChange={title=>setPortalAddress(value=>({...value,title}))} onSlugChange={slug=>setPortalAddress(value=>({...value,slug}))} onStatusChange={setPortalAddressStatus} disabled={isSaving} suggestFromTitle={false}/>
+              </div>}
 
               <div>
                 <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">

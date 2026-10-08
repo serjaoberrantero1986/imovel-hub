@@ -17,6 +17,7 @@ export interface PendingCreciReview {
   profileId: string;
   name: string;
   email: string;
+  avatarUrl?: string;
   creci: string;
   creciUf: string;
   requestedAt: string;
@@ -37,7 +38,7 @@ export async function listCreciReviews(): Promise<CreciReview[]> {
   const { data, error } = await supabase.rpc('get_creci_reviews');
   if (error) throw error;
   return (data || []).map((row: any) => ({
-    profileId: row.profile_id, name: row.name, email: row.email, creci: row.creci,
+    profileId: row.profile_id, name: row.name, email: row.email, avatarUrl: row.avatar_url || undefined, creci: row.creci,
     creciUf: row.creci_uf, requestedAt: row.requested_at, status: row.status,
     revision: row.updated_at, reviewedAt: row.reviewed_at, expiresAt: row.expires_at,
     documents: (row.documents || []).map(mapDocument),
@@ -123,7 +124,7 @@ export async function listPendingCreciReviews(): Promise<PendingCreciReview[]> {
   const { data, error } = await supabase.rpc('get_pending_creci_reviews');
   if (error) throw error;
   return (data || []).map((row: any) => ({
-    profileId: row.profile_id, name: row.name, email: row.email, creci: row.creci,
+    profileId: row.profile_id, name: row.name, email: row.email, avatarUrl: row.avatar_url || undefined, creci: row.creci,
     creciUf: row.creci_uf, requestedAt: row.requested_at,
     documents: (row.documents || []).map(mapDocument)
   }));

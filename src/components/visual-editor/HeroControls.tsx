@@ -5,7 +5,7 @@ type Hero = VisualPortalConfiguration['hero'];
 export interface HeroControlsProps {
   hero: Hero;
   onChange: (patch: Partial<Hero>) => void;
-  onPrepareImage: (file: File, kind?: 'hero'|'banner') => Promise<{url:string;path:string}|null>;
+  onPrepareImage: (file: File, kind?: 'hero'|'banner'|'logo') => Promise<{url:string;path:string}|null>;
   busy?: boolean;
 }
 export function HeroControls({hero,onChange,onPrepareImage,busy=false}:HeroControlsProps) {

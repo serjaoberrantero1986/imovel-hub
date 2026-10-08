@@ -21,7 +21,7 @@ export const Footer: React.FC = () => {
     <footer><div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-10 pb-12 border-b border-slate-800">
         <EditableBox id="footer.brand" label="Identidade no rodapé" className="space-y-4">
-          <div className="flex items-center gap-3"><EditableImage id="footer.logo" label="Logotipo do rodapé" src={portalIdentity.logoUrl || '/icon.svg'} className="w-10 h-10 rounded-xl overflow-hidden shrink-0"/><EditableText id="footer.portalName" label="Nome do portal" className="font-extrabold text-2xl text-white font-['Outfit']">{portalIdentity.portalName}</EditableText></div>
+          <div className="flex items-center gap-3"><EditableImage id="footer.logo" label="Logotipo do rodapé" src={portalIdentity.logoUrl || '/icon.svg'} objectFit="contain" className="w-10 h-10 rounded-xl overflow-hidden shrink-0"/><EditableText id="footer.portalName" label="Nome do portal" className="font-extrabold text-2xl text-white font-['Outfit']">{portalIdentity.portalName}</EditableText></div>
           <EditableText as="p" id="footer.brandDescription" label="Descrição do portal" className="text-sm text-slate-400 leading-relaxed">{footerSettings.brandDescription}</EditableText>
           <div className="space-y-1 text-xs text-slate-400"><div className="flex items-center gap-2"><ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0"/><EditableText id="footer.creci" label="CRECI">{footerSettings.creci}</EditableText></div><EditableText as="div" id="footer.professionalName" label="Nome profissional" className="pl-6">{footerSettings.professionalName}</EditableText></div>
         </EditableBox>
