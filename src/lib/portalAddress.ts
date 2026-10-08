@@ -2,6 +2,7 @@ import { supabase } from './supabaseClient';
 
 export interface PortalAddress {
   title: string;
+  subtitle?: string;
   slug: string;
   url?: string;
 }
@@ -29,7 +30,7 @@ export async function getMyPortalAddress(): Promise<PortalAddress | null> {
   const { data, error } = await (supabase as any).rpc('get_my_portal_address');
   if (error) throw error;
   if (!data?.slug) return null;
-  return { title: String(data.title || ''), slug: String(data.slug), url: data.url ? String(data.url) : undefined };
+  return { title: String(data.title || ''), subtitle: String(data.subtitle || ''), slug: String(data.slug), url: data.url ? String(data.url) : undefined };
 }
 
 export async function updateMyPortalAddress(value: PortalAddress): Promise<PortalAddress> {

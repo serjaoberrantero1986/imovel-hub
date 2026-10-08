@@ -30,6 +30,10 @@ export interface CreciReview extends PendingCreciReview {
   revision: string;
   reviewedAt?: string;
   expiresAt?: string;
+  portalTitle?: string;
+  portalSlug?: string;
+  portalUrl?: string;
+  portalPublished?: boolean;
   history: { id: string; decision: 'approved' | 'rejected'; note?: string; createdAt: string; reviewerName: string; expiresAt?: string }[];
 }
 
@@ -41,6 +45,8 @@ export async function listCreciReviews(): Promise<CreciReview[]> {
     profileId: row.profile_id, name: row.name, email: row.email, avatarUrl: row.avatar_url || undefined, creci: row.creci,
     creciUf: row.creci_uf, requestedAt: row.requested_at, status: row.status,
     revision: row.updated_at, reviewedAt: row.reviewed_at, expiresAt: row.expires_at,
+    portalTitle: row.portal_title || undefined, portalSlug: row.portal_slug || undefined,
+    portalUrl: row.portal_url || undefined, portalPublished: row.portal_published === true,
     documents: (row.documents || []).map(mapDocument),
     history: (row.history || []).map((item: any) => ({ id: item.id, decision: item.decision, note: item.note, createdAt: item.created_at, reviewerName: item.reviewer_name || 'Administrador', expiresAt: item.expires_at }))
   }));

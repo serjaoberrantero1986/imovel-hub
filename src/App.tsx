@@ -25,6 +25,7 @@ import { ProfileView } from './views/ProfileView';
 import { InstitutionalLegalView } from './views/InstitutionalLegalView';
 import { SavedSearchesView } from './views/SavedSearchesView';
 import { AdminCreciReviewView } from './views/AdminCreciReviewView';
+import { AdminPortalsView } from './views/AdminPortalsView';
 
 const MainContent: React.FC = () => {
   const { currentView, activeLegalTab } = useApp();
@@ -59,6 +60,7 @@ const MainContent: React.FC = () => {
         {currentView === 'design_system' && <DesignSystemView />}
         {currentView === 'profile' && <ProfileView />}
         {currentView === 'admin_creci' && <AdminCreciReviewView />}
+        {currentView === 'admin_portals' && <AdminPortalsView />}
         {currentView === 'legal' && <InstitutionalLegalView initialTab={activeLegalTab} />}
       </main>
 

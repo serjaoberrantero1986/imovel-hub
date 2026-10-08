@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Award, CalendarDays, CheckCircle2, ChevronRight, FileCheck, FileText, Image as ImageIcon, Loader2, Mail, ShieldAlert, UserRoundCheck, XCircle } from 'lucide-react';
+import { Award, CalendarDays, CheckCircle2, ChevronRight, ExternalLink, FileCheck, FileText, Globe2, Image as ImageIcon, Loader2, Mail, ShieldAlert, UserRoundCheck, XCircle } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { Modal } from '../components/ui/Modal';
 import { Badge } from '../components/ui/Badge';
@@ -138,9 +138,12 @@ export const AdminCreciReviewView: React.FC = () => {
             <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white font-['Outfit'] mt-1">Análises de CRECI</h1>
             <p className="text-xs sm:text-sm text-slate-500">Confira documentos privados e registre decisões auditadas.</p>
           </div>
-          <div className="rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 px-5 py-3 shadow-sm">
-            <p className="text-[10px] uppercase font-bold tracking-wider text-slate-400">Aguardando análise</p>
-            <p className="text-2xl font-black text-slate-900 dark:text-white">{reviews.filter(review => review.status === 'pending').length}</p>
+          <div className="flex items-center gap-3">
+            <button type="button" onClick={()=>setCurrentView('admin_portals')} className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 py-2.5 text-xs font-bold flex items-center gap-2"><Globe2 className="w-4 h-4 text-rose-500"/> Portais profissionais</button>
+            <div className="rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 px-5 py-3 shadow-sm">
+              <p className="text-[10px] uppercase font-bold tracking-wider text-slate-400">Aguardando análise</p>
+              <p className="text-2xl font-black text-slate-900 dark:text-white">{reviews.filter(review => review.status === 'pending').length}</p>
+            </div>
           </div>
         </section>
 
@@ -172,6 +175,7 @@ export const AdminCreciReviewView: React.FC = () => {
                     <span className="flex items-center gap-1"><Mail className="w-3.5 h-3.5" />{selected.email}</span>
                     <span className="flex items-center gap-1"><Award className="w-3.5 h-3.5" />CRECI {selected.creci}/{selected.creciUf}</span>
                     <span className="flex items-center gap-1"><CalendarDays className="w-3.5 h-3.5" />{formatDate(selected.reviewedAt || selected.requestedAt)}</span>
+                    {selected.portalUrl&&<a href={selected.portalUrl} target="_blank" rel="noreferrer" className="flex items-center gap-1 font-bold text-rose-600 hover:underline"><Globe2 className="w-3.5 h-3.5"/>{selected.portalSlug}.webimoveis.site <ExternalLink className="w-3 h-3"/></a>}
                   </div>
                 </div>
               </div>

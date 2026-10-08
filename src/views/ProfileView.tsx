@@ -130,7 +130,7 @@ export const ProfileView: React.FC = () => {
   useEffect(() => {
     if (!isAuthenticated || !['broker','agency'].includes(currentUser.role)) return;
     void getMyPortalAddress().then(value => {
-      const next = value || { title: currentUser.agencyName || currentUser.name, slug: '' };
+      const next = value || { title: currentUser.agencyName || currentUser.name, subtitle: '', slug: '' };
       setPortalAddress(next); setSavedPortalAddress(next);
     }).catch(() => addToast({ type: 'error', title: 'Portal indisponível', message: 'Não foi possível carregar o título e o endereço do seu site.' }));
   }, [currentUser.id, currentUser.role, isAuthenticated]);
@@ -238,7 +238,7 @@ export const ProfileView: React.FC = () => {
       addToast({ type: 'warning', title: 'Confira os dados', message: 'Informe seu nome e telefones válidos com DDD.' }); return;
     }
     const isProfessional = formData.role === 'broker' || formData.role === 'agency';
-    if (isProfessional && (portalAddress.title.trim().length < 3 || portalAddressStatus !== 'available')) {
+    if (isProfessional && (portalAddress.title.trim().length < 3 || (portalAddress.subtitle?.trim().length || 0) > 100 || portalAddressStatus !== 'available')) {
       addToast({ type: 'warning', title: 'Confira o endereço do site', message: 'Informe um título e aguarde a confirmação de disponibilidade do endereço.' }); return;
     }
     if (isProfessional && portalAddress.slug !== savedPortalAddress.slug && !window.confirm(`Alterar o endereço para ${portalAddress.slug}.webimoveis.site? O endereço anterior deixará de abrir este portal.`)) return;
@@ -748,39 +748,9 @@ export const ProfileView: React.FC = () => {
                 Identidade da Imobiliária & Apresentação
               </h3>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                    Nome da Imobiliária ou Consultoria
-                  </label>
-                  <input
-                    id="input-agency-name"
-                    type="text"
-                    placeholder="Ex: Mendes Ortega Consultoria Imobiliária"
-                    value={formData.agencyName || ''}
-                    onChange={e => setFormData(prev => ({ ...prev, agencyName: e.target.value }))}
-                    className="w-full px-3.5 py-2.5 rounded-2xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                    Website Oficial
-                  </label>
-                  <input
-                    id="input-profile-website"
-                    type="url"
-                    placeholder="https://suaimobiliaria.com.br"
-                    value={formData.website || ''}
-                    onChange={e => setFormData(prev => ({ ...prev, website: e.target.value }))}
-                    className="w-full px-3.5 py-2.5 rounded-2xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500"
-                  />
-                </div>
-              </div>
-
               {isBroker && <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50/70 dark:bg-slate-800/40 p-4 space-y-2">
                 <div><h4 className="text-xs font-extrabold text-slate-800 dark:text-white">Título e endereço do seu site</h4><p className="text-[11px] text-slate-500">O endereço é exclusivo. Alterá-lo desativa imediatamente o endereço anterior.</p></div>
-                <PortalAddressFields title={portalAddress.title} slug={portalAddress.slug} onTitleChange={title=>setPortalAddress(value=>({...value,title}))} onSlugChange={slug=>setPortalAddress(value=>({...value,slug}))} onStatusChange={setPortalAddressStatus} disabled={isSaving} suggestFromTitle={false}/>
+                <PortalAddressFields title={portalAddress.title} subtitle={portalAddress.subtitle} slug={portalAddress.slug} onTitleChange={title=>setPortalAddress(value=>({...value,title}))} onSubtitleChange={subtitle=>setPortalAddress(value=>({...value,subtitle}))} onSlugChange={slug=>setPortalAddress(value=>({...value,slug}))} onStatusChange={setPortalAddressStatus} disabled={isSaving} suggestFromTitle={false}/>
               </div>}
 
               <div>

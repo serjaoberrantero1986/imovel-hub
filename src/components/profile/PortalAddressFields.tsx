@@ -4,8 +4,9 @@ import { checkPortalSlugAvailability, normalisePortalSlug } from '../../lib/port
 
 export type PortalAddressCheck = 'idle' | 'checking' | 'available' | 'unavailable' | 'error';
 
-export function PortalAddressFields({ title, slug, onTitleChange, onSlugChange, onStatusChange, disabled = false, suggestFromTitle = true }:{
+export function PortalAddressFields({ title, subtitle, slug, onTitleChange, onSubtitleChange, onSlugChange, onStatusChange, disabled = false, suggestFromTitle = true }:{
   title:string; slug:string; onTitleChange:(value:string)=>void; onSlugChange:(value:string)=>void;
+  subtitle?:string; onSubtitleChange?:(value:string)=>void;
   onStatusChange?:(status:PortalAddressCheck)=>void; disabled?:boolean; suggestFromTitle?:boolean;
 }) {
   const [status,setStatus]=useState<PortalAddressCheck>('idle');
@@ -37,5 +38,9 @@ export function PortalAddressFields({ title, slug, onTitleChange, onSlugChange, 
       </span>
       <span className={`mt-1 block text-[10px] ${status==='available'?'text-emerald-600':status==='unavailable'||status==='error'?'text-rose-600':'text-slate-500'}`}>{message}</span>
     </label>
+    {onSubtitleChange&&<label className="block text-xs font-bold text-slate-700 dark:text-slate-300 sm:col-span-2">Subtítulo do site
+      <input type="text" maxLength={100} disabled={disabled} value={subtitle||''} placeholder="Ex: Classificados & Gestão Imobiliária" onChange={e=>onSubtitleChange(e.target.value)} className="mt-1 w-full px-3.5 py-2.5 rounded-2xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-xs"/>
+      <span className="mt-1 block text-[10px] font-normal text-slate-500">Aparece abaixo do título no cabeçalho do portal.</span>
+    </label>}
   </div>;
 }
