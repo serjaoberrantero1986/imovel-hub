@@ -284,35 +284,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode; addToast: (toas
       const { error: authenticationError } = await authClient.auth.signInWithPassword({ email: currentUser.email, password, options: { captchaToken } });
       if (authenticationError) throw new Error('Senha incorreta. A conta não foi excluída.');
     }
-    const { data: prepared, error: preparationError } = await authClient.rpc('begin_my_account_deletion');
-    if (preparationError || prepared !== true) throw preparationError || new Error('Não foi possível preparar a exclusão segura.');
-
-    const { data: documents, error: documentsError } = await authClient
-      .from('creci_verification_documents').select('storage_path');
-    if (documentsError) throw documentsError;
-    const documentPaths = (documents || []).map((item: any) => item.storage_path).filter(Boolean);
-    if (documentPaths.length > 0) {
-      const { error: storageError } = await authClient.storage.from('creci-verification').remove(documentPaths);
-      if (storageError) throw new Error(`Não foi possível remover os documentos privados: ${storageError.message}`);
-    }
-
-    const { data: ownedProperties, error: propertiesError } = await authClient.from('properties').select('id').eq('user_id', currentUser.id);
-    if (propertiesError) throw propertiesError;
-    const propertyBucket = import.meta.env.VITE_SUPABASE_STORAGE_BUCKET || 'property-images';
-    for (const property of ownedProperties || []) {
-      const folder = `properties/${property.id}`;
-      const { data: files, error: listError } = await authClient.storage.from(propertyBucket).list(folder, { limit: 1000 });
-      if (listError) throw new Error(`Não foi possível conferir as imagens do anúncio: ${listError.message}`);
-      const paths = (files || []).filter(file => file.name).map(file => `${folder}/${file.name}`);
-      if (paths.length > 0) {
-        const { error: removalError } = await authClient.storage.from(propertyBucket).remove(paths);
-        if (removalError) throw new Error(`Não foi possível remover as imagens do anúncio: ${removalError.message}`);
-      }
-    }
-    const { data, error } = await authClient.rpc('delete_my_account');
-    if (error || data !== true) {
-      console.warn('Account deletion was not confirmed:', error?.message || 'Unexpected server response');
-      throw new Error('Não foi possível concluir a exclusão da conta. Tente novamente em instantes.');
+    const { data, error } = await authClient.functions.invoke('delete-account', { method: 'POST' });
+    if (error || data?.deleted !== true) {
+      console.warn('Account deletion was not confirmed:', error?.message || data?.code || 'Unexpected server response');
+      if (data?.code === 'administrative_account') throw new Error('Contas administrativas não podem ser excluídas.');
+      if (data?.code === 'authentication_required') throw new Error('Sua sessão expirou. Faça login novamente antes de excluir a conta.');
+      throw new Error('O banco não confirmou a exclusão. Seus dados foram preservados; tente novamente em instantes.');
     }
     try { await authClient.auth.signOut({ scope: 'local' }); } catch { /* The Auth row is already gone. */ }
     setIsAuthenticated(false);
