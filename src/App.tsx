@@ -28,8 +28,13 @@ import { AdminCreciReviewView } from './views/AdminCreciReviewView';
 import { AdminPortalsView } from './views/AdminPortalsView';
 
 const MainContent: React.FC = () => {
-  const { currentView, activeLegalTab } = useApp();
+  const { currentView, activeLegalTab, currentUser, isAuthenticated, setCurrentView } = useApp();
   const { portal, loading, error, canonicalRootUrl } = useTenant();
+  const isAdmin = isAuthenticated && currentUser.role === 'admin';
+  const renderedView = isAdmin && !['admin_portals','admin_creci','profile'].includes(currentView) ? 'admin_portals' : currentView;
+  React.useEffect(()=>{
+    if(isAdmin && !['admin_portals','admin_creci','profile'].includes(currentView)) setCurrentView('admin_portals');
+  },[isAdmin,currentView,setCurrentView]);
 
   if (loading) {
     return <div className="flex min-h-screen items-center justify-center bg-slate-50 dark:bg-slate-950"><div className="text-center"><span className="mx-auto block h-9 w-9 animate-spin rounded-full border-4 border-slate-200 border-t-rose-600"/><p className="mt-4 text-sm font-bold text-slate-600 dark:text-slate-300">Carregando portal...</p></div></div>;
@@ -47,24 +52,24 @@ const MainContent: React.FC = () => {
       <Navbar />
 
       <main className="flex-1">
-        {currentView === 'portal' && <PortalHomeView />}
-        {currentView === 'search' && <PropertySearchView />}
-        {currentView === 'property_detail' && <PropertyDetailView />}
-        {currentView === 'dashboard' && <BrokerDashboardView />}
-        {currentView === 'my_properties' && <MyPropertiesView />}
-        {currentView === 'crm_leads' && <CrmLeadsView />}
-        {currentView === 'messages' && <MessagesChatView />}
-        {currentView === 'comparator' && <ComparatorView />}
-        {currentView === 'favorites' && <FavoritesView />}
-        {currentView === 'saved_searches' && <SavedSearchesView />}
-        {currentView === 'design_system' && <DesignSystemView />}
-        {currentView === 'profile' && <ProfileView />}
-        {currentView === 'admin_creci' && <AdminCreciReviewView />}
-        {currentView === 'admin_portals' && <AdminPortalsView />}
-        {currentView === 'legal' && <InstitutionalLegalView initialTab={activeLegalTab} />}
+        {renderedView === 'portal' && <PortalHomeView />}
+        {renderedView === 'search' && <PropertySearchView />}
+        {renderedView === 'property_detail' && <PropertyDetailView />}
+        {renderedView === 'dashboard' && <BrokerDashboardView />}
+        {renderedView === 'my_properties' && <MyPropertiesView />}
+        {renderedView === 'crm_leads' && <CrmLeadsView />}
+        {renderedView === 'messages' && <MessagesChatView />}
+        {renderedView === 'comparator' && <ComparatorView />}
+        {renderedView === 'favorites' && <FavoritesView />}
+        {renderedView === 'saved_searches' && <SavedSearchesView />}
+        {renderedView === 'design_system' && <DesignSystemView />}
+        {renderedView === 'profile' && <ProfileView />}
+        {renderedView === 'admin_creci' && <AdminCreciReviewView />}
+        {renderedView === 'admin_portals' && <AdminPortalsView />}
+        {renderedView === 'legal' && <InstitutionalLegalView initialTab={activeLegalTab} />}
       </main>
 
-      <Footer />
+      {!isAdmin && <Footer />}
       <MobileNav />
       <PropertyWizardModal />
       <AuthModal />

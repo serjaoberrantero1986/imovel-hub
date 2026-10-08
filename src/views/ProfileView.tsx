@@ -401,8 +401,8 @@ export const ProfileView: React.FC = () => {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-slate-200 dark:border-slate-800">
           <div>
             <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 mb-1">
-              <button onClick={() => setCurrentView('portal')} className="hover:text-rose-600 transition-colors">
-                Início
+              <button onClick={() => setCurrentView(isAdmin ? 'admin_portals' : 'portal')} className="hover:text-rose-600 transition-colors">
+                {isAdmin ? 'Administração' : 'Início'}
               </button>
               <span>/</span>
               <span className="font-semibold text-slate-800 dark:text-slate-200">Gerenciar Perfil</span>
@@ -1203,7 +1203,7 @@ export const ProfileView: React.FC = () => {
         {/* Floating / Bottom Sticky Action Bar */}
         <div className="sticky bottom-6 z-30 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md rounded-3xl p-4 border border-slate-200 dark:border-slate-800 shadow-xl flex items-center justify-between gap-4">
           <div className="text-xs text-slate-500 dark:text-slate-400 hidden sm:block">
-            Lembre-se de salvar suas alterações para atualizar seus anúncios e dados de contato.
+            {isAdmin ? 'Salve as alterações para atualizar seus dados administrativos.' : 'Lembre-se de salvar suas alterações para atualizar seus anúncios e dados de contato.'}
           </div>
 
           <div className="flex items-center gap-2.5 w-full sm:w-auto justify-end">

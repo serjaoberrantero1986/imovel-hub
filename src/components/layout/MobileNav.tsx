@@ -7,10 +7,9 @@ import {
   Users, 
   LayoutDashboard, 
   MessageSquare,
-  Sparkles,
-  SlidersHorizontal,
-  Menu,
-  User
+  User,
+  Globe2,
+  ShieldCheck
 } from 'lucide-react';
 import { useApp, AppView } from '../../context/AppContext';
 
@@ -36,7 +35,11 @@ export const MobileNav: React.FC = () => {
     icon: React.FC<{ className?: string }>; 
     badge?: number;
     badgeColor?: string;
-  }[] = [
+  }[] = currentUser?.role === 'admin' ? [
+    {id:'admin_portals',label:'Portais',icon:Globe2},
+    {id:'admin_creci',label:'CRECI',icon:ShieldCheck},
+    {id:'profile',label:'Perfil',icon:User}
+  ] : [
     { id: 'portal', label: 'Início', icon: Home },
     { id: 'search', label: 'Buscar', icon: Search },
     { 

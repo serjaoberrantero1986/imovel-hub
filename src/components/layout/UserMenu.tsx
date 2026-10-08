@@ -171,7 +171,7 @@ export const UserMenu: React.FC = () => {
             >
               <div className="flex items-center gap-2.5">
                 <User className="w-4 h-4 text-rose-500" />
-                <span>Gerenciar Meu Perfil</span>
+                <span>{currentUser.role === 'admin' ? 'Meu Perfil Administrativo' : 'Gerenciar Meu Perfil'}</span>
               </div>
               {isAuthenticated && currentUser.verified && (
                 <span className="text-[10px] px-1.5 py-0.5 rounded-full font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
@@ -226,7 +226,7 @@ export const UserMenu: React.FC = () => {
               </>
             ) : null}
 
-            <button
+            {currentUser.role !== 'admin' && <><button
               onClick={() => handleNav('messages')}
               className="w-full text-left px-4 py-2 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 flex items-center justify-between"
             >
@@ -284,12 +284,12 @@ export const UserMenu: React.FC = () => {
                   {savedSearches.length}
                 </span>
               )}
-            </button>
+            </button></>}
           </div>
 
           {/* Role Switcher, Theme & Options */}
           <div className="border-t border-slate-100 dark:border-slate-800 pt-1.5 mt-1 px-2 space-y-1">
-            <button
+            {currentUser.role !== 'admin' && <button
               onClick={() => {
                 toggleTheme();
               }}
@@ -306,7 +306,7 @@ export const UserMenu: React.FC = () => {
               <span className="text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-wider font-bold">
                 {theme === 'light' ? 'OFF' : 'ON'}
               </span>
-            </button>
+            </button>}
 
             {isAuthenticated ? (
               <button

@@ -53,6 +53,7 @@ export const Navbar: React.FC = () => {
   const [navCodeModalOpen, setNavCodeModalOpen] = useState(false);
   const [supabaseModalOpen, setSupabaseModalOpen] = useState(false);
   const [navCodeInput, setNavCodeInput] = useState('');
+  const isAdmin = isAuthenticated && currentUser.role === 'admin';
 
   const totalUnread = conversations.reduce((sum, c) => sum + c.unreadCount, 0);
   const { pendingCount: pendingCreciCount } = useAdminCreciNotifications(
@@ -108,20 +109,17 @@ export const Navbar: React.FC = () => {
           <div className="flex items-center gap-8">
             <button 
               id="brand-logo-btn"
-              onClick={() => handleNavigate('portal')}
+              onClick={() => handleNavigate(isAdmin ? 'admin_portals' : 'portal')}
               className="flex items-center gap-3 group text-left focus:outline-none cursor-pointer"
             >
-              <span className="flex items-center gap-3 min-w-0">
-                <EditableImage id="header.logo" label="Logotipo do cabeçalho" src={portalIdentity.logoUrl || '/icon.svg'} alt={`Logotipo ${portalIdentity.portalName}`} objectFit="contain" className="relative w-10 h-10 rounded-xl shrink-0 overflow-visible" />
-                <span className="hidden sm:block min-w-0">
-                  <span className="block font-extrabold tracking-tight text-slate-900 dark:text-white font-['Outfit'] text-xl">{portalIdentity.portalName}</span>
-                  <span className="text-[11px] text-slate-500 dark:text-slate-400 font-medium hidden md:block">{portalIdentity.slogan}</span>
-                </span>
-              </span>
+              {isAdmin ? <span className="flex items-center gap-3 min-w-0"><img src="/icon.svg" alt="Logotipo Web Imóveis" className="w-10 h-10 rounded-xl object-contain shrink-0"/><span className="hidden sm:block font-extrabold tracking-tight text-slate-900 dark:text-white font-['Outfit'] text-xl">Web Imóveis</span></span> : <span className="flex items-center gap-3 min-w-0">
+                  <EditableImage id="header.logo" label="Logotipo do cabeçalho" src={portalIdentity.logoUrl || '/icon.svg'} alt={`Logotipo ${portalIdentity.portalName}`} objectFit="contain" className="relative w-10 h-10 rounded-xl shrink-0 overflow-visible" />
+                  <span className="hidden sm:block min-w-0"><span className="block font-extrabold tracking-tight text-slate-900 dark:text-white font-['Outfit'] text-xl">{portalIdentity.portalName}</span><span className="text-[11px] text-slate-500 dark:text-slate-400 font-medium hidden md:block">{portalIdentity.slogan}</span></span>
+                </span>}
             </button>
 
             {/* Desktop Navigation Links */}
-            <nav className="hidden lg:flex items-center gap-1">
+            {!isAdmin && <nav className="hidden lg:flex items-center gap-1">
               <button
                 id="nav-comprar-btn"
                 onClick={() => handleNavigate('search', 'sale')}
@@ -146,13 +144,13 @@ export const Navbar: React.FC = () => {
                 <MapPin className="w-4 h-4 text-rose-500" />
                 <span>Mapa</span>
               </button>
-            </nav>
+            </nav>}
           </div>
 
           {/* Right Action Section */}
           <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
 
-            {/* Comparison button */}
+            {!isAdmin && <>{/* Comparison button */}
             <button
               id="btn-comparator-nav"
               onClick={() => handleNavigate('comparator')}
@@ -196,6 +194,7 @@ export const Navbar: React.FC = () => {
                 </span>
               )}
             </button>
+            </>}
 
             {/* Theme Toggle */}
             <button
@@ -211,7 +210,7 @@ export const Navbar: React.FC = () => {
               )}
             </button>
 
-            {isAuthenticated && currentUser.role === 'admin' && (
+            {isAdmin && (
               <button
                 id="btn-admin-creci-nav"
                 onClick={() => handleNavigate('admin_creci')}
@@ -244,20 +243,20 @@ export const Navbar: React.FC = () => {
             <UserMenu />
 
             {/* Mobile menu toggle */}
-            <button
+            {!isAdmin && <button
               id="mobile-menu-toggle"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
               className="lg:hidden w-8 h-8 sm:w-10 sm:h-10 p-0 flex items-center justify-center rounded-xl text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer shrink-0"
             >
               {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-            </button>
+            </button>}
 
           </div>
         </div>
       </div>
 
       {/* Mobile Drawer Navigation */}
-      {mobileMenuOpen && (
+      {mobileMenuOpen && !isAdmin && (
         <div className="lg:hidden border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-4 pt-3 pb-6 space-y-2 animate-in slide-in-from-top duration-200">
           <div className="grid grid-cols-3 gap-2 mb-3">
             <button
