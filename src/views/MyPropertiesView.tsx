@@ -21,12 +21,14 @@ import {
   ChevronDown,
   ShieldCheck,
   ArrowRight,
-  LogIn
+  LogIn,
+  Handshake
 } from 'lucide-react';
 import { useApp, useCatalog } from '../context/AppContext';
 import { Property, PropertyStatus, PropertyMedia } from '../types';
 import { formatCurrency, formatDate, getPropertyTypeLabel, getPropertyPurposeLabel } from '../lib/utils';
 import { PropertyImageManager } from '../components/media/PropertyImageManager';
+import { PropertyPartnershipModal } from '../components/properties/PropertyPartnershipModal';
 
 export const STATUS_CONFIG: Record<PropertyStatus, {
   label: string;
@@ -131,6 +133,8 @@ export const MyPropertiesView: React.FC = () => {
   // Dedicated Delete Confirmation Modal
   const [propertyToDelete, setPropertyToDelete] = useState<Property | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [partnershipProperty, setPartnershipProperty] = useState<Property | null>(null);
+  const [isPartnershipInboxOpen, setIsPartnershipInboxOpen] = useState(false);
 
   // Status Change Dropdown state per property
   const [statusMenuOpenPropertyId, setStatusMenuOpenPropertyId] = useState<string | null>(null);
@@ -392,6 +396,15 @@ export const MyPropertiesView: React.FC = () => {
               <span>CRM de Leads</span>
             </button>
 
+            {currentUser.role !== 'admin' && <button
+              type="button"
+              onClick={() => setIsPartnershipInboxOpen(true)}
+              className="px-4 py-2.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-bold flex items-center gap-2 shadow-xs transition-colors"
+            >
+              <Handshake className="w-4 h-4 text-violet-500" />
+              <span>Ofertas de Parceria</span>
+            </button>}
+
             {/* New Property Button */}
             {currentUser.role !== 'admin' && <button
               id="btn-create-new-property"
@@ -594,6 +607,14 @@ export const MyPropertiesView: React.FC = () => {
                       <span className="hidden sm:inline">Fotos ({prop.media.length})</span>
                     </button>
 
+                    {currentUser.role !== 'admin' && <button
+                      onClick={() => setPartnershipProperty(prop)}
+                      title="Criar ou acompanhar parceria"
+                      className="p-2 rounded-xl bg-violet-50 hover:bg-violet-100 dark:bg-violet-950/50 dark:hover:bg-violet-900/60 text-violet-600 dark:text-violet-300 transition-colors cursor-pointer"
+                    >
+                      <Handshake className="w-4 h-4" />
+                    </button>}
+
                     <button
                       onClick={() => handleEdit(prop)}
                       title="Editar Anúncio"
@@ -669,6 +690,9 @@ export const MyPropertiesView: React.FC = () => {
             </div>
           )}
         </div>
+
+        <PropertyPartnershipModal property={partnershipProperty} isOpen={Boolean(partnershipProperty)} onClose={() => setPartnershipProperty(null)} />
+        <PropertyPartnershipModal inbox isOpen={isPartnershipInboxOpen} onClose={() => setIsPartnershipInboxOpen(false)} />
 
         {/* Delete Confirmation Modal */}
         {propertyToDelete && (

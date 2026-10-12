@@ -52,6 +52,7 @@ import { TurnstileWidget, TURNSTILE_SITE_KEY } from '../components/auth/Turnstil
 import { PortalAddressFields, PortalAddressCheck } from '../components/profile/PortalAddressFields';
 import { getMyPortalAddress, PortalAddress } from '../lib/portalAddress';
 import { useTenant } from '../context/TenantContext';
+import { PartnershipNetworkPanel } from '../components/profile/PartnershipNetworkPanel';
 
 export const ProfileView: React.FC = () => {
   const { refreshTenant } = useTenant();
@@ -819,6 +820,8 @@ export const ProfileView: React.FC = () => {
                 </div>
               </label>
             </div>
+
+            <PartnershipNetworkPanel />
           </div>
         )}
 
