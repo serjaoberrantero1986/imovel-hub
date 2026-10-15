@@ -11,7 +11,8 @@ import {
   AlertCircle,
   LogIn,
   ArrowRight,
-  Building2
+  Building2,
+  Handshake
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { useCrm } from '../context/CrmContext';
@@ -22,6 +23,8 @@ import { CrmLeadsTable } from '../components/crm/CrmLeadsTable';
 import { CrmTasksCalendar } from '../components/crm/CrmTasksCalendar';
 import { CrmLeadDetailModal } from '../components/crm/CrmLeadDetailModal';
 import { CrmNewLeadModal } from '../components/crm/CrmNewLeadModal';
+import { PartnershipLeadPanel } from '../components/crm/PartnershipLeadPanel';
+import { PartnershipVisitPanel } from '../components/crm/PartnershipVisitPanel';
 
 export const CrmLeadsView: React.FC = () => {
   const { 
@@ -53,7 +56,7 @@ export const CrmLeadsView: React.FC = () => {
     if (isAuthenticated && currentUser.role !== 'buyer') void refreshLeads();
   }, [isAuthenticated, currentUser.id, currentUser.role, refreshLeads]);
 
-  const [activeTab, setActiveTab] = useState<'kanban' | 'dashboard' | 'table' | 'tasks'>('kanban');
+  const [activeTab, setActiveTab] = useState<'kanban' | 'dashboard' | 'table' | 'tasks' | 'partnership'>('kanban');
   const tabsRef = useRef<HTMLDivElement>(null);
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
@@ -282,6 +285,15 @@ export const CrmLeadsView: React.FC = () => {
             <span>Tarefas & Agenda ({displayedLeads.reduce((acc, l) => acc + (l.tasks?.filter(t => !t.completed).length || 0), 0)})</span>
           </button>
 
+          <button
+            data-crm-tab="partnership"
+            onClick={() => setActiveTab('partnership')}
+            className={`px-4 py-2 rounded-xl transition-all flex items-center gap-2 cursor-pointer shrink-0 whitespace-nowrap snap-center ${activeTab === 'partnership' ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-xs' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}
+          >
+            <Handshake className="w-4 h-4" />
+            <span>Leads de Parcerias</span>
+          </button>
+
         </div>
         </div>
 
@@ -328,6 +340,8 @@ export const CrmLeadsView: React.FC = () => {
             onOpenLead={handleOpenLead}
           />
         )}
+
+        {activeTab === 'partnership' && <div className="space-y-8"><PartnershipLeadPanel /><PartnershipVisitPanel /></div>}
 
         {/* Lead Dossier 360 Modal */}
         <CrmLeadDetailModal
