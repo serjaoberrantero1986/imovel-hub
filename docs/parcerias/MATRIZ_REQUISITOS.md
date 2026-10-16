@@ -13,7 +13,7 @@ Estados: `pendente`, `em_execucao`, `implementado_local`, `migration_aplicada`, 
 | PAR-001 | Adesão voluntária à rede | 1 | migration, RPC, tela e teste de RLS | implementado_local |
 | PAR-002 | Restrição CRECI-SP aprovado e vigente | 1 | validação server-side e testes negativos | implementado_local |
 | PAR-003 | MFA obrigatório para operações contratuais | 1 | RPC exige AAL2 e testes | implementado_local |
-| PAR-004 | Regiões reais do Estado de SP | 1 | fonte real, persistência e filtros | implementado_local |
+| PAR-004 | Regiões reais do Estado de SP | 1 | fonte real, persistência e filtros | em_execucao |
 | PAR-005 | Especialidades e preferências de colaboração | 1 | schema e formulário | implementado_local |
 | PAR-006 | Convites, bloqueios e denúncias | 1 | fluxo, auditoria e administração | implementado_local |
 | OFR-001 | Oferta de parceria por imóvel | 2 | registro único ligado a `properties.id` | implementado_local |
@@ -57,6 +57,29 @@ Estados: `pendente`, `em_execucao`, `implementado_local`, `migration_aplicada`, 
 ## Regra de atualização
 
 Nenhuma entrega pode alterar um estado para `implementado_local` sem listar os arquivos e testes que comprovam o requisito. `validado_producao` exige evidência observável no ambiente real; build local ou migration escrita não bastam.
+
+## Ampliação aprovada: oportunidades e contratos de carteira
+
+Esta lista complementa as fases anteriores. Nenhum item abaixo deve ser considerado validado em produção somente porque há código local ou migration escrita.
+
+| ID | Requisito acordado | Estado em 16/10/2026 | Evidência ou pendência |
+|---|---|---|---|
+| GEO-001 | Pesquisar todos os municípios paulistas na seleção de regiões | implementado_local | `partnershipLocations.ts` consulta a API oficial do IBGE; `PartnershipNetworkPanel.tsx` exige uma opção reconhecida. Ainda requer teste no navegador e na API real. |
+| GEO-002 | Pesquisar bairros cadastrados após escolher o município | implementado_local | `20261016000003_partnership_region_neighborhoods.sql` consulta apenas localizações públicas de imóveis ativos; migration e comportamento real ainda não validados em produção. |
+| GEO-003 | Padronizar no servidor as cidades e bairros existentes, sem perder regiões previamente salvas | pendente | Conferir grafias legadas e regras de migração antes de endurecer a validação server-side. |
+| OPP-001 | Vitrine privada de oportunidades elegíveis por região e finalidade, sem conexão prévia | pendente | RPC com CRECI-SP, MFA quando necessário, bloqueios, localização, autorização de publicidade e paginação. Não expor dados do proprietário ou leads. |
+| OPP-002 | Separar “Oportunidades de Parcerias” no CRM de “Ofertas de Parceria” em Meus Imóveis | pendente | Oportunidades mostram anúncios disponíveis; Ofertas mostram negociações enviadas/recebidas. |
+| OPP-003 | Ícone de aperto de mãos no menu superior, lista, grade, mapa e filtros | pendente | Reutilizar navegação, cards e mapa existentes, inclusive estados responsivos e vazios. |
+| OPP-004 | Aceite, recusa e contraproposta a partir da oportunidade; acordo cria vínculo de rede | pendente | Adaptar RPCs de negociação sem ativar anúncio ou lead antes do contrato/SGR; preservar bloqueios. |
+| OPP-005 | Consentimento opcional para avisos de novas oportunidades no cadastro e perfil | pendente | Preferência persistida; aviso apenas se região/finalidade combinarem, com controle de frequência e cancelamento. |
+| CAR-001 | Reutilizar condições e seleção de muitos imóveis sem contrato automático futuro | pendente | Preparação em lote para ofertas; nenhum imóvel novo entra em contrato sem seleção e aditivo. |
+| CAR-002 | Um contrato de carteira por captador/parceiro com imóveis selecionados e origem SGR por imóvel | implementado_local | `20261016000002_portfolio_partnership_contracts.sql` e painel contratual; migration e teste real pendentes. |
+| CAR-003 | Inclusão/exclusão via aditivo e mudança de honorários via novo contrato | implementado_local | Mesmos arquivos de CAR-002; testar revisão, rejeição, concorrência, ativação e histórico em produção. |
+| CAR-004 | Condições específicas por imóvel quando necessário | pendente | Modelo atual exige termos preliminares idênticos; antes de alterar o modelo contratual, revisar o impacto em distribuição, leads e auditoria. |
+| E2E-001 | Teste real com dois profissionais autorizados, incluindo publicação cruzada e proteção de leads | pendente | Sem contrato oficial de teste, não afirmar validação de ponta a ponta nem criar confirmação fictícia. |
+| META-001 | Auditar a meta interrompida antes de retomá-la | pendente | Conferir status e dependências contra esta matriz e o código publicado; não presumir que a meta esteja concluída ou retomada. |
+
+Validação local desta ampliação: `npm run lint`, `npm run build`, `node scripts/test-partnership-foundation.mjs` e `node scripts/partnership-production-preflight.mjs` passaram. Os dois scripts são verificações estruturais; não substituem o teste da API do IBGE no navegador, a execução da migration nem a validação no Supabase de produção.
 
 ## Evidências da Fase 1
 

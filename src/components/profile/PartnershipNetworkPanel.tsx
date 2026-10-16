@@ -20,6 +20,7 @@ import {
 } from '../../lib/partnershipNetwork';
 import { UserAvatar } from '../ui/UserAvatar';
 import { Modal } from '../ui/Modal';
+import { getRegisteredSpNeighborhoods, getSpMunicipalities, SpMunicipality } from '../../lib/partnershipLocations';
 
 const EMPTY_STATE: PartnershipNetworkState = { eligible: false, member: null, regions: [], connections: [] };
 
@@ -52,6 +53,10 @@ export const PartnershipNetworkPanel: React.FC = () => {
   const [regions, setRegions] = useState<PartnershipRegion[]>([]);
   const [city, setCity] = useState('');
   const [neighborhood, setNeighborhood] = useState('');
+  const [municipalities, setMunicipalities] = useState<SpMunicipality[]>([]);
+  const [municipalitiesLoading, setMunicipalitiesLoading] = useState(true);
+  const [neighborhoods, setNeighborhoods] = useState<string[]>([]);
+  const [neighborhoodsLoading, setNeighborhoodsLoading] = useState(false);
   const [search, setSearch] = useState('');
   const [searchCity, setSearchCity] = useState('');
   const [professionals, setProfessionals] = useState<PartnershipProfessional[]>([]);
@@ -85,11 +90,37 @@ export const PartnershipNetworkPanel: React.FC = () => {
 
   useEffect(() => { void load(); }, []);
 
+  useEffect(() => {
+    let active = true;
+    void getSpMunicipalities()
+      .then(items => { if (active) setMunicipalities(items); })
+      .catch(() => { if (active) addToast({ type: 'error', title: 'Municípios indisponíveis', message: 'Não foi possível consultar a lista oficial. Tente novamente mais tarde.' }); })
+      .finally(() => { if (active) setMunicipalitiesLoading(false); });
+    return () => { active = false; };
+  }, [addToast]);
+
+  const selectedMunicipality = useMemo(() => municipalities.find(item => item.name.toLocaleLowerCase('pt-BR') === normalizeArea(city).toLocaleLowerCase('pt-BR')), [municipalities, city]);
+
+  useEffect(() => {
+    if (!selectedMunicipality) { setNeighborhoods([]); setNeighborhoodsLoading(false); return; }
+    let active = true;
+    setNeighborhoodsLoading(true);
+    void getRegisteredSpNeighborhoods(selectedMunicipality.name)
+      .then(items => { if (active) setNeighborhoods(items); })
+      .catch(() => { if (active) { setNeighborhoods([]); addToast({ type: 'error', title: 'Bairros indisponíveis', message: 'Não foi possível consultar os bairros cadastrados nesta cidade.' }); } })
+      .finally(() => { if (active) setNeighborhoodsLoading(false); });
+    return () => { active = false; };
+  }, [selectedMunicipality?.id, addToast]);
+
   const addRegion = () => {
     const nextCity = normalizeArea(city);
     const nextNeighborhood = normalizeArea(neighborhood);
-    if (nextCity.length < 2) {
-      addToast({ type: 'warning', title: 'Informe a cidade', message: 'A rede está disponível inicialmente apenas no estado de São Paulo.' });
+    if (!selectedMunicipality) {
+      addToast({ type: 'warning', title: 'Escolha um município', message: 'Selecione uma cidade da lista oficial de São Paulo.' });
+      return;
+    }
+    if (nextNeighborhood && !neighborhoods.some(item => item.toLocaleLowerCase('pt-BR') === nextNeighborhood.toLocaleLowerCase('pt-BR'))) {
+      addToast({ type: 'warning', title: 'Escolha um bairro cadastrado', message: 'Selecione um bairro da lista ou deixe o campo vazio para atuar na cidade inteira.' });
       return;
     }
     if (regions.length >= 20) {
@@ -101,7 +132,7 @@ export const PartnershipNetworkPanel: React.FC = () => {
       addToast({ type: 'info', title: 'Região já adicionada', message: 'Escolha outra cidade ou bairro.' });
       return;
     }
-    setRegions(current => [...current, { state: 'SP', city: nextCity, neighborhood: nextNeighborhood || null }]);
+    setRegions(current => [...current, { state: 'SP', city: selectedMunicipality.name, neighborhood: nextNeighborhood || null }]);
     setCity(''); setNeighborhood('');
   };
 
@@ -213,11 +244,11 @@ export const PartnershipNetworkPanel: React.FC = () => {
         </div>
 
         <div className="space-y-3">
-          <div><span className="block text-xs font-bold text-slate-700 dark:text-slate-300">Regiões de atuação em São Paulo</span><span className="text-[11px] text-slate-500">Use somente regiões em que você realmente possa atender. O bairro é opcional.</span></div>
+          <div><span className="block text-xs font-bold text-slate-700 dark:text-slate-300">Regiões de atuação em São Paulo</span><span className="text-[11px] text-slate-500">Escolha um município da lista oficial. Os bairros sugeridos vêm dos imóveis cadastrados; deixe o bairro vazio para atender a cidade inteira.</span></div>
           <div className="grid grid-cols-1 sm:grid-cols-[1fr_1fr_auto] gap-2">
-            <input value={city} maxLength={100} onChange={event => setCity(event.target.value)} placeholder="Cidade" className="px-3.5 py-2.5 rounded-2xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-xs" />
-            <input value={neighborhood} maxLength={100} onChange={event => setNeighborhood(event.target.value)} placeholder="Bairro (opcional)" className="px-3.5 py-2.5 rounded-2xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-xs" />
-            <button type="button" onClick={addRegion} className="px-4 py-2.5 rounded-2xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-xs font-bold flex items-center justify-center gap-1"><Plus className="w-4 h-4" /> Adicionar</button>
+            <div><input list="partnership-sp-municipalities" value={city} maxLength={100} disabled={municipalitiesLoading || municipalities.length === 0} onChange={event => { setCity(event.target.value); setNeighborhood(''); }} placeholder={municipalitiesLoading ? 'Carregando municípios...' : 'Busque um município'} aria-label="Município de atuação" className="w-full px-3.5 py-2.5 rounded-2xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-xs disabled:opacity-60" /><datalist id="partnership-sp-municipalities">{municipalities.map(item => <option key={item.id} value={item.name} />)}</datalist></div>
+            <div><input list="partnership-sp-neighborhoods" value={neighborhood} maxLength={100} disabled={!selectedMunicipality || neighborhoodsLoading || neighborhoods.length === 0} onChange={event => setNeighborhood(event.target.value)} placeholder={neighborhoodsLoading ? 'Carregando bairros...' : neighborhoods.length ? 'Busque um bairro (opcional)' : 'Sem bairros cadastrados'} aria-label="Bairro de atuação (opcional)" className="w-full px-3.5 py-2.5 rounded-2xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-xs disabled:opacity-60" /><datalist id="partnership-sp-neighborhoods">{neighborhoods.map(item => <option key={item} value={item} />)}</datalist></div>
+            <button type="button" disabled={!selectedMunicipality || neighborhoodsLoading} onClick={addRegion} className="px-4 py-2.5 rounded-2xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-xs font-bold flex items-center justify-center gap-1 disabled:opacity-50"><Plus className="w-4 h-4" /> Adicionar</button>
           </div>
           <div className="flex flex-wrap gap-2">
             {regions.map((region, index) => <span key={`${region.city}-${region.neighborhood || ''}-${index}`} className="inline-flex items-center gap-2 rounded-full bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 px-3 py-1.5 text-xs"><MapPin className="w-3.5 h-3.5" />{region.city}{region.neighborhood ? ` · ${region.neighborhood}` : ''}/SP<button type="button" aria-label={`Remover ${region.city}`} onClick={() => setRegions(current => current.filter((_, itemIndex) => itemIndex !== index))}><X className="w-3.5 h-3.5" /></button></span>)}
