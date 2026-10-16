@@ -37,7 +37,6 @@ export const PropertyPartnershipModal: React.FC<PropertyPartnershipModalProps> =
   const [incoming, setIncoming] = useState<IncomingPartnershipOffer[]>([]);
   const [selectedIncomingId, setSelectedIncomingId] = useState<string | null>(null);
   const [selectedPartners, setSelectedPartners] = useState<string[]>([]);
-  const [partnerLimit, setPartnerLimit] = useState(1);
   const [terms, setTerms] = useState<PartnershipTerms>(defaultPartnershipTerms());
   const [counterTerms, setCounterTerms] = useState<PartnershipTerms | null>(null);
   const [ownerCounterId, setOwnerCounterId] = useState<string | null>(null);
@@ -61,7 +60,6 @@ export const PropertyPartnershipModal: React.FC<PropertyPartnershipModalProps> =
         setWorkspace(value);
         const active = value.negotiations.filter(item => !['cancelled', 'declined'].includes(item.status));
         setSelectedPartners(active.map(item => item.partner_id));
-        setPartnerLimit(value.offer?.partner_limit || Math.max(1, Math.min(active.length || 1, 50)));
         setTerms(active[0]?.current_terms || defaultPartnershipTerms(property.isExclusive));
       }
     } catch (error) {
@@ -87,7 +85,7 @@ export const PropertyPartnershipModal: React.FC<PropertyPartnershipModalProps> =
     }
     setBusy(true);
     try {
-      const value = await savePropertyPartnershipOffer({ propertyId: property.id, partnerIds: selectedPartners, partnerLimit: Math.min(partnerLimit, selectedPartners.length), terms });
+      const value = await savePropertyPartnershipOffer({ propertyId: property.id, partnerIds: selectedPartners, partnerLimit: null, terms });
       setWorkspace(value);
       addToast({ type: 'success', title: 'Oferta enviada', message: 'Cada parceiro recebeu uma negociação privada e versionada.' });
     } catch (error) {
@@ -143,25 +141,25 @@ export const PropertyPartnershipModal: React.FC<PropertyPartnershipModalProps> =
     {loading ? <div className="py-14 flex items-center justify-center gap-2 text-sm text-slate-500"><Loader2 className="w-5 h-5 animate-spin" /> Carregando negociações...</div> : inbox ? (
       <IncomingOffersContent items={incoming} selected={selectedIncoming} onSelect={setSelectedIncomingId} counterTerms={counterTerms} setCounterTerms={setCounterTerms} acceptedDisclaimer={acceptedDisclaimer} setAcceptedDisclaimer={setAcceptedDisclaimer} busy={busy} onRespond={respond} />
     ) : workspace ? (
-      <OwnerOfferContent workspace={workspace} selectedPartners={selectedPartners} setSelectedPartners={setSelectedPartners} partnerLimit={partnerLimit} setPartnerLimit={setPartnerLimit} terms={terms} setTerms={setTerms} busy={busy} onSave={saveOffer} onCancelOffer={cancelOffer} ownerCounterId={ownerCounterId} ownerCounterTerms={ownerCounterTerms} onStartCounter={negotiation => { setOwnerCounterId(negotiation.id); setOwnerCounterTerms(structuredClone(negotiation.current_terms)); }} onCancelCounter={() => { setOwnerCounterId(null); setOwnerCounterTerms(null); }} onCounterTermsChange={setOwnerCounterTerms} onRespond={respondAsCaptor} />
+      <OwnerOfferContent workspace={workspace} selectedPartners={selectedPartners} setSelectedPartners={setSelectedPartners} terms={terms} setTerms={setTerms} busy={busy} onSave={saveOffer} onCancelOffer={cancelOffer} ownerCounterId={ownerCounterId} ownerCounterTerms={ownerCounterTerms} onStartCounter={negotiation => { setOwnerCounterId(negotiation.id); setOwnerCounterTerms(structuredClone(negotiation.current_terms)); }} onCancelCounter={() => { setOwnerCounterId(null); setOwnerCounterTerms(null); }} onCounterTermsChange={setOwnerCounterTerms} onRespond={respondAsCaptor} />
     ) : <EmptyMessage text="Não foi possível carregar este imóvel." />}
   </Modal>;
 };
 
 const OwnerOfferContent: React.FC<{
   workspace: PropertyPartnershipWorkspace; selectedPartners: string[]; setSelectedPartners: React.Dispatch<React.SetStateAction<string[]>>;
-  partnerLimit: number; setPartnerLimit: (value: number) => void; terms: PartnershipTerms; setTerms: (terms: PartnershipTerms) => void;
+  terms: PartnershipTerms; setTerms: (terms: PartnershipTerms) => void;
   busy: boolean; onSave: () => void; onCancelOffer: () => void;
   ownerCounterId: string | null; ownerCounterTerms: PartnershipTerms | null;
   onStartCounter: (negotiation: PropertyPartnershipNegotiation) => void; onCancelCounter: () => void;
   onCounterTermsChange: (terms: PartnershipTerms) => void;
   onRespond: (negotiation: PropertyPartnershipNegotiation, decision: 'accept' | 'decline' | 'counter') => void;
-}> = ({ workspace, selectedPartners, setSelectedPartners, partnerLimit, setPartnerLimit, terms, setTerms, busy, onSave, onCancelOffer, ownerCounterId, ownerCounterTerms, onStartCounter, onCancelCounter, onCounterTermsChange, onRespond }) => <div className="space-y-6">
+}> = ({ workspace, selectedPartners, setSelectedPartners, terms, setTerms, busy, onSave, onCancelOffer, ownerCounterId, ownerCounterTerms, onStartCounter, onCancelCounter, onCounterTermsChange, onRespond }) => <div className="space-y-6">
   <div className="rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 p-4 flex flex-wrap justify-between gap-3"><div><strong className="block text-sm text-slate-900 dark:text-white">{workspace.property.title}</strong><span className="text-xs text-slate-500">#{workspace.property.code} · {workspace.property.status}</span></div><span className="self-start px-3 py-1 rounded-full bg-indigo-100 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 text-xs font-bold">{workspace.offer ? 'Oferta em andamento' : 'Nova oferta'}</span></div>
 
   <section className="space-y-3"><div><h4 className="text-sm font-extrabold text-slate-900 dark:text-white">Destinatários</h4><p className="text-[11px] text-slate-500">Somente conexões aceitas, com CRECI-SP válido, interesse nessa finalidade e atuação na cidade ou no bairro do imóvel aparecem aqui.</p></div>
     {workspace.available_partners.length === 0 ? <EmptyMessage text="Nenhum profissional conectado está disponível. Crie conexões na seção Rede de Parcerias do perfil." /> : <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">{workspace.available_partners.map(partner => <label key={partner.profile_id} className={`flex items-center gap-3 rounded-2xl border p-3 cursor-pointer ${selectedPartners.includes(partner.profile_id) ? 'border-indigo-400 bg-indigo-50/60 dark:bg-indigo-950/30' : 'border-slate-200 dark:border-slate-700'}`}><input type="checkbox" checked={selectedPartners.includes(partner.profile_id)} onChange={event => setSelectedPartners(current => event.target.checked ? [...current, partner.profile_id] : current.filter(id => id !== partner.profile_id))} className="rounded text-indigo-600" /><UserAvatar name={partner.name} src={partner.avatar_url || undefined} className="w-9 h-9 rounded-xl" /><span className="min-w-0"><strong className="block text-xs text-slate-900 dark:text-white truncate">{partner.portal_title || partner.name}</strong><span className="block text-[10px] text-slate-500">{partner.name} · CRECI {partner.creci}/SP</span></span></label>)}</div>}
-    <label className="block max-w-xs"><span className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Máximo de parceiros que poderão ser aceitos</span><input type="number" min={1} max={Math.max(1, selectedPartners.length)} value={partnerLimit} onChange={event => setPartnerLimit(Math.max(1, Number(event.target.value) || 1))} className="w-full px-3.5 py-2.5 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs" /></label>
+    <div className="rounded-2xl border border-indigo-200 dark:border-indigo-900 bg-indigo-50/50 dark:bg-indigo-950/20 p-3 text-xs text-slate-600 dark:text-slate-300"><strong className="block text-slate-900 dark:text-white">Rede aberta de parceiros</strong><span>Cada profissional selecionado terá uma negociação independente. Não existe limite global; a divisão e o contrato são definidos individualmente.</span></div>
   </section>
 
   <TermsEditor value={terms} onChange={setTerms} />

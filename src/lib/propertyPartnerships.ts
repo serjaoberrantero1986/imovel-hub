@@ -70,7 +70,7 @@ export interface PropertyPartnershipNegotiation {
 
 export interface PropertyPartnershipWorkspace {
   property: { id: string; code: string; title: string; purpose: string; status: string; is_exclusive: boolean };
-  offer: { id: string; status: 'open' | 'closed' | 'cancelled'; partner_limit: number } | null;
+  offer: { id: string; status: 'open' | 'closed' | 'cancelled'; partner_limit: number | null } | null;
   available_partners: PartnershipAvailablePartner[];
   negotiations: PropertyPartnershipNegotiation[];
 }
@@ -80,7 +80,7 @@ export interface IncomingPartnershipOffer {
   status: PartnershipNegotiationStatus;
   updated_at: string;
   offer_id: string;
-  partner_limit: number;
+  partner_limit: number | null;
   property: { id: string; code: string; title: string; purpose: string; price: number; status: string };
   captor: { profile_id: string; name: string; avatar_url: string | null; creci: string; creci_uf: 'SP' };
   current_terms: PartnershipTerms;
@@ -118,7 +118,7 @@ export async function getPropertyPartnershipWorkspace(propertyId: string): Promi
   return data as unknown as PropertyPartnershipWorkspace;
 }
 
-export async function savePropertyPartnershipOffer(input: { propertyId: string; partnerIds: string[]; partnerLimit: number; terms: PartnershipTerms }): Promise<PropertyPartnershipWorkspace> {
+export async function savePropertyPartnershipOffer(input: { propertyId: string; partnerIds: string[]; partnerLimit: number | null; terms: PartnershipTerms }): Promise<PropertyPartnershipWorkspace> {
   const { data, error } = await requireClient().rpc('save_property_partnership_offer', {
     p_property_id: input.propertyId,
     p_partner_ids: input.partnerIds,
