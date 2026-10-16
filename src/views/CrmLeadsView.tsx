@@ -25,6 +25,7 @@ import { CrmLeadDetailModal } from '../components/crm/CrmLeadDetailModal';
 import { CrmNewLeadModal } from '../components/crm/CrmNewLeadModal';
 import { PartnershipLeadPanel } from '../components/crm/PartnershipLeadPanel';
 import { PartnershipVisitPanel } from '../components/crm/PartnershipVisitPanel';
+import { PartnershipOpportunitiesPanel } from '../components/crm/PartnershipOpportunitiesPanel';
 
 export const CrmLeadsView: React.FC = () => {
   const { 
@@ -56,7 +57,7 @@ export const CrmLeadsView: React.FC = () => {
     if (isAuthenticated && currentUser.role !== 'buyer') void refreshLeads();
   }, [isAuthenticated, currentUser.id, currentUser.role, refreshLeads]);
 
-  const [activeTab, setActiveTab] = useState<'kanban' | 'dashboard' | 'table' | 'tasks' | 'partnership'>('kanban');
+  const [activeTab, setActiveTab] = useState<'kanban' | 'dashboard' | 'table' | 'tasks' | 'opportunities' | 'partnership'>('kanban');
   const tabsRef = useRef<HTMLDivElement>(null);
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
@@ -68,6 +69,12 @@ export const CrmLeadsView: React.FC = () => {
     const activeButton = tabsRef.current?.querySelector<HTMLElement>(`[data-crm-tab="${activeTab}"]`);
     activeButton?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
   }, [activeTab]);
+
+  useEffect(() => {
+    const openOpportunities = () => setActiveTab('opportunities');
+    window.addEventListener('open-partnership-opportunities', openOpportunities);
+    return () => window.removeEventListener('open-partnership-opportunities', openOpportunities);
+  }, []);
 
   // Authentication gating
   if (!isAuthenticated) {
@@ -286,6 +293,15 @@ export const CrmLeadsView: React.FC = () => {
           </button>
 
           <button
+            data-crm-tab="opportunities"
+            onClick={() => setActiveTab('opportunities')}
+            className={`px-4 py-2 rounded-xl transition-all flex items-center gap-2 cursor-pointer shrink-0 whitespace-nowrap snap-center ${activeTab === 'opportunities' ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-xs' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}
+          >
+            <Handshake className="w-4 h-4" />
+            <span>Oportunidades de Parcerias</span>
+          </button>
+
+          <button
             data-crm-tab="partnership"
             onClick={() => setActiveTab('partnership')}
             className={`px-4 py-2 rounded-xl transition-all flex items-center gap-2 cursor-pointer shrink-0 whitespace-nowrap snap-center ${activeTab === 'partnership' ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-xs' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}
@@ -340,6 +356,8 @@ export const CrmLeadsView: React.FC = () => {
             onOpenLead={handleOpenLead}
           />
         )}
+
+        {activeTab === 'opportunities' && <PartnershipOpportunitiesPanel />}
 
         {activeTab === 'partnership' && <div className="space-y-8"><PartnershipLeadPanel /><PartnershipVisitPanel /></div>}
 
