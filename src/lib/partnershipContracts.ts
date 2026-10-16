@@ -30,6 +30,9 @@ export interface PartnershipContractWorkspace {
     canonical_sha256: string;
     original_sgr_contract_number: string;
     canonical_terms: Record<string, unknown>;
+    portfolio_agreement_id?: string | null;
+    instrument_kind?: 'individual' | 'portfolio_contract' | 'property_addendum' | 'fee_replacement';
+    properties?: Array<{ negotiation_id: string; property_id: string; code: string; title: string; original_sgr_contract_number: string }>;
     created_at: string;
   };
   acknowledgements: Array<{ party_role: 'captor' | 'partner'; acknowledged_at: string; terms_sha256: string }>;
@@ -73,6 +76,55 @@ export async function createPartnershipContractDraft(negotiationId: string, expe
     p_negotiation_id: negotiationId,
     p_expected_term_version: expectedTermVersion,
     p_original_sgr_contract_number: originalSgrContractNumber.trim(),
+  });
+  if (error) throw error;
+}
+
+export interface PortfolioContractCandidate {
+  negotiation_id: string;
+  property_id: string;
+  code: string;
+  title: string;
+  version_number: number;
+  captor_share: number;
+  partner_share: number;
+}
+
+export async function getPortfolioContractCandidates(negotiationId: string): Promise<PortfolioContractCandidate[]> {
+  const { data, error } = await client().rpc('get_portfolio_contract_candidates', { p_negotiation_id: negotiationId });
+  if (error) throw error;
+  return (data || []) as PortfolioContractCandidate[];
+}
+
+export async function createPortfolioPartnershipContractDraft(
+  negotiationId: string,
+  expectedTermVersion: number,
+  properties: Array<{ negotiation_id: string; original_sgr_contract_number: string }>,
+): Promise<void> {
+  const { error } = await client().rpc('create_portfolio_partnership_contract_draft', {
+    p_anchor_negotiation_id: negotiationId,
+    p_expected_term_version: expectedTermVersion,
+    p_properties: properties.map(item => ({
+      negotiation_id: item.negotiation_id,
+      original_sgr_contract_number: item.original_sgr_contract_number.trim(),
+    })),
+  });
+  if (error) throw error;
+}
+
+export async function createPortfolioContractRevision(input: {
+  agreementId: string;
+  expectedContractId: string;
+  kind: 'property_addendum' | 'fee_replacement';
+  properties: Array<{ negotiation_id: string; original_sgr_contract_number: string }>;
+  terms?: Record<string, unknown>;
+}): Promise<void> {
+  const { error } = await client().rpc('create_portfolio_contract_revision', {
+    p_agreement_id: input.agreementId,
+    p_expected_contract_id: input.expectedContractId,
+    p_kind: input.kind,
+    p_properties: input.properties,
+    p_terms: input.terms || null,
   });
   if (error) throw error;
 }
@@ -178,8 +230,15 @@ export function partnershipContractErrorMessage(error: unknown): string {
   if (/Invalid SGR verification URL/i.test(message)) return 'Use somente o endereço oficial de consulta do SGR/COFECI.';
   if (/Edição do documento cancelada/i.test(message)) return message;
   if (/Active contract changed|Partnership changed|Amendment already in progress/i.test(message)) return 'A parceria foi atualizada. Recarregue os dados antes de continuar.';
+  if (/Portfolio contract changed|Another portfolio revision is in progress/i.test(message)) return 'O contrato de carteira mudou ou já tem uma revisão em andamento. Atualize a página.';
+  if (/Selected properties must have the same accepted terms|New property requires matching accepted terms/i.test(message)) return 'Os imóveis selecionados precisam ter os mesmos termos preliminares aceitos pelas duas partes.';
+  if (/Property already has a contract/i.test(message)) return 'Um dos imóveis já está vinculado a um contrato em andamento ou verificado.';
+  if (/Property addendum has no changes/i.test(message)) return 'Altere a seleção de imóveis antes de preparar o aditivo.';
+  if (/Fee replacement must change only the fee split|Fee replacement cannot change property scope/i.test(message)) return 'O novo contrato deve manter os mesmos imóveis e alterar somente a divisão dos honorários.';
+  if (/Incomplete contract evidence/i.test(message)) return 'Antes de aprovar, confira a ciência das duas partes, o contrato assinado, o comprovante e os registros coincidentes do SGR.';
   if (/Termination reason required/i.test(message)) return 'Informe um motivo com pelo menos 10 caracteres para o encerramento.';
   if (/Report reason required/i.test(message)) return 'Descreva o que precisa ser conferido usando pelo menos 10 caracteres.';
   if (/Parties cannot report their own listing/i.test(message)) return 'Captador e parceiro devem corrigir o anúncio diretamente, sem abrir um relato sobre a própria parceria.';
-  return message || 'Não foi possível concluir a etapa contratual.';
+  if (message) console.error('Erro na etapa contratual:', error);
+  return 'Não foi possível concluir a etapa contratual. Atualize a página e tente novamente.';
 }
