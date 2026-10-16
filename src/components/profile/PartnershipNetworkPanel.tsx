@@ -46,6 +46,7 @@ export const PartnershipNetworkPanel: React.FC = () => {
   const { addToast } = useApp();
   const [network, setNetwork] = useState<PartnershipNetworkState>(EMPTY_STATE);
   const [enabled, setEnabled] = useState(false);
+  const [notifyOpportunities, setNotifyOpportunities] = useState(false);
   const [acceptsSale, setAcceptsSale] = useState(true);
   const [acceptsRent, setAcceptsRent] = useState(true);
   const [acceptsLaunch, setAcceptsLaunch] = useState(false);
@@ -74,6 +75,7 @@ export const PartnershipNetworkPanel: React.FC = () => {
   const hydrate = (state: PartnershipNetworkState) => {
     setNetwork(state);
     setEnabled(state.member?.status === 'active');
+    setNotifyOpportunities(state.member?.notify_opportunities ?? false);
     setAcceptsSale(state.member?.accepts_sale ?? true);
     setAcceptsRent(state.member?.accepts_rent ?? true);
     setAcceptsLaunch(state.member?.accepts_launch ?? false);
@@ -150,7 +152,7 @@ export const PartnershipNetworkPanel: React.FC = () => {
     }
     setSaving(true);
     try {
-      const state = await saveMyPartnershipMembership({ enabled, acceptsSale, acceptsRent, acceptsLaunch, specialties, introduction, regions });
+      const state = await saveMyPartnershipMembership({ enabled, acceptsSale, acceptsRent, acceptsLaunch, specialties, introduction, regions, notifyOpportunities });
       hydrate(state);
       addToast({ type: 'success', title: enabled ? 'Participação atualizada' : 'Participação desativada', message: enabled ? 'Suas preferências e regiões foram salvas.' : 'Seu perfil deixou de aparecer para novas conexões.' });
     } catch (error) {
@@ -229,6 +231,7 @@ export const PartnershipNetworkPanel: React.FC = () => {
         <input type="checkbox" checked={enabled} disabled={!network.eligible || saving} onChange={event => setEnabled(event.target.checked)} className="mt-0.5 rounded text-indigo-600 focus:ring-indigo-500" />
         <span><strong className="block text-xs text-slate-900 dark:text-white">Quero participar da rede de parcerias</strong><span className="block text-[11px] text-slate-500 mt-0.5">Sua entrada permite ser encontrado e receber convites. Cada imóvel ainda exigirá oferta e contrato próprios.</span></span>
       </label>
+      <label className="flex items-start gap-3 rounded-2xl border border-indigo-200 bg-indigo-50/50 p-3 dark:border-indigo-900 dark:bg-indigo-950/20"><input type="checkbox" checked={notifyOpportunities} disabled={!network.eligible || saving} onChange={event => setNotifyOpportunities(event.target.checked)} className="mt-0.5 rounded text-indigo-600" /><span><strong className="block text-xs text-slate-900 dark:text-white">Avisar sobre novas oportunidades</strong><span className="block text-[11px] text-slate-500">Receba notificações quando um captador publicar uma oportunidade compatível com suas regiões e finalidades.</span></span></label>
 
       <fieldset disabled={!enabled || !network.eligible || saving} className="space-y-4 disabled:opacity-60">
         <div>

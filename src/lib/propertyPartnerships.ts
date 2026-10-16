@@ -129,6 +129,18 @@ export async function savePropertyPartnershipOffer(input: { propertyId: string; 
   return data as unknown as PropertyPartnershipWorkspace;
 }
 
+export async function publishPartnershipOpportunity(propertyId: string, terms: PartnershipTerms): Promise<PropertyPartnershipWorkspace> {
+  const { data, error } = await requireClient().rpc('publish_partnership_opportunity', { p_property_id: propertyId, p_terms: terms });
+  if (error) throw error;
+  return data as unknown as PropertyPartnershipWorkspace;
+}
+
+export async function requestPartnershipOpportunity(offerId: string): Promise<string> {
+  const { data, error } = await requireClient().rpc('request_partnership_opportunity', { p_offer_id: offerId });
+  if (error) throw error;
+  return String(data);
+}
+
 export async function getMyIncomingPartnershipOffers(): Promise<IncomingPartnershipOffer[]> {
   const { data, error } = await requireClient().rpc('get_my_incoming_partnership_offers');
   if (error) throw error;

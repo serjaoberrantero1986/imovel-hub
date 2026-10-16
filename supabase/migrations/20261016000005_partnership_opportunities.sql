@@ -40,12 +40,13 @@ begin
    and lower(trim(r.city)) = lower(trim(l.city))
    and (r.neighborhood is null or lower(trim(r.neighborhood)) = lower(trim(l.neighborhood)))
   where o.status = 'open'
+    and o.discovery_enabled = true
     and p.status = 'active'
     and o.captor_id <> v_uid
     and (nullif(trim(coalesce(p_city, '')), '') is null or lower(trim(l.city)) = lower(trim(p_city)))
     and (nullif(trim(coalesce(p_neighborhood, '')), '') is null or lower(trim(l.neighborhood)) = lower(trim(p_neighborhood)))
     and (nullif(trim(coalesce(p_purpose, '')), '') is null or lower(trim(p.purpose)) = lower(trim(p_purpose)))
-    and not exists (select 1 from public.property_partnership_negotiations n where n.offer_id = o.id);
+    and not exists (select 1 from public.property_partnership_negotiations n where n.offer_id = o.id and n.partner_id = v_uid and n.status not in ('declined','cancelled'));
 
   return v_result;
 end;

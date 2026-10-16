@@ -18,6 +18,7 @@ import {
   ResponsibleParty,
   respondPropertyPartnershipNegotiation,
   savePropertyPartnershipOffer,
+  publishPartnershipOpportunity,
 } from '../../lib/propertyPartnerships';
 import { formatCurrency } from '../../lib/utils';
 import { PartnershipContractPanel } from './PartnershipContractPanel';
@@ -93,6 +94,14 @@ export const PropertyPartnershipModal: React.FC<PropertyPartnershipModalProps> =
     } finally { setBusy(false); }
   };
 
+  const publishOpportunity = async () => {
+    if (!property || !validateTerms(terms)) { addToast({ type: 'warning', title: 'Confira os termos', message: 'Preencha os termos antes de publicar a oportunidade.' }); return; }
+    setBusy(true);
+    try { setWorkspace(await publishPartnershipOpportunity(property.id, terms)); addToast({ type: 'success', title: 'Oportunidade publicada', message: 'Profissionais elegíveis da região já poderão demonstrar interesse.' }); }
+    catch (error) { addToast({ type: 'error', title: 'Publicação não concluída', message: propertyPartnershipErrorMessage(error) }); }
+    finally { setBusy(false); }
+  };
+
   const respond = async (decision: 'accept' | 'decline' | 'counter') => {
     if (!selectedIncoming) return;
     if (decision === 'accept' && !acceptedDisclaimer) {
@@ -141,7 +150,7 @@ export const PropertyPartnershipModal: React.FC<PropertyPartnershipModalProps> =
     {loading ? <div className="py-14 flex items-center justify-center gap-2 text-sm text-slate-500"><Loader2 className="w-5 h-5 animate-spin" /> Carregando negociações...</div> : inbox ? (
       <IncomingOffersContent items={incoming} selected={selectedIncoming} onSelect={setSelectedIncomingId} counterTerms={counterTerms} setCounterTerms={setCounterTerms} acceptedDisclaimer={acceptedDisclaimer} setAcceptedDisclaimer={setAcceptedDisclaimer} busy={busy} onRespond={respond} />
     ) : workspace ? (
-      <OwnerOfferContent workspace={workspace} selectedPartners={selectedPartners} setSelectedPartners={setSelectedPartners} terms={terms} setTerms={setTerms} busy={busy} onSave={saveOffer} onCancelOffer={cancelOffer} ownerCounterId={ownerCounterId} ownerCounterTerms={ownerCounterTerms} onStartCounter={negotiation => { setOwnerCounterId(negotiation.id); setOwnerCounterTerms(structuredClone(negotiation.current_terms)); }} onCancelCounter={() => { setOwnerCounterId(null); setOwnerCounterTerms(null); }} onCounterTermsChange={setOwnerCounterTerms} onRespond={respondAsCaptor} />
+      <OwnerOfferContent workspace={workspace} selectedPartners={selectedPartners} setSelectedPartners={setSelectedPartners} terms={terms} setTerms={setTerms} busy={busy} onSave={saveOffer} onPublishOpportunity={publishOpportunity} onCancelOffer={cancelOffer} ownerCounterId={ownerCounterId} ownerCounterTerms={ownerCounterTerms} onStartCounter={negotiation => { setOwnerCounterId(negotiation.id); setOwnerCounterTerms(structuredClone(negotiation.current_terms)); }} onCancelCounter={() => { setOwnerCounterId(null); setOwnerCounterTerms(null); }} onCounterTermsChange={setOwnerCounterTerms} onRespond={respondAsCaptor} />
     ) : <EmptyMessage text="Não foi possível carregar este imóvel." />}
   </Modal>;
 };
@@ -149,12 +158,12 @@ export const PropertyPartnershipModal: React.FC<PropertyPartnershipModalProps> =
 const OwnerOfferContent: React.FC<{
   workspace: PropertyPartnershipWorkspace; selectedPartners: string[]; setSelectedPartners: React.Dispatch<React.SetStateAction<string[]>>;
   terms: PartnershipTerms; setTerms: (terms: PartnershipTerms) => void;
-  busy: boolean; onSave: () => void; onCancelOffer: () => void;
+  busy: boolean; onSave: () => void; onPublishOpportunity?: () => void; onCancelOffer: () => void;
   ownerCounterId: string | null; ownerCounterTerms: PartnershipTerms | null;
   onStartCounter: (negotiation: PropertyPartnershipNegotiation) => void; onCancelCounter: () => void;
   onCounterTermsChange: (terms: PartnershipTerms) => void;
   onRespond: (negotiation: PropertyPartnershipNegotiation, decision: 'accept' | 'decline' | 'counter') => void;
-}> = ({ workspace, selectedPartners, setSelectedPartners, terms, setTerms, busy, onSave, onCancelOffer, ownerCounterId, ownerCounterTerms, onStartCounter, onCancelCounter, onCounterTermsChange, onRespond }) => <div className="space-y-6">
+}> = ({ workspace, selectedPartners, setSelectedPartners, terms, setTerms, busy, onSave, onPublishOpportunity, onCancelOffer, ownerCounterId, ownerCounterTerms, onStartCounter, onCancelCounter, onCounterTermsChange, onRespond }) => <div className="space-y-6">
   <div className="rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 p-4 flex flex-wrap justify-between gap-3"><div><strong className="block text-sm text-slate-900 dark:text-white">{workspace.property.title}</strong><span className="text-xs text-slate-500">#{workspace.property.code} · {workspace.property.status}</span></div><span className="self-start px-3 py-1 rounded-full bg-indigo-100 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 text-xs font-bold">{workspace.offer ? 'Oferta em andamento' : 'Nova oferta'}</span></div>
 
   <section className="space-y-3"><div><h4 className="text-sm font-extrabold text-slate-900 dark:text-white">Destinatários</h4><p className="text-[11px] text-slate-500">Somente conexões aceitas, com CRECI-SP válido, interesse nessa finalidade e atuação na cidade ou no bairro do imóvel aparecem aqui.</p></div>
@@ -163,6 +172,7 @@ const OwnerOfferContent: React.FC<{
   </section>
 
   <TermsEditor value={terms} onChange={setTerms} />
+  <button type="button" disabled={busy} onClick={() => onPublishOpportunity?.()} className="w-full rounded-2xl border border-indigo-200 px-5 py-3 text-xs font-bold text-indigo-700">Publicar em Oportunidades de Parcerias</button>
   <div className="rounded-2xl border border-amber-200 dark:border-amber-900 bg-amber-50 dark:bg-amber-950/30 p-4 text-xs text-amber-900 dark:text-amber-200"><strong className="block mb-1">Etapa preliminar</strong>O envio registra uma proposta versionada, mas não autoriza divulgação nem compartilhamento de leads. Isso dependerá do contrato assinado e da comprovação exigida.</div>
   <div className="flex flex-wrap justify-end gap-2">{workspace.offer && <button type="button" disabled={busy} onClick={onCancelOffer} className="px-4 py-3 rounded-2xl bg-rose-50 dark:bg-rose-950/30 text-rose-700 dark:text-rose-300 text-xs font-bold">Cancelar oferta</button>}<button type="button" disabled={busy || workspace.available_partners.length === 0} onClick={onSave} className="px-5 py-3 rounded-2xl bg-gradient-to-r from-rose-600 to-orange-500 text-white text-xs font-bold disabled:opacity-50 flex items-center gap-2">{busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />} Enviar oferta versionada</button></div>
 

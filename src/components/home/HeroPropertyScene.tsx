@@ -1,6 +1,6 @@
 import type { VisualPortalConfiguration } from '../../lib/visualPortalEditor';
 import React, { useEffect, useId, useMemo, useRef, useState } from 'react';
-import { ChevronRight, Home, Star } from 'lucide-react';
+import { ChevronRight, Handshake, Home, Star } from 'lucide-react';
 import { Property } from '../../types';
 import { formatCurrency } from '../../lib/utils';
 import './hero-scene.css';
@@ -189,6 +189,9 @@ export function HeroPropertyScene({ properties, onOpenProperty, getTypeLabel, va
                   )}
                   {property.featured && (
                     <span className="hero-property-featured"><Star size={12} fill="currentColor" aria-hidden="true" /> Destaque</span>
+                  )}
+                  {property.partnership && (
+                    <span className="hero-property-partnership"><Handshake size={12} aria-hidden="true" /> Parceria</span>
                   )}
                 </span>
                 <span className="hero-property-info">

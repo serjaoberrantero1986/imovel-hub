@@ -17,6 +17,7 @@ export interface PartnershipMember {
   introduction: string | null;
   joined_at: string;
   updated_at: string;
+  notify_opportunities: boolean;
 }
 
 export interface PartnershipProfessional {
@@ -61,6 +62,7 @@ export interface PartnershipMembershipInput {
   specialties: PartnershipSpecialty[];
   introduction: string;
   regions: Array<Pick<PartnershipRegion, 'city' | 'neighborhood'>>;
+  notifyOpportunities: boolean;
 }
 
 export type PartnershipSpecialty = 'capture' | 'marketing' | 'visits' | 'negotiation' | 'documents' | 'closing';
@@ -89,6 +91,7 @@ export async function saveMyPartnershipMembership(input: PartnershipMembershipIn
       city: region.city.trim(),
       neighborhood: region.neighborhood?.trim() || null,
     })),
+    p_notify_opportunities: input.notifyOpportunities,
   });
   if (error) throw error;
   return data as unknown as PartnershipNetworkState;
