@@ -27,9 +27,12 @@ export async function getSpMunicipalities(): Promise<SpMunicipality[]> {
   return municipalities;
 }
 
-export async function getRegisteredSpNeighborhoods(city: string): Promise<string[]> {
+export async function getOfficialSpNeighborhoods(city: string): Promise<string[]> {
   if (!supabase) throw new Error('Serviço indisponível.');
-  const { data, error } = await supabase.rpc('get_partnership_region_neighborhoods', { p_city: city });
+  const { data, error } = await supabase.rpc('get_partnership_official_sp_neighborhoods', { p_city: city });
   if (error) throw error;
   return Array.isArray(data) ? data.filter((item): item is string => typeof item === 'string') : [];
 }
+
+/** @deprecated Use getOfficialSpNeighborhoods after the official catalog migration. */
+export const getRegisteredSpNeighborhoods = getOfficialSpNeighborhoods;

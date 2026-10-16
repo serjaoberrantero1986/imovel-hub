@@ -20,7 +20,8 @@ import {
 } from '../../lib/partnershipNetwork';
 import { UserAvatar } from '../ui/UserAvatar';
 import { Modal } from '../ui/Modal';
-import { getRegisteredSpNeighborhoods, getSpMunicipalities, SpMunicipality } from '../../lib/partnershipLocations';
+import { getOfficialSpNeighborhoods, getSpMunicipalities, SpMunicipality } from '../../lib/partnershipLocations';
+import { OfficialRegionSelect } from './OfficialRegionSelect';
 
 const EMPTY_STATE: PartnershipNetworkState = { eligible: false, member: null, regions: [], connections: [] };
 
@@ -100,12 +101,14 @@ export const PartnershipNetworkPanel: React.FC = () => {
   }, [addToast]);
 
   const selectedMunicipality = useMemo(() => municipalities.find(item => item.name.toLocaleLowerCase('pt-BR') === normalizeArea(city).toLocaleLowerCase('pt-BR')), [municipalities, city]);
+  const municipalityOptions = useMemo(() => municipalities.map(item => ({ key: item.id, value: item.name, label: item.name })), [municipalities]);
+  const neighborhoodOptions = useMemo(() => neighborhoods.map(item => ({ value: item, label: item })), [neighborhoods]);
 
   useEffect(() => {
     if (!selectedMunicipality) { setNeighborhoods([]); setNeighborhoodsLoading(false); return; }
     let active = true;
     setNeighborhoodsLoading(true);
-    void getRegisteredSpNeighborhoods(selectedMunicipality.name)
+    void getOfficialSpNeighborhoods(selectedMunicipality.name)
       .then(items => { if (active) setNeighborhoods(items); })
       .catch(() => { if (active) { setNeighborhoods([]); addToast({ type: 'error', title: 'Bairros indisponíveis', message: 'Não foi possível consultar os bairros cadastrados nesta cidade.' }); } })
       .finally(() => { if (active) setNeighborhoodsLoading(false); });
@@ -244,10 +247,10 @@ export const PartnershipNetworkPanel: React.FC = () => {
         </div>
 
         <div className="space-y-3">
-          <div><span className="block text-xs font-bold text-slate-700 dark:text-slate-300">Regiões de atuação em São Paulo</span><span className="text-[11px] text-slate-500">Escolha um município da lista oficial. Os bairros sugeridos vêm dos imóveis cadastrados; deixe o bairro vazio para atender a cidade inteira.</span></div>
+          <div><span className="block text-xs font-bold text-slate-700 dark:text-slate-300">Regiões de atuação em São Paulo</span><span className="text-[11px] text-slate-500">Escolha um município oficial. Digite para filtrar e selecione uma opção; o bairro é opcional e nunca pode ser criado manualmente.</span></div>
           <div className="grid grid-cols-1 sm:grid-cols-[1fr_1fr_auto] gap-2">
-            <div><input list="partnership-sp-municipalities" value={city} maxLength={100} disabled={municipalitiesLoading || municipalities.length === 0} onChange={event => { setCity(event.target.value); setNeighborhood(''); }} placeholder={municipalitiesLoading ? 'Carregando municípios...' : 'Busque um município'} aria-label="Município de atuação" className="w-full px-3.5 py-2.5 rounded-2xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-xs disabled:opacity-60" /><datalist id="partnership-sp-municipalities">{municipalities.map(item => <option key={item.id} value={item.name} />)}</datalist></div>
-            <div><input list="partnership-sp-neighborhoods" value={neighborhood} maxLength={100} disabled={!selectedMunicipality || neighborhoodsLoading || neighborhoods.length === 0} onChange={event => setNeighborhood(event.target.value)} placeholder={neighborhoodsLoading ? 'Carregando bairros...' : neighborhoods.length ? 'Busque um bairro (opcional)' : 'Sem bairros cadastrados'} aria-label="Bairro de atuação (opcional)" className="w-full px-3.5 py-2.5 rounded-2xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-xs disabled:opacity-60" /><datalist id="partnership-sp-neighborhoods">{neighborhoods.map(item => <option key={item} value={item} />)}</datalist></div>
+            <OfficialRegionSelect value={selectedMunicipality?.name || ''} options={municipalityOptions} onChange={value => { setCity(value); setNeighborhood(''); }} disabled={municipalitiesLoading || municipalities.length === 0} loading={municipalitiesLoading} placeholder={municipalitiesLoading ? 'Carregando municípios...' : 'Busque um município'} ariaLabel="Município de atuação" emptyLabel="Município não encontrado" />
+            <OfficialRegionSelect value={neighborhood} options={neighborhoodOptions} onChange={setNeighborhood} disabled={!selectedMunicipality || neighborhoodsLoading || neighborhoods.length === 0} loading={neighborhoodsLoading} placeholder={neighborhoodsLoading ? 'Carregando bairros...' : neighborhoods.length ? 'Busque um bairro (opcional)' : 'Sem bairros oficiais disponíveis'} ariaLabel="Bairro de atuação (opcional)" emptyLabel="Bairro não encontrado" />
             <button type="button" disabled={!selectedMunicipality || neighborhoodsLoading} onClick={addRegion} className="px-4 py-2.5 rounded-2xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-xs font-bold flex items-center justify-center gap-1 disabled:opacity-50"><Plus className="w-4 h-4" /> Adicionar</button>
           </div>
           <div className="flex flex-wrap gap-2">

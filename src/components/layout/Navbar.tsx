@@ -15,7 +15,8 @@ import {
   Hash,
   ArrowRight,
   RefreshCw,
-  ShieldCheck
+  ShieldCheck,
+  Handshake
 } from 'lucide-react';
 import { useApp, useCatalog } from '../../context/AppContext';
 import { EditableImage } from '../visual-editor/PortalCanvas';
@@ -165,6 +166,19 @@ export const Navbar: React.FC = () => {
               )}
             </button>
 
+            {/* Partnership opportunities */}
+            {(currentUser?.role === 'broker' || currentUser?.role === 'agency') && (
+              <button
+                id="btn-partnership-opportunities-nav"
+                onClick={() => handleNavigate('crm_leads')}
+                title="Oportunidades de Parcerias"
+                aria-label="Oportunidades de Parcerias"
+                className={`relative w-8 h-8 sm:w-10 sm:h-10 p-0 flex items-center justify-center rounded-xl border transition-colors cursor-pointer shrink-0 ${currentView === 'crm_leads' ? 'text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/40 border-indigo-200 dark:border-indigo-800' : 'text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
+              >
+                <Handshake className="w-4 h-4 sm:w-5 sm:h-5" />
+              </button>
+            )}
+
             {/* Favorites button */}
             <button
               id="btn-favorites-nav"
@@ -282,6 +296,14 @@ export const Navbar: React.FC = () => {
               <span>Mapa</span>
             </button>
           </div>
+
+          {(currentUser?.role === 'broker' || currentUser?.role === 'agency') && <button
+            id="mobile-partnership-opportunities"
+            onClick={() => handleNavigate('crm_leads')}
+            className="w-full min-h-[44px] py-2.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 text-sm font-bold text-indigo-700 dark:text-indigo-300 flex items-center justify-center gap-2"
+          >
+            <Handshake className="w-4 h-4" /> Oportunidades de Parcerias
+          </button>}
 
           <button
             id="mobile-legal-btn"
