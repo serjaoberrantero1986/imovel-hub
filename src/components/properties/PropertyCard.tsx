@@ -11,7 +11,8 @@ import {
   ChevronRight, 
   Sparkles,
   ShieldCheck,
-  Eye
+  Eye,
+  Handshake
 } from 'lucide-react';
 import { Property } from '../../types';
 import { useApp } from '../../context/AppContext';
@@ -124,6 +125,11 @@ export const PropertyCard: React.FC<PropertyCardProps> = ({
                 <span>Destaque</span>
               </span>
             )}
+            {property.partnership && (
+              <span className="text-[11px] font-bold px-2 py-1 rounded-lg bg-violet-600 text-white flex items-center gap-1 shadow-md">
+                <Handshake className="w-3 h-3" /><span>Parceria</span>
+              </span>
+            )}
             {property.isExclusive && (
               <span className="text-[11px] font-bold px-2 py-1 rounded-lg bg-indigo-900/90 text-indigo-100 border border-indigo-500/40 backdrop-blur-md">
                 Exclusivo
@@ -225,6 +231,7 @@ export const PropertyCard: React.FC<PropertyCardProps> = ({
           <h3 className="text-base font-bold text-slate-900 dark:text-white line-clamp-1 group-hover:text-rose-600 dark:group-hover:text-rose-400 transition-colors font-['Outfit']">
             {property.title}
           </h3>
+          {property.partnership && <p className="mt-1 text-[10px] text-violet-700 dark:text-violet-300 font-semibold line-clamp-2">Captado por {property.partnership.captor.name} · CRECI {property.partnership.captor.creci}/SP</p>}
         </div>
 
         {/* Specs Grid */}

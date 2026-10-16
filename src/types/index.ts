@@ -100,6 +100,14 @@ export interface Property {
   type: PropertyType;
   status: PropertyStatus;
   featured: boolean;
+  partnership?: {
+    id: string;
+    contractVersionId: string;
+    captor: { profileId: string; name: string; creci: string; creciUf: 'SP' };
+    partner: { profileId: string; name: string; creci: string; creciUf: 'SP' };
+    propertyUpdatedAt: string;
+    notice: string;
+  };
   isExclusive?: boolean;
   price: number;
   pricePerMeter?: number;
@@ -232,6 +240,7 @@ export interface Lead {
   propertyPrice: number;
   propertyImage?: string;
   advertiserId: string;
+  partnershipId?: string;
   
   // Dados Pessoais & Contato
   buyerName: string;

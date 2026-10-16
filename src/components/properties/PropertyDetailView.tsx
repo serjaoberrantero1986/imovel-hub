@@ -24,7 +24,8 @@ import {
   X,
   Send,
   Sparkles,
-  Video
+  Video,
+  Handshake
 } from 'lucide-react';
 import { useApp, useCatalog } from '../../context/AppContext';
 import { formatCurrency, formatArea, formatDateTime } from '../../lib/utils';
@@ -35,6 +36,7 @@ import { verifyHoneypot, sanitizeHtml, auditService } from '../../lib/security';
 import { SwipeableImageGallery } from './SwipeableImageGallery';
 import { PropertyLeadContactForm } from './PropertyLeadContactForm';
 import { UserAvatar } from '../ui/UserAvatar';
+import { PartnerListingReportModal } from './PartnerListingReportModal';
 
 const PENDING_PROPERTY_CONTACT_KEY = 'imovelhub_pending_property_contact';
 const PENDING_PROPERTY_CONTACT_MAX_AGE = 24 * 60 * 60 * 1000;
@@ -77,6 +79,7 @@ export const PropertyDetailView: React.FC = () => {
 
   // Gallery modal / lightbox state
   const [galleryModalOpen, setGalleryModalOpen] = useState(false);
+  const [partnerReportOpen, setPartnerReportOpen] = useState(false);
   const [activePhotoIdx, setActivePhotoIdx] = useState(0);
 
   // Lead Form State
@@ -211,6 +214,7 @@ export const PropertyDetailView: React.FC = () => {
         propertyPrice: property.price,
         propertyImage: property.media[0]?.thumbnailUrl || property.media[0]?.url,
         advertiserId: property.userId,
+        partnershipId: property.partnership?.id,
         buyerName: sanitizeHtml(leadName),
         buyerEmail: isEmailValid ? sanitizeHtml(leadEmail) : (currentUser?.email || 'contato.portal@cliente.com.br'),
         buyerPhone: hasValidPhone ? sanitizeHtml(leadPhone) : (currentUser?.phone || leadPhone || 'Não informado'),
@@ -269,6 +273,7 @@ export const PropertyDetailView: React.FC = () => {
       propertyPrice: property.price,
       propertyImage: property.media[0]?.thumbnailUrl || property.media[0]?.url,
       advertiserId: property.userId,
+      partnershipId: property.partnership?.id,
       buyerName: sanitizeHtml(leadName),
       buyerEmail: isEmailValid ? sanitizeHtml(leadEmail) : (currentUser?.email || 'contato.portal@cliente.com.br'),
       buyerPhone: hasValidPhone ? sanitizeHtml(leadPhone) : (currentUser?.phone || leadPhone || 'Não informado'),
@@ -358,6 +363,7 @@ export const PropertyDetailView: React.FC = () => {
                 <span>Em Destaque</span>
               </span>
             )}
+            {property.partnership && <span className="text-xs font-bold px-2.5 py-1 rounded bg-violet-600 text-white flex items-center gap-1"><Handshake className="w-3.5 h-3.5" /><span>Parceria</span></span>}
           </div>
 
           <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white font-['Outfit'] tracking-tight">
@@ -368,6 +374,7 @@ export const PropertyDetailView: React.FC = () => {
             <MapPin className="w-4 h-4 text-rose-500 shrink-0" />
             <span>{locationLabel}</span>
           </div>
+          {property.partnership && <div className="rounded-2xl border border-violet-200 dark:border-violet-900 bg-violet-50/70 dark:bg-violet-950/20 p-4 text-xs text-slate-700 dark:text-slate-300"><strong className="flex items-center gap-2 text-violet-800 dark:text-violet-200 mb-2"><Handshake className="w-4 h-4" /> Imóvel divulgado em parceria</strong><p>Captador responsável pelas informações: <b>{property.partnership.captor.name}</b>, CRECI {property.partnership.captor.creci}/SP.</p><p>Atendimento neste portal: <b>{property.partnership.partner.name}</b>, CRECI {property.partnership.partner.creci}/SP.</p><p className="mt-1 text-[11px] text-slate-500">{property.partnership.notice} Atualizado em {new Date(property.partnership.propertyUpdatedAt).toLocaleString('pt-BR')}.</p><button type="button" onClick={()=>{if(!isAuthenticated||currentUser?.id==='guest_buyer'){openAuthModal('login');return;}setPartnerReportOpen(true);}} className="mt-2 text-[11px] font-bold text-violet-700 dark:text-violet-300 underline underline-offset-2">Comunicar informação desatualizada</button></div>}
         </div>
 
         {/* Touch & Desktop Swipeable Photo Gallery */}
@@ -775,6 +782,8 @@ export const PropertyDetailView: React.FC = () => {
           </div>
         </div>
       )}
+
+      {property.partnership && <PartnerListingReportModal property={property} isOpen={partnerReportOpen} onClose={()=>setPartnerReportOpen(false)} />}
 
       {/* Sticky Mobile Contact Actions Bar (Above Mobile Nav) */}
       <div className="lg:hidden fixed bottom-14 left-0 right-0 z-30 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border-t border-slate-200 dark:border-slate-800 px-4 py-2.5 shadow-[0_-4px_20px_rgba(0,0,0,0.1)] flex items-center justify-between gap-3 safe-bottom-fixed">

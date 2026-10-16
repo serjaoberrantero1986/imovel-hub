@@ -1,0 +1,5 @@
+import fs from 'node:fs';
+const m=fs.readFileSync('supabase/migrations/20261012000012_partnership_deal_outcomes.sql','utf8');
+const c=[['resultado ligado à parceria e contrato',/partnership_id uuid[\s\S]*contract_version_id uuid[\s\S]*property_id uuid/.test(m)],['lead opcional vinculado',/lead_id uuid references public\.leads/.test(m)],['resultados controlados',/outcome text not null check\(outcome in\('won_sale','won_rent','lost','withdrawn','pending_documentation','no_agreement'\)\)/.test(m)],['MFA obrigatório',/record_partnership_deal_outcome[\s\S]*require_partnership_aal2\(\)/.test(m)],['sem custódia financeira',!/amount|payment|escrow|commission_value/i.test(m)],['evidência por hash',/evidence_hash text/.test(m)],['registro imutável',/before update or delete/.test(m)],['RPC sem acesso anônimo',/revoke all on function public\.record_partnership_deal_outcome[\s\S]*from public,anon/.test(m)]];
+for(const [n,ok] of c){if(!ok){console.error(`✗ ${n}`);process.exitCode=1}else console.log(`✓ ${n}`)}
+if(!process.exitCode)console.log(`\n${c.length} verificações de negociação passaram.`);

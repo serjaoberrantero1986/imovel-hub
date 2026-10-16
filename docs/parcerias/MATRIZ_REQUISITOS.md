@@ -27,18 +27,18 @@ Estados: `pendente`, `em_execucao`, `implementado_local`, `migration_aplicada`, 
 | CTR-002 | Assinatura eletrônica avançada ou superior | 3 | validação do provedor/SGR | bloqueado_externo |
 | CTR-003 | Comprovação do SGR antes da ativação | 3 | identificador, documento e regra server-side | bloqueado_externo |
 | CTR-004 | Alteração cria aditivo/nova versão | 3 | histórico imutável e testes | implementado_local |
-| CTR-005 | Encerramento preserva atribuições anteriores | 3 | regra de lead e teste temporal | em_execucao |
+| CTR-005 | Encerramento preserva atribuições anteriores | 3 | regra de lead e teste temporal | implementado_local |
 | DST-001 | Imóvel único, sem duplicação por portal | 4 | consulta tenant baseada em permissão ativa | implementado_local |
 | DST-002 | Selo Parceria em cards | 4 | componente compartilhado e teste visual | implementado_local |
 | DST-003 | Captador e parceiro identificados | 4 | card e detalhe com nome/CRECI-SP | implementado_local |
 | DST-004 | Atualização sincronizada pelo captador | 4 | consultas apontam ao registro original | implementado_local |
 | DST-005 | Retirada imediata por status ou contrato | 4 | consulta pública e testes negativos | implementado_local |
 | DST-006 | Comunicar informação desatualizada | 4 | formulário, notificação e auditoria | implementado_local |
-| LED-001 | Lead atribuído ao portal parceiro de origem | 5 | origem imutável e testes | pendente |
-| LED-002 | Captador recebe dados mínimos inicialmente | 5 | projeção/RPC segura | pendente |
-| LED-003 | Liberação progressiva de dados | 5 | estados, RLS e log de acesso | pendente |
-| LED-004 | Tratamento de duplicidade | 5 | eventos e contestação, sem adjudicação automática | pendente |
-| LED-005 | Exportação em massa bloqueada | 5 | ausência de privilégio/RPC e teste | pendente |
+| LED-001 | Lead atribuído ao portal parceiro de origem | 5 | origem imutável e testes | implementado_local |
+| LED-002 | Captador recebe dados mínimos inicialmente | 5 | projeção/RPC segura | implementado_local |
+| LED-003 | Liberação progressiva de dados | 5 | estados, RLS e log de acesso | implementado_local |
+| LED-004 | Tratamento de duplicidade | 5 | eventos e contestação, sem adjudicação automática | em_execucao |
+| LED-005 | Exportação em massa bloqueada | 5 | ausência de privilégio/RPC e teste | implementado_local |
 | VIS-001 | Agendamento e confirmação do interessado | 6 | fluxo com OTP e estados | pendente |
 | VIS-002 | Check-in geolocalizado pontual | 6 | permissão explícita, coordenada, precisão e hora do servidor | pendente |
 | VIS-003 | Check-out opcional e pontual | 6 | evento separado | pendente |
@@ -90,4 +90,12 @@ Nenhuma entrega pode alterar um estado para `implementado_local` sem listar os a
 - O carregador consulta referências em lotes e anexa somente metadados de parceria; preço, fotos, descrição e disponibilidade continuam vindo do imóvel original.
 - `DST-006`: usuário autenticado pode sinalizar informação desatualizada; o relato privado é auditável, limitado por usuário/imóvel/dia e notifica captador e parceiro sem alterar automaticamente o anúncio.
 - Validações locais: TypeScript, build e `test-partner-distribution.mjs`. O comportamento real em dois subdomínios depende da aplicação das migrations e de uma parceria formalmente ativada em produção.
+
+## Evidências da Fase 5
+
+- `LED-001`: `20261012000007_partnership_lead_protection.sql` vincula cada contato ao imóvel, parceria, contrato vigente, portal parceiro e evento de contato, preservando snapshots e horário.
+- `LED-002` e `LED-003`: o parceiro de origem recebe o lead no CRM; o captador recebe resumo sem PII e solicita campos individualmente, com finalidade, MFA, decisão do parceiro e auditoria de cada consulta.
+- `LED-005`: tabelas privadas não concedem leitura direta; o resumo é paginado em até 50 registros e os detalhes só saem por RPC vinculada a uma autorização aprovada.
+- A possível duplicidade usa fingerprint SHA-256 e é apenas sinalizada, sem definir direito a honorários. `LED-004` permanece em execução até existir contestação formal com respostas imutáveis.
+- `CTR-005` passa a implementado local porque as atribuições apontam para a parceria com `ON DELETE RESTRICT` e sobrevivem ao término da vigência.
 

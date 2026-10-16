@@ -1,0 +1,3 @@
+import {supabase} from './supabaseClient';
+export type PartnershipDealOutcome='won_sale'|'won_rent'|'lost'|'withdrawn'|'pending_documentation'|'no_agreement';
+export async function recordPartnershipDealOutcome(partnershipId:string,leadId:string|undefined,outcome:PartnershipDealOutcome,note?:string,evidenceHash?:string){if(!supabase)throw new Error('Serviço indisponível.');const {data,error}=await (supabase as any).rpc('record_partnership_deal_outcome',{p_partnership_id:partnershipId,p_lead_id:leadId||null,p_outcome:outcome,p_note:note?.trim()||null,p_evidence_hash:evidenceHash||null});if(error)throw error;return data as string;}

@@ -23,7 +23,8 @@ export function mapDbPropertyToApp(
   location?: any,
   images: any[] = [],
   features: string[] = [],
-  advertiserProfile?: any
+  advertiserProfile?: any,
+  partnershipData?: any
 ): Property {
   const media: PropertyMedia[] = images
     .sort((a, b) => {
@@ -101,6 +102,14 @@ export function mapDbPropertyToApp(
     type: dbProp.type,
     status: dbProp.status,
     featured: dbProp.featured,
+    partnership: partnershipData ? {
+      id: partnershipData.id,
+      contractVersionId: partnershipData.contract_version_id,
+      captor: { profileId: partnershipData.captor.profile_id, name: partnershipData.captor.name, creci: partnershipData.captor.creci, creciUf: partnershipData.captor.creci_uf },
+      partner: { profileId: partnershipData.partner.profile_id, name: partnershipData.partner.name, creci: partnershipData.partner.creci, creciUf: partnershipData.partner.creci_uf },
+      propertyUpdatedAt: partnershipData.property_updated_at,
+      notice: partnershipData.notice,
+    } : undefined,
     isExclusive: dbProp.is_exclusive,
     price: Number(dbProp.price),
     pricePerMeter: dbProp.useful_area > 0 ? Math.round(Number(dbProp.price) / Number(dbProp.useful_area)) : undefined,
@@ -150,21 +159,34 @@ export function mapDbPropertyToApp(
 export async function fetchPropertiesFromSupabase(ownerProfileId?: string): Promise<Property[] | null> {
   if (!supabase) return null;
   try {
-    let query = supabase
-      .from('properties')
-      .select(`
+    const selection = `
         *,
         property_locations (*),
         property_public_locations (*),
         property_images (*),
         property_features (*)
-      `);
-    if (ownerProfileId) query = query.eq('user_id', ownerProfileId);
-    const { data: dbProperties, error } = await query.order('created_at', { ascending: false });
-
-    if (error) {
-      console.warn('Supabase fetch properties error:', error);
-      return null;
+      `;
+    let dbProperties: any[] = [];
+    const partnershipMap = new Map<string, any>();
+    if (ownerProfileId) {
+      const { data: inventory, error: inventoryError } = await supabase.rpc('get_portal_property_inventory', { p_portal_owner_id: ownerProfileId });
+      if (inventoryError) { console.warn('Supabase portal inventory error:', inventoryError); return null; }
+      const rows = (inventory || []) as Array<{ property_id: string; source: string; partnership?: any }>;
+      rows.filter(row => row.source === 'partnership' && row.partnership).forEach(row => partnershipMap.set(row.property_id, row.partnership));
+      const { data: owned, error: ownedError } = await supabase.from('properties').select(selection).eq('user_id', ownerProfileId).order('created_at', { ascending: false });
+      if (ownedError) { console.warn('Supabase owner properties error:', ownedError); return null; }
+      dbProperties = owned || [];
+      const ownedIds = new Set(dbProperties.map(item => item.id));
+      const partnerIds = rows.filter(row => row.source === 'partnership' && !ownedIds.has(row.property_id)).map(row => row.property_id);
+      for (let index = 0; index < partnerIds.length; index += 100) {
+        const { data: partnered, error: partneredError } = await supabase.from('properties').select(selection).in('id', partnerIds.slice(index,index+100)).order('created_at', { ascending: false });
+        if (partneredError) { console.warn('Supabase partner properties error:', partneredError); return null; }
+        dbProperties.push(...(partnered || []));
+      }
+    } else {
+      const { data, error } = await supabase.from('properties').select(selection).order('created_at', { ascending: false });
+      if (error) { console.warn('Supabase fetch properties error:', error); return null; }
+      dbProperties = data || [];
     }
 
     if (!dbProperties || dbProperties.length === 0) {
@@ -196,7 +218,7 @@ export async function fetchPropertiesFromSupabase(ownerProfileId?: string): Prom
       const images = p.property_images || [];
       const features = (p.property_features || []).map((f: any) => f.feature_id || f);
       const profile = profilesMap[p.user_id];
-      return mapDbPropertyToApp(p, location, images, features, profile);
+      return mapDbPropertyToApp(p, location, images, features, profile, partnershipMap.get(p.id));
     });
   } catch (err) {
     console.warn('Network error reading from Supabase properties:', err);
@@ -695,7 +717,8 @@ export async function insertLeadToSupabase(lead: Lead): Promise<LeadSubmissionRe
       p_email: lead.buyerEmail || null,
       p_phone: lead.buyerPhone || null,
       p_message: lead.message,
-      p_origin: lead.origin === 'schedule_visit' ? 'schedule_visit' : 'portal_form'
+      p_origin: lead.origin === 'schedule_visit' ? 'schedule_visit' : 'portal_form',
+      p_partnership_id: lead.partnershipId || null
     });
     if (error) {
       console.warn('Supabase contact submission error:', error.message);

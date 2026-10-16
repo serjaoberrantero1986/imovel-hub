@@ -14,7 +14,8 @@ const required=[
  '20261012000009_partnership_visit_disputes.sql',
  '20261012000010_admin_partnership_overview.sql',
  '20261012000011_partnership_visit_otp_delivery.sql',
- '20261012000012_partnership_deal_outcomes.sql'
+ '20261012000012_partnership_deal_outcomes.sql',
+ '20261012000013_partnership_visit_workspace.sql'
 ];
 const checks=[];
 for(const file of required){const full=path.join(migrationDir,file);checks.push([`migration presente: ${file}`,fs.existsSync(full)]);}
