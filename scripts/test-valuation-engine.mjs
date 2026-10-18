@@ -1,0 +1,11 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {haversineMeters,canonicalListingUrl,deduplicateListings,evaluateComparable,auditComparables} from '../src/lib/valuation/engine.mjs';
+const subject={propertyType:'house',builtArea:109.82,landArea:125,condominium:false,coordinates:{lat:-23.649655,lng:-47.5820868},coordinateQuality:'property'};
+const sample={id:'a',source:'Imobiliária',publisher:'XYZ',sourceListingId:'8',propertyType:'house',builtArea:110,landArea:125,bedrooms:3,bathrooms:2,condominium:false,availability:'active',askingPrice:250000,coordinateQuality:'property',coordinates:subject.coordinates,marketZoneVerified:true,reviewedByBroker:true};
+test('distância exata e posição ausente',()=>{assert.equal(haversineMeters(subject.coordinates,subject.coordinates),0);assert.equal(haversineMeters(subject.coordinates,null),null);assert.equal(haversineMeters({lat:120,lng:0},subject.coordinates),null);});
+test('link canônico remove parâmetros de rastreio',()=>{assert.equal(canonicalListingUrl('https://www.example.com/anuncio/8/?utm_source=mail&fbclid=abc'),'example.com/anuncio/8');assert.equal(canonicalListingUrl('javascript:alert(1)'),null);});
+test('códigos do mesmo publicador identificam anúncio duplicado',()=>{assert.equal(deduplicateListings([sample,{...sample,id:'b',listingUrl:'https://outra.com/123'}])[1].duplicateOf,'a');});
+test('revisão exige posição predial, dados e mercado homogêneo',()=>{assert.equal(evaluateComparable(subject,sample).status,'aceito');assert.equal(evaluateComparable(subject,{...sample,coordinateQuality:'street'}).status,'pendente');assert.equal(evaluateComparable(subject,{...sample,marketZoneVerified:false}).status,'pendente');assert.equal(evaluateComparable(subject,{...sample,reviewedByBroker:false}).status,'pendente');});
+test('incompatibilidade de tipologia e múltiplas unidades são rejeitadas',()=>{assert.equal(evaluateComparable(subject,{...sample,propertyType:'land'}).status,'rejeitado');assert.equal(evaluateComparable(subject,{...sample,multiUnit:true}).status,'rejeitado');});
+test('preço monetário permanece bloqueado independentemente da amostra',()=>{const r=auditComparables(subject,[sample]);assert.equal(r.stages[0].accepted,1);assert.equal(r.valuation.enabled,false);assert.equal(r.valuation.value,null);});
