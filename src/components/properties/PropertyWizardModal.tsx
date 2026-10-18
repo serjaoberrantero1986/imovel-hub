@@ -436,7 +436,8 @@ export const PropertyWizardModal: React.FC = () => {
       neighborhood: neighborhood.trim(),
       addressStreet: addressStreet.trim(),
       latitude: finalLat,
-      longitude: finalLng
+      longitude: finalLng,
+      coordinateQuality
     });
 
     const propertyData = {
