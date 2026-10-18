@@ -17,6 +17,7 @@ export interface ValuationAssessment {
   land_area: number | null;
   built_area: number | null;
   bedrooms: number | null;
+  suites: number | null;
   bathrooms: number | null;
   parking_spots: number | null;
   condominium: boolean;
@@ -42,6 +43,7 @@ export interface ValuationComparable {
   land_area: number | null;
   built_area: number | null;
   bedrooms: number | null;
+  suites: number | null;
   bathrooms: number | null;
   parking_spots: number | null;
   condominium: boolean | null;
@@ -61,13 +63,13 @@ export interface ValuationComparable {
 
 export type ValuationAssessmentInput = Pick<ValuationAssessment,
   'title' | 'property_type' | 'state' | 'city' | 'neighborhood' | 'street' | 'street_number' |
-  'land_area' | 'built_area' | 'bedrooms' | 'bathrooms' | 'parking_spots' | 'condominium' |
+  'land_area' | 'built_area' | 'bedrooms' | 'suites' | 'bathrooms' | 'parking_spots' | 'condominium' |
   'latitude' | 'longitude' | 'coordinate_quality' | 'notes'
 >;
 
 export type ValuationComparableInput = Pick<ValuationComparable,
   'source_type' | 'source_name' | 'listing_url' | 'listing_reference' | 'property_type' |
-  'asking_price' | 'land_area' | 'built_area' | 'bedrooms' | 'bathrooms' | 'parking_spots' |
+  'asking_price' | 'land_area' | 'built_area' | 'bedrooms' | 'suites' | 'bathrooms' | 'parking_spots' |
   'condominium' | 'latitude' | 'longitude' | 'coordinate_quality' | 'availability' |
   'market_zone_verified' | 'reviewed_by_broker' | 'conflicting_data' | 'multi_unit' |
   'unfinished' | 'notes'
