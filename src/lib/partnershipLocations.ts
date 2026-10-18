@@ -27,9 +27,9 @@ export async function getSpMunicipalities(): Promise<SpMunicipality[]> {
   return municipalities;
 }
 
-export async function getOfficialSpNeighborhoods(city: string): Promise<string[]> {
+export async function getOfficialSpNeighborhoods(municipalityIbgeId: number): Promise<string[]> {
   if (!supabase) throw new Error('Serviço indisponível.');
-  const { data, error } = await supabase.rpc('get_partnership_official_sp_neighborhoods', { p_city: city });
+  const { data, error } = await supabase.rpc('get_partnership_official_sp_neighborhoods', { p_municipality_ibge_id: municipalityIbgeId });
   if (error) throw error;
   return Array.isArray(data) ? data.filter((item): item is string => typeof item === 'string') : [];
 }

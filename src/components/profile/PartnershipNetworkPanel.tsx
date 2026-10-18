@@ -110,7 +110,7 @@ export const PartnershipNetworkPanel: React.FC = () => {
     if (!selectedMunicipality) { setNeighborhoods([]); setNeighborhoodsLoading(false); return; }
     let active = true;
     setNeighborhoodsLoading(true);
-    void getOfficialSpNeighborhoods(selectedMunicipality.name)
+    void getOfficialSpNeighborhoods(selectedMunicipality.id)
       .then(items => { if (active) setNeighborhoods(items); })
       .catch(() => { if (active) { setNeighborhoods([]); addToast({ type: 'error', title: 'Bairros indisponíveis', message: 'Não foi possível consultar os bairros cadastrados nesta cidade.' }); } })
       .finally(() => { if (active) setNeighborhoodsLoading(false); });

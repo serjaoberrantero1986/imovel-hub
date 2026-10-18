@@ -80,13 +80,14 @@ export const PropertyPartnershipModal: React.FC<PropertyPartnershipModalProps> =
       addToast({ type: 'warning', title: 'Selecione os parceiros', message: 'Escolha ao menos um profissional conectado para receber a oferta.' });
       return;
     }
-    if (!validateTerms(terms)) {
+    const fixedTerms = { ...terms, territory_description: 'Estado de São Paulo' };
+    if (!validateTerms(fixedTerms)) {
       addToast({ type: 'warning', title: 'Confira os termos', message: 'Preencha percentuais, vigência, território e todas as responsabilidades.' });
       return;
     }
     setBusy(true);
     try {
-      const value = await savePropertyPartnershipOffer({ propertyId: property.id, partnerIds: selectedPartners, partnerLimit: null, terms });
+      const value = await savePropertyPartnershipOffer({ propertyId: property.id, partnerIds: selectedPartners, partnerLimit: null, terms: fixedTerms });
       setWorkspace(value);
       addToast({ type: 'success', title: 'Oferta enviada', message: 'Cada parceiro recebeu uma negociação privada e versionada.' });
     } catch (error) {
@@ -198,7 +199,7 @@ const IncomingOffersContent: React.FC<{
 };
 
 const TermsEditor: React.FC<{ value: PartnershipTerms; onChange: (value: PartnershipTerms) => void }> = ({ value, onChange }) => {
-  const update = <K extends keyof PartnershipTerms>(key: K, next: PartnershipTerms[K]) => onChange({ ...value, [key]: next });
+  const update = <K extends keyof PartnershipTerms>(key: K, next: PartnershipTerms[K]) => onChange({ ...value, [key]: key === 'territory_description' ? 'Estado de São Paulo' : next, territory_description: 'Estado de São Paulo' });
   const setCaptorShare = (share: number) => { const bounded = Math.max(1, Math.min(99, Number.isFinite(share) ? share : 50)); onChange({ ...value, captor_share: bounded, partner_share: 100 - bounded }); };
   return <div className="space-y-5">
     <section className="space-y-3"><div><h4 className="text-sm font-extrabold text-slate-900 dark:text-white">Divisão dos honorários</h4><p className="text-[11px] text-slate-500">Percentual sobre os honorários profissionais efetivamente devidos, nunca sobre o valor total do imóvel.</p></div><div className="grid grid-cols-1 sm:grid-cols-[1fr_110px_110px] gap-3 items-end"><input type="range" min={1} max={99} step={1} value={value.captor_share} onChange={event => setCaptorShare(Number(event.target.value))} className="accent-rose-600" /><PercentField label="Captador" value={value.captor_share} onChange={setCaptorShare} /><PercentField label="Parceiro" value={value.partner_share} onChange={share => setCaptorShare(100 - share)} /></div></section>
