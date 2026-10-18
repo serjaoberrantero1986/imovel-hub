@@ -24,7 +24,7 @@ jobs:
       - uses: oven-sh/setup-bun@v2
       - run: bun install --no-save
       - name: Auditoria de comparáveis e permissões
-        run: node --test scripts/test-valuation-engine.mjs scripts/test-valuation-workspace.mjs
+        run: node --test scripts/test-valuation-engine.mjs scripts/test-valuation-workspace.mjs scripts/test-valuation-wizard.mjs
       - name: TypeScript
         run: bun run lint
       - name: Build
