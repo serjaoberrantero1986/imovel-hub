@@ -15,7 +15,8 @@ import {
   Sun,
   Moon,
   Sparkles,
-  ShieldCheck
+  ShieldCheck,
+  ClipboardList
 } from 'lucide-react';
 import { useApp, AppView } from '../../context/AppContext';
 import { Button } from '../ui/Button';
@@ -75,6 +76,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     { id: 'dashboard' as AppView, label: 'Dashboard & Métricas', icon: LayoutDashboard },
     { id: 'my_properties' as AppView, label: 'Meus Anúncios', icon: Building2 },
     { id: 'crm_leads' as AppView, label: 'CRM & Leads', icon: Users, badge: unreadLeadsCount, badgeColor: 'bg-emerald-600 text-white' },
+    { id: 'valuation' as AppView, label: 'Avaliação Inteligente', icon: ClipboardList },
   ];
 
   return (
@@ -193,7 +195,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </div>
 
         {/* Gestão Pro section (for brokers) */}
-        {currentUser.role === 'broker' && (
+        {(currentUser.role === 'broker' || currentUser.role === 'agency') && (
           <div className="space-y-1">
             {!isCollapsed && (
               <div className="flex items-center justify-between px-3">
