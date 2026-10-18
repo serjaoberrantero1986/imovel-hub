@@ -315,10 +315,10 @@ export const ValuationView: React.FC = () => {
         <IntegerAreaFields draft={assessmentDraft} setDraft={(key,value) => setAssessmentDraft(prev => ({ ...prev, [key]: value }))} />
         <div className="grid grid-cols-2 gap-3">
           <label className="space-y-1 text-xs font-semibold">Latitude predial (opcional)
-            <input type="number" step="any" className={fieldClass} value={assessmentDraft.latitude} onChange={event => setAssessmentDraft(prev => ({ ...prev, latitude: event.target.value }))} placeholder="-23.6496550" />
+            <input type="number" step="any" className={fieldClass} value={assessmentDraft.latitude} onChange={event => setAssessmentDraft(prev => ({ ...prev, latitude: event.target.value }))} placeholder="Latitude do lote" />
           </label>
           <label className="space-y-1 text-xs font-semibold">Longitude predial (opcional)
-            <input type="number" step="any" className={fieldClass} value={assessmentDraft.longitude} onChange={event => setAssessmentDraft(prev => ({ ...prev, longitude: event.target.value }))} placeholder="-47.5820868" />
+            <input type="number" step="any" className={fieldClass} value={assessmentDraft.longitude} onChange={event => setAssessmentDraft(prev => ({ ...prev, longitude: event.target.value }))} placeholder="Longitude do lote" />
           </label>
         </div>
         <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={assessmentDraft.condominium} onChange={event => setAssessmentDraft(prev => ({ ...prev, condominium: event.target.checked }))}/>Imóvel em condomínio fechado</label>
