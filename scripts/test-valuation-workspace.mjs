@@ -6,6 +6,9 @@ const sql = readFileSync('supabase/migrations/20261018000001_valuation_private_w
 const service = readFileSync('src/lib/valuation/assessmentRepository.ts', 'utf8');
 const view = readFileSync('src/views/ValuationView.tsx', 'utf8');
 const app = readFileSync('src/App.tsx', 'utf8');
+const wizard = readFileSync('src/components/properties/PropertyWizardModal.tsx','utf8');
+const myListings = readFileSync('src/views/MyPropertiesView.tsx','utf8');
+const step = readFileSync('src/components/properties/PropertyValuationStep.tsx','utf8');
 const menu = readFileSync('src/components/layout/UserMenu.tsx', 'utf8');
 
 test('tabelas possuem proprietários e dependência composta', () => {
@@ -39,6 +42,10 @@ test('painel permanece restrito e sem preço artificial', () => {
   assert.match(view, /currentUser\.role === 'broker' \|\| currentUser\.role === 'agency'/);
   assert.match(view, /Valor de mercado: indisponível nesta fase/);
   assert.match(view, /auditComparables\(/);
-  assert.match(app, /renderedView === 'valuation'/);
-  assert.match(menu, /Avaliação Inteligente/);
+  assert.doesNotMatch(app, /renderedView === 'valuation'/);
+  assert.doesNotMatch(menu, /menu-item-valuation/);
+  assert.match(wizard, /number: 8, title: 'Avaliação \(opcional\)'/);
+  assert.match(wizard, /PropertyValuationStep/);
+  assert.match(myListings, /handleStartValuation/);
+  assert.match(step, /createValuationForProperty/);
 });
