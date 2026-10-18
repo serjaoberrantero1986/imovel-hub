@@ -35,7 +35,7 @@ test('persistência usa identidade do Supabase Auth e não IDs dos formulários'
 test('anúncios externos são registrados manualmente por URLs HTTPS', () => {
   assert.match(service, /url\.protocol !== 'https:'/);
   assert.match(view, /Facebook Marketplace/);
-  assert.match(view, /addValuationComparable\(selected\.id, input\)/);
+  assert.match(view, /addValuationComparable\(selected\.id,\s*input\)/);
 });
 
 test('painel permanece restrito e sem preço artificial', () => {
