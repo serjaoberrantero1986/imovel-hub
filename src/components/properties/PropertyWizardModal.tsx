@@ -25,6 +25,7 @@ import { useApp, useCatalog } from '../../context/AppContext';
 import { Property, PropertyType, PropertyPurpose, PropertyMedia, PropertyStatus } from '../../types';
 import { formatCurrency, getPropertyTypeLabel, getPropertyPurposeLabel, generatePropertyCode } from '../../lib/utils';
 import { PropertyImageManager } from '../media/PropertyImageManager';
+import { PropertyValuationStep } from './PropertyValuationStep';
 import { geocodeAddress, resolvePropertyCoordinates } from '../../lib/geocoding';
 import { DEFAULT_PROPERTY_TYPES } from '../../lib/propertyTypesCatalog';
 
@@ -47,6 +48,8 @@ export const PropertyWizardModal: React.FC = () => {
     setIsWizardOpen, 
     editingProperty, 
     setEditingProperty, 
+    wizardStartStep,
+    setWizardStartStep,
     addProperty, 
     updateProperty,
     openPropertyDetail,
@@ -179,6 +182,11 @@ export const PropertyWizardModal: React.FC = () => {
     }
   }, [editingProperty, isWizardOpen]);
 
+  // Entry from Meus Anúncios may jump directly to the optional eighth step.
+  useEffect(() => {
+    if (isWizardOpen && editingProperty) setCurrentStep(wizardStartStep === 8 ? 8 : 1);
+  }, [isWizardOpen]);
+
   if (!isWizardOpen) return null;
 
   const steps = [
@@ -188,7 +196,8 @@ export const PropertyWizardModal: React.FC = () => {
     { number: 4, title: 'Valores', icon: DollarSign },
     { number: 5, title: 'Fotos & Mídia', icon: ImageIcon },
     { number: 6, title: 'Descrição & Lazer', icon: FileText },
-    { number: 7, title: 'Revisão & Publicar', icon: CheckCircle2 }
+    { number: 7, title: 'Revisão & Publicar', icon: CheckCircle2 },
+    { number: 8, title: 'Avaliação (opcional)', icon: Sparkles }
   ];
 
   // CEP Máscara automática (hífen após 5º dígito) e Busca automática via ViaCEP
@@ -341,11 +350,15 @@ export const PropertyWizardModal: React.FC = () => {
   const handleNextStep = () => {
     if (validateStep(currentStep)) {
       setStepError(null);
-      setCurrentStep(prev => Math.min(7, prev + 1));
+      setCurrentStep(prev => Math.min(8, prev + 1));
     }
   };
 
   const handleStepJump = (targetStep: number) => {
+    if (targetStep === 8) {
+      if (!editingProperty) { setStepError('Salve o imóvel para iniciar a avaliação opcional.'); return; }
+      setStepError(null); setCurrentStep(8); return;
+    }
     if (targetStep < currentStep) {
       setStepError(null);
       setCurrentStep(targetStep);
@@ -447,16 +460,16 @@ export const PropertyWizardModal: React.FC = () => {
       if (editingProperty) {
         const success = await updateProperty(editingProperty.id, propertyData);
         if (success) {
-          openPropertyDetail(editingProperty.id);
-          setIsWizardOpen(false);
-          setEditingProperty(null);
+          setEditingProperty({ ...editingProperty, ...propertyData, updatedAt: new Date().toISOString() });
+          setStepError(null);
+          setCurrentStep(8);
         }
       } else {
         const created = await addProperty(propertyData);
         if (created?.id) {
-          openPropertyDetail(created.id);
-          setIsWizardOpen(false);
-          setEditingProperty(null);
+          setEditingProperty(created);
+          setStepError(null);
+          setCurrentStep(8);
         }
       }
     } finally {
@@ -479,11 +492,11 @@ export const PropertyWizardModal: React.FC = () => {
                 {editingProperty ? `Editando: ${editingProperty.code}` : 'Publicar Imóvel no Web Imóvel'}
               </h2>
             </div>
-            <p className="text-xs text-slate-500">Passo {currentStep} de 7 • {steps[currentStep - 1]?.title}</p>
+            <p className="text-xs text-slate-500">Passo {currentStep} de 8 • {steps[currentStep - 1]?.title}</p>
           </div>
 
           <button
-            onClick={() => { setIsWizardOpen(false); setEditingProperty(null); }}
+            onClick={() => { setIsWizardOpen(false); setEditingProperty(null); setWizardStartStep(1); }}
             className="p-2 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer transition-colors"
           >
             <X className="w-5 h-5" />
@@ -1050,6 +1063,11 @@ export const PropertyWizardModal: React.FC = () => {
             </div>
           )}
 
+          {currentStep === 8 && (
+            editingProperty ? <PropertyValuationStep property={editingProperty} /> :
+            <p className="p-5 text-sm text-slate-500">Salve o anúncio antes de iniciar uma avaliação.</p>
+          )}
+
         </div>
 
         {/* Modal Footer Controls */}
@@ -1065,7 +1083,9 @@ export const PropertyWizardModal: React.FC = () => {
           </button>
 
           <div className="flex gap-2">
-            {currentStep < 7 ? (
+            {currentStep === 8 ? (
+              <button type="button" onClick={() => {setIsWizardOpen(false);setEditingProperty(null);setWizardStartStep(1);}} className="px-6 py-2.5 rounded-xl bg-rose-600 text-white text-xs font-bold">Concluir / Fechar</button>
+            ) : currentStep < 7 ? (
               <button
                 type="button"
                 onClick={handleNextStep}
