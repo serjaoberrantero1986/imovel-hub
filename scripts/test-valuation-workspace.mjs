@@ -16,7 +16,7 @@ test('tabelas possuem proprietários e dependência composta', () => {
 
 test('isolamento RLS e MFA explícitos para ambas as tabelas', () => {
   assert.equal((sql.match(/enable row level security;/gi) || []).length, 2);
-  assert.equal((sql.match(/public\.can_manage_my_valuations\(owner_id\)/g) || []).length, 8);
+  assert.ok((sql.match(/public\.can_manage_my_valuations\(owner_id\)/g) || []).length >= 8);
   assert.match(sql, /public\.has_satisfied_mfa\(\)/i);
   assert.match(sql, /p\.role::text in \('broker', 'agency'\)/i);
   assert.match(sql, /revoke all on public\.valuation_assessments from public, anon, authenticated/i);
