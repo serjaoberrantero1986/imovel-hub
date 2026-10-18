@@ -3,7 +3,8 @@ import {
   Building2, 
   PlusCircle, 
   Search, 
-  Edit3, 
+  Edit3,
+  ChartNoAxesCombined, 
   Trash2, 
   Eye, 
   Pause, 
@@ -119,6 +120,7 @@ export const MyPropertiesView: React.FC = () => {
     togglePropertyStatus, 
     setIsWizardOpen, 
     setEditingProperty, 
+    setWizardStartStep,
     openPropertyDetail,
     setCurrentView,
     addToast
@@ -205,6 +207,17 @@ export const MyPropertiesView: React.FC = () => {
   });
 
   const handleEdit = (prop: Property) => {
+    setWizardStartStep(1);
+    setEditingProperty(prop);
+    setIsWizardOpen(true);
+  };
+
+  const handleStartValuation = (prop: Property) => {
+    if (currentUser.id !== prop.userId) {
+      addToast({ type: 'warning', title: 'Somente o titular pode avaliar este anúncio' });
+      return;
+    }
+    setWizardStartStep(8);
     setEditingProperty(prop);
     setIsWizardOpen(true);
   };
@@ -214,6 +227,7 @@ export const MyPropertiesView: React.FC = () => {
       openAuthModal('signup');
       return;
     }
+    setWizardStartStep(1);
     setEditingProperty(null);
     setIsWizardOpen(true);
   };
@@ -613,6 +627,16 @@ export const MyPropertiesView: React.FC = () => {
                       className="p-2 rounded-xl bg-violet-50 hover:bg-violet-100 dark:bg-violet-950/50 dark:hover:bg-violet-900/60 text-violet-600 dark:text-violet-300 transition-colors cursor-pointer"
                     >
                       <Handshake className="w-4 h-4" />
+                    </button>}
+
+                    {currentUser.id === prop.userId && <button
+                      onClick={() => handleStartValuation(prop)}
+                      title="Avaliar imóvel"
+                      aria-label={`Avaliar imóvel ${prop.code}`}
+                      className="p-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600 dark:bg-rose-950/50 dark:text-rose-300 flex items-center gap-1 text-xs font-bold"
+                    >
+                      <ChartNoAxesCombined className="w-4 h-4" />
+                      <span className="hidden sm:inline">Avaliar</span>
                     </button>}
 
                     <button

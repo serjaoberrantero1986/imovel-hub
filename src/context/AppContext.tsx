@@ -53,6 +53,8 @@ export interface AppContextType extends
   setIsWizardOpen: (open: boolean) => void;
   editingProperty: Property | null;
   setEditingProperty: (property: Property | null) => void;
+  wizardStartStep: number;
+  setWizardStartStep: (step: number) => void;
   
   // Notification Toasts
   toasts: Toast[];
@@ -111,6 +113,7 @@ const AppCompositeProvider: React.FC<{
   // Wizard
   const [isWizardOpen, setIsWizardOpen] = useState<boolean>(false);
   const [editingProperty, setEditingProperty] = useState<Property | null>(null);
+  const [wizardStartStep, setWizardStartStep] = useState(1);
 
   // Consume child contexts
   const auth = useAuth();
@@ -154,6 +157,8 @@ const AppCompositeProvider: React.FC<{
     setIsWizardOpen,
     editingProperty,
     setEditingProperty,
+    wizardStartStep,
+    setWizardStartStep,
     toasts,
     addToast,
     removeToast,

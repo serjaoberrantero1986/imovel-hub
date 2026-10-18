@@ -4,8 +4,11 @@ import assert from 'node:assert/strict';
 
 const sql = readFileSync('supabase/migrations/20261018000001_valuation_private_workspace.sql', 'utf8');
 const service = readFileSync('src/lib/valuation/assessmentRepository.ts', 'utf8');
-const view = readFileSync('src/views/ValuationView.tsx', 'utf8');
+const view = readFileSync('src/components/properties/PropertyValuationStep.tsx', 'utf8');
 const app = readFileSync('src/App.tsx', 'utf8');
+const wizard = readFileSync('src/components/properties/PropertyWizardModal.tsx','utf8');
+const myListings = readFileSync('src/views/MyPropertiesView.tsx','utf8');
+const step = readFileSync('src/components/properties/PropertyValuationStep.tsx','utf8');
 const menu = readFileSync('src/components/layout/UserMenu.tsx', 'utf8');
 
 test('tabelas possuem proprietários e dependência composta', () => {
@@ -31,14 +34,18 @@ test('persistência usa identidade do Supabase Auth e não IDs dos formulários'
 
 test('anúncios externos são registrados manualmente por URLs HTTPS', () => {
   assert.match(service, /url\.protocol !== 'https:'/);
-  assert.match(view, /Não acessamos automaticamente OLX ou Facebook/);
-  assert.match(view, /addValuationComparable\(selected\.id, input\)/);
+  assert.match(view, /Facebook Marketplace/);
+  assert.match(view, /addValuationComparable\(selected\.id,\s*input\)/);
 });
 
 test('painel permanece restrito e sem preço artificial', () => {
-  assert.match(view, /currentUser\.role === 'broker' \|\| currentUser\.role === 'agency'/);
-  assert.match(view, /Valor de mercado: indisponível nesta fase/);
+  assert.match(myListings, /currentUser\.id === prop\.userId/);
+  assert.match(view, /Avaliação preliminar sem preço calculado/);
   assert.match(view, /auditComparables\(/);
-  assert.match(app, /renderedView === 'valuation'/);
-  assert.match(menu, /Avaliação Inteligente/);
+  assert.doesNotMatch(app, /renderedView === 'valuation'/);
+  assert.doesNotMatch(menu, /menu-item-valuation/);
+  assert.match(wizard, /number: 8, title: 'Avaliação \(opcional\)'/);
+  assert.match(wizard, /PropertyValuationStep/);
+  assert.match(myListings, /handleStartValuation/);
+  assert.match(step, /createValuationForProperty/);
 });

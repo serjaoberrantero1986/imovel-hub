@@ -261,12 +261,18 @@ export function resolvePropertyCoordinates(prop: {
   addressStreet?: string;
   latitude?: number | null;
   longitude?: number | null;
+  coordinateQuality?: string;
 }): [number, number] {
   const city = (prop.city || '').trim().toLowerCase();
   const state = (prop.state || '').trim().toUpperCase();
   const neighborhood = (prop.neighborhood || '').trim().toLowerCase();
   const lat = prop.latitude != null && !isNaN(Number(prop.latitude)) ? Number(prop.latitude) : null;
   const lng = prop.longitude != null && !isNaN(Number(prop.longitude)) ? Number(prop.longitude) : null;
+  if(prop.coordinateQuality === 'property' && lat !== null && lng !== null &&
+     Math.abs(lat) <= 90 && Math.abs(lng) <= 180 && (lat !== 0 || lng !== 0)){
+    // O lote confirmado pelo titular não pode ser substituído por um centróide automático.
+    return [lat,lng];
+  }
 
   // 1. Detecta se a coordenada gravada é o default de Sorocaba (-23.5015, -47.4580)
   const isOldSorocabaDefault = lat !== null && lng !== null &&
@@ -329,7 +335,8 @@ export async function geocodeAddress(params: {
   // 1. Checagem em presets composite (cidade:bairro) para resposta instantânea e precisa
   const cleanCity = city.toLowerCase();
   const cleanNeigh = neighborhood.toLowerCase();
-  if (cleanCity && cleanNeigh) {
+  // Presets só quando não há rua; endereço completo deve vencer a aproximação.
+  if (!street && cleanCity && cleanNeigh) {
     const compositeKey = `${cleanCity}:${cleanNeigh}`;
     if (NEIGHBORHOOD_COORDINATES[compositeKey]) {
       const [pLat, pLon] = NEIGHBORHOOD_COORDINATES[compositeKey];

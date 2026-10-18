@@ -16,7 +16,6 @@ import {
   Moon,
   Sparkles,
   ShieldCheck,
-  ClipboardList
 } from 'lucide-react';
 import { useApp, AppView } from '../../context/AppContext';
 import { Button } from '../ui/Button';
@@ -76,7 +75,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
     { id: 'dashboard' as AppView, label: 'Dashboard & Métricas', icon: LayoutDashboard },
     { id: 'my_properties' as AppView, label: 'Meus Anúncios', icon: Building2 },
     { id: 'crm_leads' as AppView, label: 'CRM & Leads', icon: Users, badge: unreadLeadsCount, badgeColor: 'bg-emerald-600 text-white' },
-    { id: 'valuation' as AppView, label: 'Avaliação Inteligente', icon: ClipboardList },
   ];
 
   return (

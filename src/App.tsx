@@ -17,7 +17,6 @@ import { PropertyDetailView } from './components/properties/PropertyDetailView';
 import { BrokerDashboardView } from './views/BrokerDashboardView';
 import { MyPropertiesView } from './views/MyPropertiesView';
 import { CrmLeadsView } from './views/CrmLeadsView';
-import { ValuationView } from './views/ValuationView';
 import { MessagesChatView } from './views/MessagesChatView';
 import { ComparatorView } from './views/ComparatorView';
 import { FavoritesView } from './views/FavoritesView';
@@ -59,7 +58,6 @@ const MainContent: React.FC = () => {
         {renderedView === 'dashboard' && <BrokerDashboardView />}
         {renderedView === 'my_properties' && <MyPropertiesView />}
         {renderedView === 'crm_leads' && <CrmLeadsView />}
-        {renderedView === 'valuation' && <ValuationView />}
         {renderedView === 'messages' && <MessagesChatView />}
         {renderedView === 'comparator' && <ComparatorView />}
         {renderedView === 'favorites' && <FavoritesView />}
