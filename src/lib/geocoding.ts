@@ -227,7 +227,6 @@ export function getCityFallbackCoordinates(city?: string, state?: string, neighb
   const cleanState = (state || '').trim().toUpperCase();
 
   // 1. Verifica par cidade:bairro (ex: 'rio de janeiro:copacabana' ou 'sorocaba:campolim')
-  // Um bairro pré-cadastrado não deve substituir uma consulta com rua e número.
   if (cleanCity && cleanNeigh) {
     const compositeKey = `${cleanCity}:${cleanNeigh}`;
     if (NEIGHBORHOOD_COORDINATES[compositeKey]) {
@@ -330,7 +329,8 @@ export async function geocodeAddress(params: {
   // 1. Checagem em presets composite (cidade:bairro) para resposta instantânea e precisa
   const cleanCity = city.toLowerCase();
   const cleanNeigh = neighborhood.toLowerCase();
-  if (cleanCity && cleanNeigh) {
+  // Presets só quando não há rua; endereço completo deve vencer a aproximação.
+  if (!street && cleanCity && cleanNeigh) {
     const compositeKey = `${cleanCity}:${cleanNeigh}`;
     if (NEIGHBORHOOD_COORDINATES[compositeKey]) {
       const [pLat, pLon] = NEIGHBORHOOD_COORDINATES[compositeKey];
