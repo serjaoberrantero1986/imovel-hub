@@ -54,7 +54,7 @@ type ComparableDraft = {
 const newComparable = (propertyType: ValuationPropertyType): ComparableDraft => ({
   source_type: 'real_estate_agency', source_name: '', listing_url: '', listing_reference: '',
   asking_price: '', property_type: propertyType, land_area: '', built_area: '',
-  bedrooms: '', bathrooms: '', parking_spots: '', latitude: '', longitude: '',
+  bedrooms: '', suites: '', bathrooms: '', parking_spots: '', latitude: '', longitude: '',
   coordinate_quality: 'street', availability: 'unknown', market_zone_verified: false,
   reviewed_by_broker: false, conflicting_data: false, multi_unit: false, unfinished: false, notes: '',
 });
