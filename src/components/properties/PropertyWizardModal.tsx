@@ -27,6 +27,8 @@ import { formatCurrency, getPropertyTypeLabel, getPropertyPurposeLabel, generate
 import { PropertyImageManager } from '../media/PropertyImageManager';
 import { PropertyValuationStep } from './PropertyValuationStep';
 import { PrivatePropertyLocationMap } from './PrivatePropertyLocationMap';
+import { NeighborhoodAutocomplete } from './NeighborhoodAutocomplete';
+import { registerNeighborhoodFromInput } from '../../lib/neighborhoodCatalog';
 import { geocodeAddress, resolvePropertyCoordinates } from '../../lib/geocoding';
 import { DEFAULT_PROPERTY_TYPES } from '../../lib/propertyTypesCatalog';
 
@@ -247,6 +249,10 @@ export const PropertyWizardModal: React.FC = () => {
         if (data.bairro) setNeighborhood(data.bairro);
         if (data.localidade) setCity(data.localidade);
         if (data.uf) setState(data.uf);
+        if (data.bairro && data.localidade && data.uf) {
+          // Não atrasa o preenchimento pelo CEP caso a contribuição colaborativa falhe.
+          void registerNeighborhoodFromInput(data.localidade,data.uf,data.bairro,'cep').catch(()=>{});
+        }
         setCepStatusMessage('Endereço preenchido automaticamente.');
         
         // Dispara geocodificação real no mapa imediatamente
@@ -708,13 +714,14 @@ export const PropertyWizardModal: React.FC = () => {
                     <span>Bairro</span>
                     <span className="text-rose-500 font-bold">*</span>
                   </label>
-                  <input
-                    type="text"
-                    value={neighborhood}
-                    onChange={(e) => { setNeighborhood(e.target.value); invalidatePosition(); setStepError(null); }}
-                    onBlur={() => triggerGeocoding(addressStreet, addressNumber, neighborhood, city, state)}
-                    placeholder="Ex: Centro"
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm font-semibold text-slate-900 dark:text-white placeholder:text-slate-400"
+                  <NeighborhoodAutocomplete
+                    value={neighborhood} city={city} state={state}
+                    onChange={setNeighborhood}
+                    onAddressChanged={()=>{invalidatePosition();setStepError(null);}}
+                    onCommit={value=>{
+                      void registerNeighborhoodFromInput(city,state,value,'broker').catch(()=>{});
+                      triggerGeocoding(addressStreet,addressNumber,value,city,state);
+                    }}
                   />
                 </div>
                 <div>
