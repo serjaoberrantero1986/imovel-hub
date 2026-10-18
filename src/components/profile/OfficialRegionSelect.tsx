@@ -1,3 +1,4 @@
+import { searchSimilarNeighborhoods } from '../../lib/neighborhoodCatalog';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Check, ChevronDown, Loader2, Search, X } from 'lucide-react';
 
@@ -12,12 +13,13 @@ interface OfficialRegionSelectProps {
   disabled?: boolean;
   loading?: boolean;
   emptyLabel?: string;
+  fuzzy?: boolean;
 }
 
 /** Seletor pesquisável usado nas regiões. Nunca aceita texto que não esteja no catálogo recebido. */
 export const OfficialRegionSelect: React.FC<OfficialRegionSelectProps> = ({
   value, options, onChange, placeholder, ariaLabel, disabled = false, loading = false,
-  emptyLabel = 'Nenhuma opção encontrada',
+  emptyLabel = 'Nenhuma opção encontrada', fuzzy = false,
 }) => {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
@@ -26,10 +28,13 @@ export const OfficialRegionSelect: React.FC<OfficialRegionSelectProps> = ({
   const selected = options.find(option => option.value === value);
   const filtered = useMemo(() => {
     const normalized = query.trim().toLocaleLowerCase('pt-BR');
-    return normalized
-      ? options.filter(option => option.label.toLocaleLowerCase('pt-BR').includes(normalized))
-      : options;
-  }, [options, query]);
+    if(!normalized) return options;
+    if(fuzzy) {
+      const matches=searchSimilarNeighborhoods(options.map(option=>option.label),query,25);
+      return matches.flatMap(label=>options.filter(option=>option.label===label));
+    }
+    return options.filter(option=>option.label.toLocaleLowerCase('pt-BR').includes(normalized));
+  }, [options, query, fuzzy]);
 
   useEffect(() => {
     const handleOutside = (event: MouseEvent) => {
