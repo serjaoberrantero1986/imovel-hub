@@ -169,7 +169,9 @@ export async function createValuationForProperty(property: Property): Promise<Va
   const snapshot = {
     code: property.code, description: property.description, purpose: property.purpose,
     zipCode: property.zipCode, condoName: property.condoName ?? '',
-    features: property.amenities ?? [], media: (property.media ?? []).map(m => ({
+    features: property.amenities ?? [], media: (property.media ?? [])
+      .filter(m => /^https:\/\//i.test(m.url)) // Não duplicar imagens base64 em JSON.
+      .map(m => ({
       id:m.id,url:m.url,thumbnailUrl:m.thumbnailUrl,caption:m.caption,mediaType:m.mediaType,
       category:m.category,isCover:m.isCover,order:m.order,
     })),
