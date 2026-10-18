@@ -136,6 +136,7 @@ export function mapDbPropertyToApp(
     zipCode: location?.zip_code || '',
     latitude: resolvedLat,
     longitude: resolvedLng,
+    coordinateQuality: location?.coordinate_quality || 'unknown',
 
     amenities: features,
     images: media.map(m => m.url).filter(Boolean),
@@ -313,7 +314,8 @@ export async function insertPropertyToSupabase(property: Property): Promise<Inse
       state: property.state || '',
       zip_code: zipCode,
       latitude: resolvedLat,
-      longitude: resolvedLng
+      longitude: resolvedLng,
+      coordinate_quality: property.coordinateQuality || 'unknown'
     });
 
     if (locError) {
@@ -522,7 +524,8 @@ export async function updatePropertyInSupabase(
       updates.state !== undefined ||
       updates.zipCode !== undefined ||
       updates.latitude !== undefined ||
-      updates.longitude !== undefined;
+      updates.longitude !== undefined ||
+      updates.coordinateQuality !== undefined;
 
     if (hasLocationUpdates) {
       const locUpdates: Record<string, any> = {};
@@ -544,6 +547,7 @@ export async function updatePropertyInSupabase(
       });
       locUpdates.latitude = rLat;
       locUpdates.longitude = rLng;
+      if (updates.coordinateQuality !== undefined) locUpdates.coordinate_quality = updates.coordinateQuality;
 
       const { data: existingLoc } = await supabase.from('property_locations').select('id').eq('property_id', validId).maybeSingle();
       if (existingLoc) {
@@ -560,7 +564,8 @@ export async function updatePropertyInSupabase(
           state: updates.state || '',
           zip_code: updates.zipCode || '00000-000',
           latitude: rLat,
-          longitude: rLng
+          longitude: rLng,
+          coordinate_quality: updates.coordinateQuality || 'unknown'
         });
       }
     }
