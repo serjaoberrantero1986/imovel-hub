@@ -138,6 +138,7 @@
 .hero-property-photo::after { content: ''; position: absolute; inset: 0; background: linear-gradient(transparent 65%, #181a3166); pointer-events: none; }
 .hero-property-placeholder { position: absolute; width: 28px; height: 28px; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #bbb7cd; }
 .hero-property-featured { position: absolute; top: 9px; left: 10px; z-index: 1; display: inline-flex; align-items: center; gap: 5px; border-radius: 99px; padding: 4px 9px; background: #b53f6ed9; color: white; font-size: 11px; line-height: 1.2; }
+.hero-property-partnership { position: absolute; top: 9px; right: 10px; z-index: 1; display: inline-flex; align-items: center; gap: 5px; border-radius: 99px; padding: 4px 9px; background: #7c3aeddf; color: white; font-size: 11px; line-height: 1.2; }
 .hero-property-info { position: relative; display: block; padding: 10px 23px 11px 12px; font-family: 'Outfit', sans-serif; }
 .hero-property-type { display: block; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 12px; font-weight: 500; line-height: 1.4; }
 .hero-property-location { display: block; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 11px; color: #c8c5d4; margin-top: 2px; line-height: 1.4; }
@@ -254,6 +255,8 @@
   .hero-property-price small { font-size: 7px; }
   .hero-property-featured { top: 5px; left: 5px; gap: 2px; padding: 2px 5px; font-size: 7px; }
   .hero-property-featured svg { width: 8px; height: 8px; }
+  .hero-property-partnership { top: 5px; right: 5px; gap: 2px; padding: 2px 5px; font-size: 7px; }
+  .hero-property-partnership svg { width: 8px; height: 8px; }
   .hero-property-card { border-radius: 12px; }
   .hero-property-arrow { right: 3px; width: 12px; height: 12px; }
   .hero-property-pin,

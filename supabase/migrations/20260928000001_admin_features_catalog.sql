@@ -1,5 +1,6 @@
 -- Administrative amenities catalog. Existing identifiers and property links are preserved.
 alter table public.features
+  add column if not exists created_at timestamptz not null default now(),
   add column if not exists is_active boolean not null default true,
   add column if not exists display_order integer not null default 0,
   add column if not exists updated_at timestamptz not null default now();

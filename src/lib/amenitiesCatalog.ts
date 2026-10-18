@@ -47,10 +47,10 @@ export async function fetchAmenitiesCatalog(): Promise<AmenityCatalogItem[]> {
     .order('display_order', { ascending: true })
     .order('name', { ascending: true });
   if (error && (error.code === '42703' || error.code === 'PGRST204')) {
-    const legacy = await supabase.from('features').select('id,name,category,icon,created_at').order('name');
+    const legacy = await supabase.from('features').select('id,name,category,icon').order('name');
     if (legacy.error) throw legacy.error;
     return (legacy.data || []).map((row: any, index: number) => mapAmenity({
-      ...row, is_active: true, display_order: (index + 1) * 10, updated_at: row.created_at
+      ...row, is_active: true, display_order: (index + 1) * 10, created_at: '', updated_at: ''
     }));
   }
   if (error) throw error;

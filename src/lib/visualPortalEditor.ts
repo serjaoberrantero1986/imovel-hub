@@ -108,9 +108,7 @@ const configuration = (templateId: PortalTemplateId, hero: Partial<VisualPortalC
 
 export const PORTAL_TEMPLATES: PortalTemplate[] = [
   { id: 'essencial', name: 'Essencial', description: 'Claro, direto e focado na busca.', preview: 'linear-gradient(135deg, #f8fafc, #e2e8f0)', configuration: configuration('essencial') },
-  { id: 'signature', name: 'Signature', description: 'Hero dividida, títulos editoriais e imóveis em duas colunas.', preview: 'linear-gradient(135deg, #111827, #4c1d3b)', configuration: configuration('signature', { gradientStart: '#111827', gradientEnd: '#701a75', propertySceneStyle: 'spotlight' }) },
   { id: 'urbano', name: 'Urbano', description: 'Hero centralizada, grade compacta e mapa em evidência.', preview: 'linear-gradient(135deg, #111827, #4338ca)', configuration: configuration('urbano', { gradientStart: '#111827', gradientEnd: '#4338ca', propertySceneStyle: 'cards' }) },
-  { id: 'casa_familia', name: 'Casa & Família', description: 'Foto em arco, diferenciais primeiro e bairros ampliados.', preview: 'linear-gradient(135deg, #78350f, #fb7185)', configuration: configuration('casa_familia', { gradientStart: '#78350f', gradientEnd: '#fb7185', propertySceneStyle: 'cards' }) },
   { id: 'prime', name: 'Prime', description: 'Hero cinematográfica e vitrines amplas sobre fundo escuro.', preview: 'linear-gradient(135deg, #09090b, #a16207)', configuration: configuration('prime', { gradientStart: '#09090b', gradientEnd: '#a16207', propertySceneStyle: 'spotlight' }) }
 ];
 
