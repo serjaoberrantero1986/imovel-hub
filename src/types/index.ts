@@ -139,6 +139,8 @@ export interface Property {
   zipCode: string;
   latitude: number;
   longitude: number;
+  /** Coordenadas privadas só têm precisão predial quando confirmadas pelo titular. */
+  coordinateQuality?: 'unknown' | 'approximate' | 'geocoded' | 'property';
   
   // Amenities & Media
   amenities: string[]; // ids of amenities
