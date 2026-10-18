@@ -1,0 +1,28 @@
+name: Testar motor de avaliação
+
+on:
+  pull_request:
+    paths:
+      - 'src/lib/valuation/**'
+      - 'scripts/test-valuation-engine.mjs'
+      - '.github/workflows/valuation-engine.yml'
+  push:
+    branches:
+      - 'feature/avaliacao-inteligente-motor-mvp'
+    paths:
+      - 'src/lib/valuation/**'
+      - 'scripts/test-valuation-engine.mjs'
+      - '.github/workflows/valuation-engine.yml'
+
+jobs:
+  testes-do-motor:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validar motor de comparação
+        run: node --test scripts/test-valuation-engine.mjs
