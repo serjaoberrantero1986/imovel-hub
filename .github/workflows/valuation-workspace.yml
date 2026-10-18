@@ -1,0 +1,33 @@
+name: Validar painel privado de avaliação
+
+on:
+  pull_request:
+    paths:
+      - 'src/lib/valuation/**'
+      - 'src/views/ValuationView.tsx'
+      - 'src/context/appTypes.ts'
+      - 'src/App.tsx'
+      - 'src/components/layout/**'
+      - 'src/views/BrokerDashboardView.tsx'
+      - 'supabase/migrations/*valuation*'
+      - 'scripts/test-valuation-workspace.mjs'
+      - '.github/workflows/valuation-workspace.yml'
+  push:
+    branches:
+      - 'feature/avaliacao-inteligente-painel-supabase'
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      - name: Testar motor e regras privadas
+        run: node --test scripts/test-valuation-engine.mjs scripts/test-valuation-workspace.mjs
+      - name: Verificar TypeScript
+        run: bun run lint
+      - name: Compilar frontend
+        run: bun run build
