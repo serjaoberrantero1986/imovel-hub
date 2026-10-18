@@ -1,12 +1,16 @@
+import type { Property } from '../../types';
 import { supabase } from '../supabaseClient';
 
-export type ValuationPropertyType = 'house' | 'apartment' | 'land' | 'commercial' | 'other';
+export type ValuationPropertyType = string;
 export type ValuationSourceType = 'olx' | 'facebook_marketplace' | 'real_estate_agency' | 'portal' | 'other';
 export type ValuationCoordinateQuality = 'property' | 'street' | 'neighborhood' | 'city' | 'unknown';
 
 export interface ValuationAssessment {
   id: string;
   owner_id: string;
+  source_property_id: string | null;
+  property_snapshot: Record<string, unknown>;
+  advertised_price: number | null;
   title: string;
   property_type: ValuationPropertyType;
   state: string;
@@ -146,4 +150,51 @@ export async function updateValuationComparable(
     .select('*').single();
   if (error) throw error;
   return data as ValuationComparable;
+}
+
+/** Histórico exclusivamente do anúncio pertencente ao profissional autenticado. */
+export async function listValuationsForProperty(propertyId: string): Promise<ValuationAssessment[]> {
+  const owner = await requireProfessionalOwner();
+  const { data, error } = await requireClient().from('valuation_assessments')
+    .select('*').eq('owner_id', owner).eq('source_property_id', propertyId)
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return (data || []) as ValuationAssessment[];
+}
+
+/** Captura dados e mídias do anúncio, sem alterar preço, status ou conteúdo publicado. */
+export async function createValuationForProperty(property: Property): Promise<ValuationAssessment> {
+  const owner = await requireProfessionalOwner();
+  if (property.userId !== owner) throw new Error('Somente o responsável pelo anúncio pode avaliá-lo.');
+  const snapshot = {
+    code: property.code, description: property.description, purpose: property.purpose,
+    zipCode: property.zipCode, condoName: property.condoName ?? '',
+    features: property.amenities ?? [], media: (property.media ?? []).map(m => ({
+      id:m.id,url:m.url,thumbnailUrl:m.thumbnailUrl,caption:m.caption,mediaType:m.mediaType,
+      category:m.category,isCover:m.isCover,order:m.order,
+    })),
+    videoUrl: property.videoUrl ?? '', totalArea: property.totalArea,
+    usefulArea: property.usefulArea, suites: property.suites, condoFee:property.condoFee,
+    iptuFee:property.iptuFee, solarOrientation:property.solarOrientation,
+    acceptsFinancing:property.acceptsFinancing, acceptsExchange:property.acceptsExchange,
+    observedAt: new Date().toISOString(),
+  };
+  const hasPosition = property.coordinateQuality === 'property' &&
+    Number.isFinite(property.latitude) && Number.isFinite(property.longitude);
+  const {data,error} = await requireClient().from('valuation_assessments').insert({
+    owner_id: owner, source_property_id: property.id, property_snapshot: snapshot,
+    advertised_price: property.price >= 0 ? property.price : null,
+    title: (property.title || property.code || 'Imóvel em avaliação').slice(0,180),
+    property_type: property.type, state: property.state, city: property.city,
+    neighborhood: property.neighborhood, street: property.addressStreet,
+    street_number: property.addressNumber || '', land_area: property.totalArea || null,
+    built_area: property.usefulArea || null, bedrooms:property.bedrooms,
+    suites:property.suites,bathrooms:property.bathrooms,parking_spots:property.parkingSpots,
+    condominium:property.type==='condo_house' || Boolean(property.condoName),
+    latitude:hasPosition?property.latitude:null,longitude:hasPosition?property.longitude:null,
+    coordinate_quality:hasPosition?'property':'unknown',
+    notes:'Avaliação criada a partir do anúncio existente.',
+  }).select('*').single();
+  if(error)throw error;
+  return data as ValuationAssessment;
 }
