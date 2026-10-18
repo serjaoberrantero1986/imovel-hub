@@ -7,6 +7,7 @@ import {
   MessageSquare, 
   Heart, 
   Scale, 
+  ClipboardList,
   BookmarkCheck, 
   LogOut, 
   CheckCircle2, 
@@ -187,6 +188,16 @@ export const UserMenu: React.FC = () => {
               </>
             )}
 
+            {(currentUser.role === 'broker' || currentUser.role === 'agency') && (
+              <button
+                id="menu-item-valuation"
+                onClick={() => handleNav('valuation')}
+                className={`w-full text-left px-4 py-2 hover:bg-slate-50 dark:hover:bg-slate-800 flex items-center gap-2.5 ${currentView === 'valuation' ? 'text-rose-600 dark:text-rose-400 font-bold bg-rose-50/60 dark:bg-rose-950/30' : 'text-slate-700 dark:text-slate-200'}`}
+              >
+                <ClipboardList className="w-4 h-4 text-rose-500" />
+                <span>Avaliação Inteligente</span>
+              </button>
+            )}
             {currentUser.role === 'broker' ? (
               <>
                 <button
