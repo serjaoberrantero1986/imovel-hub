@@ -26,27 +26,27 @@ const numeric = (value: string): number | null => value.trim() === '' ? null : N
 const textLimit = (text: string, max: number) => text.trim().slice(0, max);
 const dateText = (date: string) => new Date(date).toLocaleDateString('pt-BR');
 
-type NumericField = 'land_area' | 'built_area' | 'bedrooms' | 'bathrooms' | 'parking_spots';
+type NumericField = 'land_area' | 'built_area' | 'bedrooms' | 'suites' | 'bathrooms' | 'parking_spots';
 const numericFields: Array<{ key: NumericField; label: string }> = [
   { key: 'land_area', label: 'Terreno (m²)' }, { key: 'built_area', label: 'Construção (m²)' },
-  { key: 'bedrooms', label: 'Dormitórios' }, { key: 'bathrooms', label: 'Banheiros' },
+  { key: 'bedrooms', label: 'Dormitórios' }, { key: 'suites', label: 'Suítes' }, { key: 'bathrooms', label: 'Banheiros' },
   { key: 'parking_spots', label: 'Vagas' },
 ];
 type AssessmentDraft = {
   title: string; property_type: ValuationPropertyType; state: string; city: string;
   neighborhood: string; street: string; street_number: string;
-  land_area: string; built_area: string; bedrooms: string; bathrooms: string; parking_spots: string;
+  land_area: string; built_area: string; bedrooms: string; suites: string; bathrooms: string; parking_spots: string;
   latitude: string; longitude: string; condominium: boolean; notes: string;
 };
 const emptyAssessment: AssessmentDraft = {
   title: '', property_type: 'house', state: 'SP', city: '', neighborhood: '',
-  street: '', street_number: '', land_area: '', built_area: '', bedrooms: '',
+  street: '', street_number: '', land_area: '', built_area: '', bedrooms: '', suites: '',
   bathrooms: '', parking_spots: '', latitude: '', longitude: '', condominium: false, notes: '',
 };
 type ComparableDraft = {
   source_type: ValuationSourceType; source_name: string; listing_url: string;
   listing_reference: string; asking_price: string; property_type: ValuationPropertyType;
-  land_area: string; built_area: string; bedrooms: string; bathrooms: string; parking_spots: string;
+  land_area: string; built_area: string; bedrooms: string; suites: string; bathrooms: string; parking_spots: string;
   latitude: string; longitude: string; coordinate_quality: 'property' | 'street';
   availability: 'active' | 'unknown'; market_zone_verified: boolean; reviewed_by_broker: boolean;
   conflicting_data: boolean; multi_unit: boolean; unfinished: boolean; notes: string;
@@ -69,7 +69,7 @@ function IntegerAreaFields({ draft, setDraft }: {
   draft: { [K in NumericField]: string };
   setDraft: (key: NumericField, value: string) => void;
 }) {
-  return <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+  return <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
     {numericFields.map(({ key, label }) => (
       <label key={key} className="space-y-1 text-xs font-semibold text-slate-600 dark:text-slate-300">
         <span>{label}</span>
@@ -188,7 +188,7 @@ export const ValuationView: React.FC = () => {
       neighborhood: textLimit(assessmentDraft.neighborhood, 120), street: textLimit(assessmentDraft.street, 200),
       street_number: textLimit(assessmentDraft.street_number, 20), notes: textLimit(assessmentDraft.notes, 3000),
       land_area: numeric(assessmentDraft.land_area), built_area: numeric(assessmentDraft.built_area),
-      bedrooms: numeric(assessmentDraft.bedrooms), bathrooms: numeric(assessmentDraft.bathrooms),
+      bedrooms: numeric(assessmentDraft.bedrooms), suites: numeric(assessmentDraft.suites), bathrooms: numeric(assessmentDraft.bathrooms),
       parking_spots: numeric(assessmentDraft.parking_spots), condominium: assessmentDraft.condominium,
       latitude: loc ? Number(assessmentDraft.latitude) : null,
       longitude: loc ? Number(assessmentDraft.longitude) : null,
@@ -224,7 +224,7 @@ export const ValuationView: React.FC = () => {
       property_type: comparableDraft.property_type,
       asking_price: Number(comparableDraft.asking_price),
       land_area: numeric(comparableDraft.land_area), built_area: numeric(comparableDraft.built_area),
-      bedrooms: numeric(comparableDraft.bedrooms), bathrooms: numeric(comparableDraft.bathrooms),
+      bedrooms: numeric(comparableDraft.bedrooms), suites: numeric(comparableDraft.suites), bathrooms: numeric(comparableDraft.bathrooms),
       parking_spots: numeric(comparableDraft.parking_spots),
       condominium: null,
       latitude: loc ? Number(comparableDraft.latitude) : null,
@@ -361,6 +361,7 @@ export const ValuationView: React.FC = () => {
                   ['Terreno', selected.land_area === null ? 'Não informado' : selected.land_area+' m²'],
                   ['Construção', selected.built_area === null ? 'Não informado' : selected.built_area+' m²'],
                   ['Dormitórios', selected.bedrooms ?? '—'],
+                  ['Suítes', selected.suites ?? '—'],
                   ['Banheiros', selected.bathrooms ?? '—'],
                 ].map(([label,value]) => <div key={label} className="rounded-xl bg-slate-50 p-3 dark:bg-slate-800/70">
                   <p className="text-xs text-slate-500">{label}</p><p className="font-bold">{value}</p>
