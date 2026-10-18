@@ -87,7 +87,8 @@ export function mapDbPropertyToApp(
     neighborhood: location?.neighborhood,
     addressStreet: location?.street,
     latitude: rawLat,
-    longitude: rawLng
+    longitude: rawLng,
+    coordinateQuality: location?.coordinate_quality
   });
 
   return {
