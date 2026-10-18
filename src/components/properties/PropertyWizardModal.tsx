@@ -26,6 +26,7 @@ import { Property, PropertyType, PropertyPurpose, PropertyMedia, PropertyStatus 
 import { formatCurrency, getPropertyTypeLabel, getPropertyPurposeLabel, generatePropertyCode } from '../../lib/utils';
 import { PropertyImageManager } from '../media/PropertyImageManager';
 import { PropertyValuationStep } from './PropertyValuationStep';
+import { PrivatePropertyLocationMap } from './PrivatePropertyLocationMap';
 import { geocodeAddress, resolvePropertyCoordinates } from '../../lib/geocoding';
 import { DEFAULT_PROPERTY_TYPES } from '../../lib/propertyTypesCatalog';
 
@@ -81,6 +82,12 @@ export const PropertyWizardModal: React.FC = () => {
   // Geocoding Coordinates State
   const [latitude, setLatitude] = useState<number | null>(null);
   const [longitude, setLongitude] = useState<number | null>(null);
+  const [coordinateQuality,setCoordinateQuality] = useState<'unknown'|'approximate'|'geocoded'|'property'>('unknown');
+  const manuallyConfirmed = useRef(false);
+  const invalidatePosition = () => {
+    manuallyConfirmed.current=false;
+    setCoordinateQuality('unknown');
+  };
   const [isGeocoding, setIsGeocoding] = useState(false);
   const [geocodeStatus, setGeocodeStatus] = useState<string | null>(null);
 
@@ -146,6 +153,8 @@ export const PropertyWizardModal: React.FC = () => {
       setFeatured(Boolean(editingProperty.featured));
       setLatitude(editingProperty.latitude || null);
       setLongitude(editingProperty.longitude || null);
+      setCoordinateQuality(editingProperty.coordinateQuality || 'unknown');
+      manuallyConfirmed.current = editingProperty.coordinateQuality === 'property';
       setGeocodeStatus(editingProperty.latitude && editingProperty.longitude ? `Geolocalizado: ${editingProperty.city}/${editingProperty.state}` : null);
     } else {
       // Default new listing - Zero dados fictícios
@@ -163,6 +172,8 @@ export const PropertyWizardModal: React.FC = () => {
       setCondoName('');
       setLatitude(null);
       setLongitude(null);
+      setCoordinateQuality('unknown');
+      manuallyConfirmed.current = false;
       setGeocodeStatus(null);
       setUsefulArea(0);
       setTotalArea(0);
@@ -212,6 +223,7 @@ export const PropertyWizardModal: React.FC = () => {
     }
 
     setZipCode(formatted);
+    invalidatePosition();
     setStepError(null);
 
     // Ao terminar (8 dígitos numéricos completos), realiza busca automática
@@ -264,8 +276,10 @@ export const PropertyWizardModal: React.FC = () => {
         state: uf
       });
       if (geo) {
+        if (manuallyConfirmed.current) return;
         setLatitude(geo.latitude);
         setLongitude(geo.longitude);
+        setCoordinateQuality(geo.source === 'street_exact' ? 'geocoded' : 'approximate');
         setGeocodeStatus(`Localização identificada (${c}/${uf} • ${geo.latitude.toFixed(4)}, ${geo.longitude.toFixed(4)})`);
       } else if (c || uf) {
         setGeocodeStatus(`Cidade mapeada: ${c || ''}/${uf || ''}`);
@@ -403,6 +417,7 @@ export const PropertyWizardModal: React.FC = () => {
         if (geo) {
           finalLat = geo.latitude;
           finalLng = geo.longitude;
+          setCoordinateQuality(geo.source === 'street_exact' ? 'geocoded' : 'approximate');
         }
       } catch {}
     }
@@ -447,6 +462,7 @@ export const PropertyWizardModal: React.FC = () => {
       condoName: condoName.trim() || undefined,
       latitude: finalResolvedLat,
       longitude: finalResolvedLng,
+      coordinateQuality,
       featured,
       isExclusive: false,
       amenities: selectedAmenities,
@@ -663,7 +679,7 @@ export const PropertyWizardModal: React.FC = () => {
                   <input
                     type="text"
                     value={addressStreet}
-                    onChange={(e) => { setAddressStreet(e.target.value); setStepError(null); }}
+                    onChange={(e) => { setAddressStreet(e.target.value); invalidatePosition(); setStepError(null); }}
                     onBlur={() => triggerGeocoding(addressStreet, addressNumber, neighborhood, city, state)}
                     placeholder="Ex: Rua das Flores ou Av. Principal"
                     className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm font-semibold text-slate-900 dark:text-white placeholder:text-slate-400"
@@ -678,7 +694,7 @@ export const PropertyWizardModal: React.FC = () => {
                     ref={addressNumberRef}
                     type="text"
                     value={addressNumber}
-                    onChange={(e) => { setAddressNumber(e.target.value); setStepError(null); }}
+                    onChange={(e) => { setAddressNumber(e.target.value); invalidatePosition(); setStepError(null); }}
                     onBlur={() => triggerGeocoding(addressStreet, addressNumber, neighborhood, city, state)}
                     placeholder="Ex: 1200 ou S/N"
                     className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm font-semibold text-slate-900 dark:text-white placeholder:text-slate-400"
@@ -695,7 +711,7 @@ export const PropertyWizardModal: React.FC = () => {
                   <input
                     type="text"
                     value={neighborhood}
-                    onChange={(e) => { setNeighborhood(e.target.value); setStepError(null); }}
+                    onChange={(e) => { setNeighborhood(e.target.value); invalidatePosition(); setStepError(null); }}
                     onBlur={() => triggerGeocoding(addressStreet, addressNumber, neighborhood, city, state)}
                     placeholder="Ex: Centro"
                     className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm font-semibold text-slate-900 dark:text-white placeholder:text-slate-400"
@@ -709,7 +725,7 @@ export const PropertyWizardModal: React.FC = () => {
                   <input
                     type="text"
                     value={city}
-                    onChange={(e) => { setCity(e.target.value); setStepError(null); }}
+                    onChange={(e) => { setCity(e.target.value); invalidatePosition(); setStepError(null); }}
                     onBlur={() => triggerGeocoding(addressStreet, addressNumber, neighborhood, city, state)}
                     placeholder="Ex: Sorocaba"
                     className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm font-semibold text-slate-900 dark:text-white placeholder:text-slate-400"
@@ -724,7 +740,7 @@ export const PropertyWizardModal: React.FC = () => {
                     type="text"
                     maxLength={2}
                     value={state}
-                    onChange={(e) => { setState(e.target.value.toUpperCase()); setStepError(null); }}
+                    onChange={(e) => { setState(e.target.value.toUpperCase()); invalidatePosition(); setStepError(null); }}
                     onBlur={() => triggerGeocoding(addressStreet, addressNumber, neighborhood, city, state.toUpperCase())}
                     placeholder="SP"
                     className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm font-semibold text-slate-900 dark:text-white placeholder:text-slate-400"
@@ -732,6 +748,15 @@ export const PropertyWizardModal: React.FC = () => {
                 </div>
               </div>
 
+              <PrivatePropertyLocationMap
+                latitude={latitude} longitude={longitude}
+                confirmed={coordinateQuality === 'property'}
+                onConfirm={(lat,lng)=>{
+                  manuallyConfirmed.current=true;
+                  setLatitude(lat);setLongitude(lng);setCoordinateQuality('property');
+                  setGeocodeStatus('Ponto do lote confirmado pelo corretor. Posição privada.');
+                }}
+              />
               {/* Status de Geolocalização Real no Mapa */}
               <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 flex items-center justify-between text-xs">
                 <div className="flex items-center gap-2.5">
@@ -750,7 +775,7 @@ export const PropertyWizardModal: React.FC = () => {
                     </span>
                     <span className="text-[11px] text-slate-500 dark:text-slate-400">
                       {(latitude && longitude)
-                        ? 'O imóvel será posicionado no mapa exatamente onde se localiza no território nacional.'
+                        ? coordinateQuality === 'property' ? 'Lote confirmado pelo corretor. Posição privada.' : 'Posição estimada. Confirme o lote no mapa para obter precisão predial.'
                         : 'O portal georreferencia automaticamente o endereço real para os filtros e mapa.'}
                     </span>
                   </div>
