@@ -3,7 +3,7 @@ begin;
 -- Bairros colaborativos são distintos do catálogo oficial; preservar origem.
 create table if not exists public.community_neighborhoods (
   id bigint generated always as identity primary key,
-  municipality_ibge_id integer not null check (municipality_ibge_id between 1 and 9999999),
+  municipality_ibge_id integer not null check (municipality_ibge_id between 3500000 and 3599999),
   name text not null check (char_length(btrim(name)) between 2 and 120),
   normalized_name text not null check (char_length(normalized_name) between 2 and 120),
   created_by uuid references public.profiles(id) on delete set null,
@@ -40,10 +40,10 @@ begin
   end if;
   select p.role::text into v_role from public.profiles p
     where p.id=auth.uid() and p.is_active=true;
-  if v_role not in ('broker','agency','admin') then
+  if coalesce(v_role,'') not in ('broker','agency','admin') then
     raise exception 'Somente profissionais podem adicionar bairros.';
   end if;
-  if p_municipality_ibge_id is null or p_municipality_ibge_id < 1
+  if p_municipality_ibge_id is null or p_municipality_ibge_id not between 3500000 and 3599999
      or char_length(v_name) not between 2 and 120
      or v_name ~ '[<>]' then
     raise exception 'Município ou nome de bairro inválido.';
