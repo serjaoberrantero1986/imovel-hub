@@ -7,6 +7,9 @@ on:
     paths:
       - 'src/components/properties/**'
       - 'src/lib/valuation/**'
+      - 'lib/geckoContracts.mjs'
+      - 'api/valuation-search.js'
+      - 'scripts/test-valuation-guided.mjs'
       - 'src/lib/geocoding.ts'
       - 'src/lib/supabaseCrud.ts'
       - 'src/context/AppContext.tsx'
@@ -24,7 +27,7 @@ jobs:
       - uses: oven-sh/setup-bun@v2
       - run: bun install --no-save
       - name: Auditoria de comparáveis e permissões
-        run: node --test scripts/test-valuation-engine.mjs scripts/test-valuation-workspace.mjs scripts/test-valuation-wizard.mjs
+        run: node --test scripts/test-valuation-engine.mjs scripts/test-valuation-workspace.mjs scripts/test-valuation-wizard.mjs scripts/test-valuation-guided.mjs
       - name: TypeScript
         run: bun run lint
       - name: Build

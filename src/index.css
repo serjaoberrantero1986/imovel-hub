@@ -92,6 +92,12 @@
   opacity: 0;
   transition: opacity 650ms ease, transform 800ms ease;
 }
+/* No mobile, foco não deve expandir a foto e deslocar o CTA Anunciar. */
+@media (max-width: 1023px) {
+  .member-profile-menu:focus-visible { width: 44px; }
+  .member-profile-menu:focus-visible .member-profile-details,
+  .member-profile-menu:focus-visible .member-profile-chevron { opacity: 0; }
+}
 @media (hover: hover) and (pointer: fine) {
   .member-profile-menu:hover { width: 180px; }
   .member-profile-menu:hover .member-profile-details { opacity: 1; transform: translate(0, -50%); }

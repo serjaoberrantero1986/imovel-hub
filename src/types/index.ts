@@ -113,8 +113,9 @@ export interface Property {
   pricePerMeter?: number;
   condoFee?: number;
   iptuFee?: number;
-  totalArea: number;
-  usefulArea: number;
+  totalArea: number; // Área total/lote; 0 = não informada em registros legados.
+  usefulArea: number; // Área útil/privativa; não inferir de outro campo.
+  builtArea?: number; // Área construída declarada (coluna built_area, nullable).
   bedrooms: number;
   suites: number;
   bathrooms: number;

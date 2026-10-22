@@ -151,7 +151,7 @@ export const Navbar: React.FC = () => {
           {/* Right Action Section */}
           <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
 
-            {!isAdmin && <>{/* Comparison button */}
+            {!isAdmin && <><div className="hidden lg:contents">{/* Comparison button */}
             <button
               id="btn-comparator-nav"
               onClick={() => handleNavigate('comparator')}
@@ -208,14 +208,14 @@ export const Navbar: React.FC = () => {
                 </span>
               )}
             </button>
-            </>}
+            </div></>}
 
             {/* Theme Toggle */}
             <button
               id="theme-toggle-btn"
               onClick={toggleTheme}
               title={`Alternar para tema ${theme === 'light' ? 'escuro' : 'claro'}`}
-              className="w-8 h-8 sm:w-10 sm:h-10 p-0 flex items-center justify-center rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 transition-colors cursor-pointer shrink-0"
+              className={`${isAdmin ? 'flex' : 'hidden lg:flex'} w-8 h-8 sm:w-10 sm:h-10 p-0 flex items-center justify-center rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 transition-colors cursor-pointer shrink-0`}
             >
               {theme === 'light' ? (
                 <Moon className="w-4 h-4 sm:w-5 sm:h-5 text-slate-700" />

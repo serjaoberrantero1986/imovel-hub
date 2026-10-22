@@ -33,7 +33,7 @@ export const usePortalEditorShell = () => {
 };
 
 export function PortalEditorProvider({ children }: { children: React.ReactNode }) {
-  const { currentUser, isAuthenticated, currentView, activeLegalTab, setCurrentView, setActiveLegalTab, addToast } = useApp();
+  const { currentUser, isAuthenticated, isWizardOpen, currentView, activeLegalTab, setCurrentView, setActiveLegalTab, addToast } = useApp();
   const { portal, loading: loadingTenant, refreshTenant } = useTenant();
   const session = usePortalSession(currentUser.id);
   const [editing, setEditing] = useState(false);
@@ -136,7 +136,7 @@ export function PortalEditorProvider({ children }: { children: React.ReactNode }
       {children}
     </PortalCanvas>
     {canEdit && !editing && unpublished && <div className="canvas-preview-status">Prévia privada · alterações não publicadas</div>}
-    {canEdit && !editing && (currentView === 'portal' || currentView === 'legal') && createPortal(<button type="button" data-canvas-tools onClick={() => void openEditor(currentView === 'legal' ? `legal.${activeLegalTab}.document` : undefined)} disabled={busy} className="fixed bottom-24 right-4 z-[89] inline-flex items-center gap-2 rounded-2xl bg-slate-900 px-4 py-3 text-xs font-extrabold text-white shadow-xl shadow-slate-950/30 transition-transform hover:-translate-y-0.5 disabled:opacity-60 dark:bg-white dark:text-slate-900 sm:bottom-6 sm:right-6"><Sparkles className="h-4 w-4 text-rose-400" />{busy ? 'Abrindo editor...' : 'Editar portal'}</button>, document.body)}
+    {canEdit && !editing && !isWizardOpen && (currentView === 'portal' || currentView === 'legal') && createPortal(<button type="button" data-canvas-tools onClick={() => void openEditor(currentView === 'legal' ? `legal.${activeLegalTab}.document` : undefined)} disabled={busy} className="fixed bottom-24 right-4 z-[89] inline-flex items-center gap-2 rounded-2xl bg-slate-900 px-4 py-3 text-xs font-extrabold text-white shadow-xl shadow-slate-950/30 transition-transform hover:-translate-y-0.5 disabled:opacity-60 dark:bg-white dark:text-slate-900 sm:bottom-6 sm:right-6"><Sparkles className="h-4 w-4 text-rose-400" />{busy ? 'Abrindo editor...' : 'Editar portal'}</button>, document.body)}
     {editing && <nav className="canvas-page-switcher" data-canvas-tools aria-label="Páginas do editor"><button onClick={() => navigateEditor('portal')} aria-pressed={currentView === 'portal'}><Home size={15}/>Início</button><details><summary><FileText size={15}/>Documentos</summary><div>{(['terms','privacy','consumer','security','cookies'] as const).map((id,index)=><button key={id} onClick={()=>navigateEditor(id)}>{['Termos','Privacidade','Consumidor','Segurança','Cookies'][index]}</button>)}</div></details></nav>}
     {editing && settingsOpen && <PortalVisualEditor configuration={session.value} busy={busy || session.preparing} onChange={session.change} onClose={() => setSettingsOpen(false)} onPublish={() => void publish()} onPrepareImage={session.prepareImage}/>} 
   </PortalEditorContext.Provider>;
