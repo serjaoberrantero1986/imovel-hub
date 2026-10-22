@@ -65,7 +65,7 @@ export function normalizeGeckoItem(item,source,expectedPurpose='sale'){
     /^(rent|rental|aluguel|locacao|lease)$/.test(pricePurpose)||/\/(aluguel|locacao)\//i.test(url)?'rent':'unknown';
   const textEvidence=[];
   const title=txt(item.title||item.generatedTitle||item.name||'Imóvel anunciado',250);
-  for(const match of title.matchAll(/(\d{1,5}(?:[,.]\d{1,2})?)\s*(?:m²|m2)\b/gi))
+  for(const match of title.matchAll(/(\d{1,5}(?:[,.]\d{1,2})?)\s*(?:m²|m2)(?=\s|[,.;:!?/-]|$)/gi))
     textEvidence.push(match[0]); // Indicativo textual, nunca altera a metragem estruturada.
   return {
     source_name:source,
