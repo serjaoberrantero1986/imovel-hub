@@ -58,7 +58,7 @@ test('Indicativo automático informa mediana e apenas duas ofertas compatíveis 
 
 test('Não confunde metragem de imóvel rural nem presume área quando ausente',()=>{
  const rural={...ref,property_type:'land',land_area:250,property_snapshot:{purpose:'sale',usefulArea:0}};
- const rows=[sample('land',250000,300,{property_type:'land',total_area:250})];
+ const rows=[sample('land',250000,null,{property_type:'land',total_area:250})];
  const screened=screenOffers(rural,rows);
  assert.equal(screened.counts.included,1);
  assert.equal(screened.ready,false);
@@ -92,7 +92,7 @@ test('Cadastro da etapa 3 não copia área total/terreno para área útil',()=>{
  assert.match(wizard,/usefulArea: usefulArea \|\| 0/);
  assert.doesNotMatch(wizard,/totalArea: totalArea \|\| usefulArea/);
  assert.doesNotMatch(wizard,/usefulArea: usefulArea \|\| totalArea/);
- assert.doesNotMatch(crud,/totalArea: Number\(dbProp.total_area \?\? 0\)/);
+ assert.match(crud,/totalArea: Number\(dbProp.total_area \?\? 0\)/);
  assert.match(migration,/add column if not exists built_area/);
  assert.match(migration,/excluded_by_broker boolean/);
 });
