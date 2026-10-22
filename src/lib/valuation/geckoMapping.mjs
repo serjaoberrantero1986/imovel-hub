@@ -32,7 +32,7 @@ const resolveType=item=>{
   if(/^(chacara|sitio|fazenda)\b/.test(name))return 'farm';
   return 'unknown';
 };
-export function normalizeGeckoItem(item,source){
+export function normalizeGeckoItem(item,source,expectedPurpose='sale'){
   if(!item||typeof item!=='object')return null;
   const address=item.address&&typeof item.address==='object'?item.address:{};
   const loc=item.location&&typeof item.location==='object'?item.location:{};
@@ -40,7 +40,7 @@ export function normalizeGeckoItem(item,source){
   const counts=item.counts||{};
   const first=(name,fallback)=>num(attributes[name])??num(fallback);
   const prices=Array.isArray(item.prices)?
-    item.prices.find(p=>norm(p?.businessType)==='sale')||item.prices[0]||{}:
+    item.prices.find(p=>norm(p?.businessType)===expectedPurpose)||item.prices[0]||{}:
     item.prices||{};
   const price=pos(prices.mainValue??prices.value??prices.rawPrice??prices.price??
     item.askingPrice??item.price?.amount??item.price);
@@ -151,6 +151,23 @@ export function screenOffers(reference,records,{tolerance=0.25}={}){
     const url=String(row.listing_url||'').replace(/[?#].*$/,'');
     if(seen.has(key)||seen.has(url)){
       fail('excluded','Anúncio repetido na mesma amostra.');continue;
+    }
+    // Anúncios distintos em portais diferentes podem ser o MESMO imóvel.
+    // A coincidência é apenas suspeita; preservar os registros e pedir revisão.
+    const suspected=entries.find(entry=>{
+      const prev=entry.item;
+      if(entry.status!=='included'||!prev||prev.source_name===row.source_name)return false;
+      if(!row.listing_neighborhood||!prev.listing_neighborhood||
+         norm(row.listing_neighborhood)!==norm(prev.listing_neighborhood))return false;
+      const prevArea=Number(prev[basis.field]);
+      return prevArea>0&&Math.abs(prevArea-area)/Math.max(prevArea,area)<=0.03&&
+        Math.abs(Number(prev.asking_price)-Number(row.asking_price))/
+          Math.max(Number(prev.asking_price),Number(row.asking_price))<=0.02&&
+        (prev.bedrooms==null||row.bedrooms==null||prev.bedrooms===row.bedrooms)&&
+        (prev.bathrooms==null||row.bathrooms==null||prev.bathrooms===row.bathrooms);
+    });
+    if(suspected){
+      fail('pending','Possível repetição de imóvel anunciado em outro portal. Exige confirmação.');continue;
     }
     seen.add(key);seen.add(url);
     const warnings=[];
