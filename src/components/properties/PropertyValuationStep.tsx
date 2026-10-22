@@ -207,7 +207,7 @@ export const PropertyValuationStep:React.FC<{property:Property}> = ({property})=
             continue;
           }
           const mapped=(Array.isArray(data.items)?data.items:[]).map((row:unknown)=>
-            normalizeGeckoItem(row,target)).filter(Boolean);
+            normalizeGeckoItem(row,target,property.purpose==='rent'?'rent':'sale')).filter(Boolean);
           const valid=mapped.filter((row:any)=>row.asking_price>0&&row.listing_url);
           const skipped=mapped.length-valid.length+
             Number(data.audit?.discardedMissingLocation||0)+
