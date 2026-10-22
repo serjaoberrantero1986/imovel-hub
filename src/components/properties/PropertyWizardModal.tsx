@@ -471,7 +471,7 @@ export const PropertyWizardModal: React.FC = () => {
       acceptsExchange,
       totalArea: totalArea || 0,
       usefulArea: usefulArea || 0,
-      builtArea: builtArea > 0 ? builtArea : undefined,
+      builtArea: builtArea > 0 ? builtArea : 0,
       bedrooms,
       suites,
       bathrooms,
@@ -816,7 +816,7 @@ export const PropertyWizardModal: React.FC = () => {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="text-xs font-bold text-slate-500 mb-1 flex items-center gap-1">
-                    <span>Área Útil / Privativa (m²)</span>
+                    <span>Área útil / privativa (m²)</span>
                     <span className="text-rose-500 font-bold">*</span>
                   </label>
                   <input
@@ -829,7 +829,7 @@ export const PropertyWizardModal: React.FC = () => {
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-bold text-slate-500 mb-1 block">Área total / terreno (m²)</label>
+                  <label className="text-xs font-bold text-slate-500 mb-1 block">{['land','chacara','farm','house','condo_house'].includes(type) ? 'Área do terreno/lote (m²)' : 'Área total da unidade (m²)'}</label>
                   <input
                     type="number"
                     min={0}
