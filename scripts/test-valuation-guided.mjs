@@ -135,3 +135,14 @@ test('Preços de locação e de venda não são trocados no adaptador',()=>{
  assert.equal(rent.asking_price,2800);
  assert.equal(rent.offer_purpose,'rent');
 });
+
+
+test('Pesquisa autenticada usa atributos congelados da avaliação e não local atual',()=>{
+ const api=readFileSync('api/valuation-search.js','utf8');
+ const ui=readFileSync('src/components/properties/PropertyValuationStep.tsx','utf8');
+ assert.match(api,/assessmentId/);
+ assert.match(api,/source_property_id/);
+ assert.match(api,/assessment\.property_snapshot/);
+ assert.match(api,/referenceLocation=\{city:assessment\.city,state:assessment\.state\}/);
+ assert.match(ui,/assessmentId:selected\.id/);
+});
