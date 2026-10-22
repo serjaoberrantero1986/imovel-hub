@@ -1,3 +1,4 @@
+import {stateCode} from '../../../lib/geckoContracts.mjs';
 // Interpretação prudente de anúncios GeckoAPI e indicador preliminar de ofertas.
 // Este módulo não emite PTAM, não homogeneíza imóveis e não faz requisições.
 const norm=v=>String(v??'').normalize('NFD').replace(/[\u0300-\u036f]/g,'')
@@ -45,13 +46,18 @@ export function normalizeGeckoItem(item,source){
     item.askingPrice??item.price?.amount??item.price);
   const link=txt(item.url||item.listingUrl||item.link,2000);
   let url;
-  try{const parsed=new URL(link);if(parsed.protocol!=='https:'||parsed.username||parsed.password)
-    return null;url=parsed.toString();}catch{return null;}
+  try{
+    const parsed=new URL(link);
+    if(parsed.protocol!=='https:'||parsed.username||parsed.password||
+      (parsed.hostname!==source&&!parsed.hostname.endsWith('.'+source)))return null;
+    url=parsed.toString();
+  }catch{return null;}
   const id=txt(String(item.id||item.listingId||item.externalId||item.listingExternalId||
     item.adId||url),120);
   const actualCity=txt(address.city||loc.city||item.city,120);
-  const actualState=txt(address.stateAcronym||address.stateCode||address.state||
-    loc.stateAcronym||loc.stateCode||loc.state||item.stateCode||item.state,2).toUpperCase();
+  const rawState=txt(address.stateAcronym||address.stateCode||address.state||
+    loc.stateAcronym||loc.stateCode||loc.state||item.stateCode||item.state,120);
+  const actualState=stateCode(rawState)||rawState.slice(0,2).toUpperCase();
   const kind=resolveType(item);
   const pricePurpose=norm(item.offerPurpose||item.businessType||
     item.transactionType||item.operation||prices.businessType);
