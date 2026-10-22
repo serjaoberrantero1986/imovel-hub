@@ -61,6 +61,16 @@ export interface ValuationComparable {
   multi_unit: boolean;
   unfinished: boolean;
   notes: string;
+  usable_area?: number | null;
+  total_area?: number | null;
+  listing_title?: string;
+  listing_city?: string;
+  listing_state?: string;
+  listing_neighborhood?: string;
+  offer_purpose?: 'sale' | 'rent' | 'unknown';
+  excluded_by_broker?: boolean;
+  exclusion_reason?: string;
+  collected_at?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -77,7 +87,10 @@ export type ValuationComparableInput = Pick<ValuationComparable,
   'condominium' | 'latitude' | 'longitude' | 'coordinate_quality' | 'availability' |
   'market_zone_verified' | 'reviewed_by_broker' | 'conflicting_data' | 'multi_unit' |
   'unfinished' | 'notes'
->;
+> & Partial<Pick<ValuationComparable,
+  'usable_area' | 'total_area' | 'listing_title' | 'listing_city' | 'listing_state' |
+  'listing_neighborhood' | 'offer_purpose' | 'excluded_by_broker' | 'exclusion_reason' | 'collected_at'
+>>;
 
 const requireClient = () => {
   if (!supabase) throw new Error('O serviço de avaliações está indisponível.');
@@ -200,4 +213,48 @@ export async function createValuationForProperty(property: Property): Promise<Va
   }).select('*').single();
   if(error)throw error;
   return data as ValuationAssessment;
+}
+
+
+/**
+ * Lotes capturados em fontes públicas. Só persistem ofertas com URL HTTPS e
+ * preço positivo. Os demais registros são relatados ao operador como descartados,
+ * não transformados em ofertas artificiais para satisfazer campos NOT NULL.
+ */
+export async function addComparablesFromSearch(
+  assessmentId: string, proposals: ValuationComparableInput[],
+): Promise<{saved:ValuationComparable[];duplicates:number}> {
+  const owner_id=await requireProfessionalOwner();
+  const client=requireClient();
+  const existing=await listValuationComparables(assessmentId);
+  const seen=new Set(existing.map(x=>x.listing_url));
+  const rows:Record<string,unknown>[]=[];
+  let duplicates=0;
+  for(const p of proposals){
+    const url=validateListingUrl(p.listing_url);
+    if(seen.has(url)){duplicates++;continue;}
+    if(!Number.isFinite(p.asking_price)||p.asking_price<=0)
+      throw new Error('Preço inválido em oferta selecionada para persistência.');
+    seen.add(url);
+    rows.push({...p,assessment_id:assessmentId,owner_id,listing_url:url});
+  }
+  const saved:ValuationComparable[]=[];
+  for(let i=0;i<rows.length;i+=40){
+    const {data,error}=await client.from('valuation_comparables')
+      .insert(rows.slice(i,i+40)).select('*');
+    if(error)throw new Error('Não foi possível salvar parte dos anúncios da pesquisa: '+error.message);
+    saved.push(...(data||[]) as ValuationComparable[]);
+  }
+  return {saved,duplicates};
+}
+
+export async function setComparableExclusion(
+  assessmentId:string,id:string,excluded:boolean,reason='',
+):Promise<ValuationComparable>{
+  if(excluded&&reason.trim().length<8)
+    throw new Error('Informe brevemente por que decidiu excluir este anúncio.');
+  return updateValuationComparable(assessmentId,id,{
+    excluded_by_broker:excluded,
+    exclusion_reason:excluded?reason.trim().slice(0,500):''
+  });
 }
