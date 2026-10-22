@@ -25,7 +25,17 @@ const resolveType=item=>{
     const code=norm(v).replace(/ /g,'_').toUpperCase();
     if(unitTypes[code])return unitTypes[code];
   }
-  const name=norm(item.title||item.generatedTitle);
+  const name=norm(item.title||item.generatedTitle||item.name);
+  const category=norm(item.category||item.categoryName);
+  const details=norm((Array.isArray(item.properties)?item.properties:[])
+    .filter(p=>/tipo|categoria|imovel/.test(norm(p?.name||p?.label)))
+    .map(p=>p?.value).join(' '));
+  const combined=[category,details,name].join(' ');
+  if(/\b(sala comercial|salas comerciais|conjunto comercial|sala para escritorio|escritorio comercial|sala corporativa)\b/.test(combined))
+    return 'commercial';
+  if(/\b(galpao|galpoes|barracao industrial)\b/.test(combined))return 'warehouse';
+  if(/\b(chacara|chacaras|sitio|sitios|fazenda|fazendas)\b/.test(combined))
+    return 'farm';
   if(/^(casa|sobrado)\b/.test(name))return 'house';
   if(/^(apartamento|apto|cobertura|flat|studio)\b/.test(name))return 'apartment';
   if(/^(terreno|lote)\b/.test(name))return 'land';
@@ -72,8 +82,13 @@ export function normalizeGeckoItem(item,source,expectedPurpose='sale'){
   const kind=resolveType(item);
   const pricePurpose=norm(item.offerPurpose||item.businessType||item.business||
     item.transactionType||item.operation||prices.businessType);
+  const nameForPurpose=norm(item.title||item.generatedTitle||item.name);
+  const saleSignal=/\b(venda|vendo|vende|vender|comprar)\b/.test(nameForPurpose)||
+    /(?:a|à) venda/i.test(nameForPurpose);
+  const rentSignal=/\b(aluga|alugo|aluguel|alugando|locacao|locar)\b/.test(nameForPurpose);
   const purpose=/^(sale|sell|venda|buy)$/.test(pricePurpose)||/\/venda\//i.test(url)?'sale':
-    /^(rent|rental|aluguel|locacao|lease)$/.test(pricePurpose)||/\/(aluguel|locacao)\//i.test(url)?'rent':'unknown';
+    /^(rent|rental|aluguel|locacao|lease)$/.test(pricePurpose)||/\/(aluguel|locacao)\//i.test(url)?'rent':
+    saleSignal&&!rentSignal?'sale':rentSignal&&!saleSignal?'rent':'unknown';
   const textEvidence=[];
   const title=txt(item.title||item.generatedTitle||item.name||'Imóvel anunciado',250);
   const explicitlyBuilt=pos(first('builtAreas',item.area?.built??
@@ -133,70 +148,81 @@ export function screenOffers(reference,records,{tolerance=0.25}={}){
   const purpose=reference.property_snapshot?.purpose||'sale';
   const desiredCity=norm(reference.city),desiredState=norm(reference.state);
   for(const row of records){
-    const fail=(status,reason)=>entries.push({item:row,status,reason});
-    if(row.excluded_by_broker){fail('excluded','Excluído por decisão manual do corretor'+
-      (row.exclusion_reason?': '+row.exclusion_reason:'')+'.');continue;}
-    if(!row.listing_url){fail('pending','Link do anúncio ausente ou não confirmado.');continue;}
+    const reasons=[],warnings=[];
+    let rejected=false,pending=false;
+    const reject=text=>{rejected=true;reasons.push(text);};
+    const review=text=>{pending=true;reasons.push(text);};
+    if(row.excluded_by_broker){
+      reject('Excluído por decisão manual do corretor'+
+        (row.exclusion_reason?': '+row.exclusion_reason:'')+'.');
+    }
+    if(row.search_query_verified===false){
+      reject('A busca original não confirmou os filtros de tipo/cidade/UF. Não utilizar sem uma pesquisa válida.');
+    }
+    if(!row.listing_url)review('Link do anúncio ausente ou não confirmado.');
     if(row.offer_purpose!==purpose){
-      fail(row.offer_purpose==='unknown'?'pending':'excluded',
-        row.offer_purpose==='unknown'?'A finalidade da oferta não foi identificada.':
-        'Oferta de venda/locação incompatível com o imóvel de referência.');continue;
+      if(!row.offer_purpose||row.offer_purpose==='unknown')
+        review('Finalidade de venda/locação não confirmada.');
+      else reject('Finalidade incompatível: anúncio de '+(row.offer_purpose==='rent'?'locação':'venda')+'.');
     }
     if(!similarType(reference.property_type,row.property_type)){
-      fail(row.property_type==='unknown'?'pending':'excluded','Tipologia incompatível ou não identificada.');continue;
+      if(!row.property_type||row.property_type==='unknown')
+        review('Tipologia do anúncio não identificada.');
+      else reject('Tipologia incompatível: '+row.property_type+' ≠ '+reference.property_type+'.');
     }
     if(!desiredCity||!desiredState||!row.listing_city||!row.listing_state){
-      fail('pending','Município/UF não confirmados no anúncio.');continue;
+      review('Município ou UF não confirmados.');
+    }else if(norm(row.listing_city)!==desiredCity||norm(row.listing_state)!==desiredState){
+      reject('Localização incompatível: '+row.listing_city+'/'+row.listing_state+
+        ', referência '+reference.city+'/'+reference.state+'.');
     }
-    if(norm(row.listing_city)!==desiredCity||norm(row.listing_state)!==desiredState){
-      fail('excluded','O imóvel está anunciado em outro município ou estado.');continue;
-    }
-    if(!Number.isFinite(Number(row.asking_price))||Number(row.asking_price)<=0){
-      fail('pending','Preço pedido não informado ou inválido.');continue;
-    }
-    const area=Number(row[basis.field]);
-    if(!basis.referenceArea||basis.referenceArea<=0){
-      fail('pending','O cadastro precisa informar '+basis.label+' da referência.');continue;
-    }
-    if(!Number.isFinite(area)||area<=0){
-      fail('pending','Não há '+basis.label+' confirmada no anúncio.');continue;
-    }
-    if(Math.abs(area-basis.referenceArea)/basis.referenceArea>tolerance){
-      fail('excluded','Área fora da tolerância de '+Math.round(tolerance*100)+'% em relação à referência.');continue;
-    }
-    if(row.usable_area>0&&row.total_area>0&&Number(row.usable_area)>Number(row.total_area)){
-      fail('pending','Áreas informadas são contraditórias ou têm definições diferentes; conferência necessária.');continue;
-    }
+    const asking=Number(row.asking_price);
+    if(!Number.isFinite(asking)||asking<=0)review('Preço pedido não informado ou inválido.');
+    const surface=Number(row[basis.field]);
+    if(!basis.referenceArea||basis.referenceArea<=0)
+      review('Metragem da referência ('+basis.label+') ausente.');
+    if(!Number.isFinite(surface)||surface<=0)
+      review('Metragem '+basis.label+' não confirmada no anúncio.');
+    else if(basis.referenceArea>0&&
+       Math.abs(surface-basis.referenceArea)/basis.referenceArea>tolerance)
+      reject('Área fora da tolerância de '+Math.round(tolerance*100)+'% em relação à referência.');
+    if(row.usable_area>0&&row.total_area>0&&Number(row.usable_area)>Number(row.total_area))
+      review('Áreas informadas contraditórias ou com definições distintas.');
     const key=norm(row.source_name)+':'+norm(row.listing_reference||row.listing_url);
-    const url=String(row.listing_url||'').replace(/[?#].*$/,'');
-    if(seen.has(key)||seen.has(url)){
-      fail('excluded','Anúncio repetido na mesma amostra.');continue;
+    const cleanUrl=String(row.listing_url||'').replace(/[?#].*$/,'');
+    if(cleanUrl&&(seen.has(key)||seen.has(cleanUrl))){
+      reject('Anúncio repetido na amostra.');
     }
-    // Anúncios distintos em portais diferentes podem ser o MESMO imóvel.
-    // A coincidência é apenas suspeita; preservar os registros e pedir revisão.
-    const suspected=entries.find(entry=>{
-      const prev=entry.item;
-      if(entry.status!=='included'||!prev||prev.source_name===row.source_name)return false;
-      if(!row.listing_neighborhood||!prev.listing_neighborhood||
-         norm(row.listing_neighborhood)!==norm(prev.listing_neighborhood))return false;
-      const prevArea=Number(prev[basis.field]);
-      return prevArea>0&&Math.abs(prevArea-area)/Math.max(prevArea,area)<=0.03&&
-        Math.abs(Number(prev.asking_price)-Number(row.asking_price))/
-          Math.max(Number(prev.asking_price),Number(row.asking_price))<=0.02&&
-        (prev.bedrooms==null||row.bedrooms==null||prev.bedrooms===row.bedrooms)&&
-        (prev.bathrooms==null||row.bathrooms==null||prev.bathrooms===row.bathrooms);
+    if(!rejected&&!pending){
+      const suspected=entries.find(entry=>{
+        const prev=entry.item;
+        if(entry.status!=='included'||!prev||prev.source_name===row.source_name)return false;
+        if(!row.listing_neighborhood||!prev.listing_neighborhood||
+          norm(row.listing_neighborhood)!==norm(prev.listing_neighborhood))return false;
+        const prevArea=Number(prev[basis.field]);
+        return prevArea>0&&Math.abs(prevArea-surface)/Math.max(prevArea,surface)<=0.03&&
+          Math.abs(Number(prev.asking_price)-asking)/
+            Math.max(Number(prev.asking_price),asking)<=0.02&&
+          (prev.bedrooms==null||row.bedrooms==null||prev.bedrooms===row.bedrooms)&&
+          (prev.bathrooms==null||row.bathrooms==null||prev.bathrooms===row.bathrooms);
+      });
+      if(suspected)review('Possível repetição de imóvel em outro portal; conferência necessária.');
+    }
+    // Duplicatas idênticas ficam destacadas inclusive se já estão rejeitadas.
+    if(cleanUrl){seen.add(cleanUrl);seen.add(key);}
+    const status=rejected?'excluded':pending?'pending':'included';
+    if(status==='included'){
+      if(row.reviewed_by_broker!==true)warnings.push('Atributos não conferidos pelo corretor.');
+      if(!row.listing_neighborhood)warnings.push('Bairro não confirmado.');
+      if(row.bedrooms!==null&&reference.bedrooms!==null&&row.bedrooms!==reference.bedrooms)
+        warnings.push('Número de dormitórios diferente.');
+    }
+    entries.push({
+      item:row,status,
+      reason:reasons.length?reasons.join(' • '):'Atende aos filtros objetivos preliminares.',
+      reasons,
+      ...(status==='included'?{area:surface,pricePerSqm:asking/surface,warnings}:{warnings})
     });
-    if(suspected){
-      fail('pending','Possível repetição de imóvel anunciado em outro portal. Exige confirmação.');continue;
-    }
-    seen.add(key);seen.add(url);
-    const warnings=[];
-    if(row.reviewed_by_broker!==true)warnings.push('Atributos não conferidos pelo corretor.');
-    if(!row.listing_neighborhood)warnings.push('Bairro não confirmado.');
-    if(row.bedrooms!==null&&reference.bedrooms!==null&&row.bedrooms!==reference.bedrooms)
-      warnings.push('Número de dormitórios diferente.');
-    entries.push({item:row,status:'included',reason:'Atende aos filtros objetivos preliminares.',
-      area,pricePerSqm:Number(row.asking_price)/area,warnings});
   }
   const included=entries.filter(e=>e.status==='included');
   const counts={included:included.length,pending:entries.filter(e=>e.status==='pending').length,
@@ -237,6 +263,7 @@ export function candidateFromGecko(item,source,index,requestId='',collectedAt=''
     url:String(raw.url??raw.listingUrl??raw.link??'').slice(0,2000),
     description:typeof raw.description==='string'?raw.description.slice(0,3500):null,
     price:raw.price??null,
+    category:typeof raw.category==='string'?raw.category.slice(0,180):null,
     prices:Array.isArray(raw.prices)?raw.prices.slice(0,5):raw.prices??null,
     unitTypes:raw.unitTypes??null,
     propertyType:raw.propertyType??null,

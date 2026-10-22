@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
-import { buildGeckoPayload, auditLocation, responseEnvelope, PORTALS } from '../lib/geckoContracts.mjs';
+import { buildGeckoPayload, auditLocation, auditOlxRequestUrl, responseEnvelope, PORTALS } from '../lib/geckoContracts.mjs';
+import { compareAssessmentSubject } from '../src/lib/valuation/subjectConsistency.mjs';
 
 // Vercel serverless function. Nunca enviar o token da GeckoAPI para o navegador.
 // Cada requisição pesquisa SOMENTE uma fonte e uma página, após autorização.
@@ -79,23 +80,39 @@ export default async function handler(req,res){
   prev.count++;attempts.set(rateKey,prev);
   if(attempts.size>2000)attempts.clear();
   if(prev.count>7)return json(res,429,{error:'Limite temporário de consultas. Aguarde antes de pesquisar novamente.'});
-  let payload,referenceLocation;
+  let payload,referenceLocation,subjectDetails;
   try{
-    const [{data:listing,error:propertyError},{data:assessment,error:assessmentError}]=await Promise.all([
+    const [{data:listing,error:propertyError},{data:assessment,error:assessmentError},
+      {data:location,error:locationError}]=await Promise.all([
       client.from('properties')
-        .select('id,user_id,purpose,type').eq('id',propertyId).eq('user_id',user.id).single(),
+        .select('id,user_id,purpose,type,total_area,useful_area,built_area')
+        .eq('id',propertyId).eq('user_id',user.id).single(),
       client.from('valuation_assessments')
-        .select('id,owner_id,source_property_id,property_type,city,state,property_snapshot')
+        .select('id,owner_id,source_property_id,property_type,city,state,neighborhood,land_area,built_area,property_snapshot')
         .eq('id',assessmentId).eq('owner_id',user.id)
-        .eq('source_property_id',propertyId).single()
+        .eq('source_property_id',propertyId).single(),
+      client.from('property_locations')
+        .select('city,state,neighborhood').eq('property_id',propertyId).maybeSingle()
     ]);
     if(propertyError||assessmentError||!listing||!assessment)
       return json(res,403,{error:'A avaliação não pertence ao titular ou não está vinculada a este imóvel.'});
-    // Pesquisar com os mesmos atributos congelados na data de abertura
-    // da avaliação, evitando misturar dados atuais com histórico antigo.
+    if(locationError||!location)
+      return json(res,409,{code:'LOCATION_NOT_VERIFIED',
+        error:'Confirme o endereço atualizado no cadastro antes de pesquisar. Nenhum crédito foi consumido.'});
+    const changes=compareAssessmentSubject(assessment,listing,location);
+    if(changes.length){
+      return json(res,409,{
+        code:'ASSESSMENT_STALE',
+        error:'O cadastro foi alterado desde a criação desta avaliação. Inicie uma nova avaliação com os dados atuais antes de pesquisar. Nenhum crédito foi consumido.',
+        changes
+      });
+    }
+    // O retrato histórico só volta a ser pesquisável depois de confrontado
+    // com os dados persistidos ATUAIS; nunca confiar nos dados do navegador.
     const snap=assessment.property_snapshot||{};
-    const propertyForSearch={type:assessment.property_type,purpose:snap.purpose||listing.purpose};
-    referenceLocation={city:assessment.city,state:assessment.state};
+    const propertyForSearch={type:assessment.property_type,purpose:snap.purpose};
+    referenceLocation={city:location.city,state:location.state};
+    subjectDetails={propertyType:assessment.property_type,city:location.city,state:location.state,purpose:snap.purpose};
     payload=proposalForProperty(propertyForSearch,referenceLocation,target,page,imovelwebUrl);
   }catch(e){return json(res,400,{error:e.message||'Não foi possível preparar a pesquisa.'});}
   const controller=new AbortController();
@@ -121,11 +138,16 @@ export default async function handler(req,res){
     // Auditoria informativa: NÃO descartar respostas antes de o corretor
     // poder analisar e corrigir informações ausentes ou regiões divergentes.
     const checked=auditLocation(body,referenceLocation.city,referenceLocation.state);
+    const requestAudit=auditOlxRequestUrl(body,payload);
+    const searchVerified=target!=='olx.com.br'||requestAudit.status==='match';
     const maxItems=300;
     return json(res,200,{
       source:target,
       retrievedAt:new Date().toISOString(),
       requestId:typeof data.requestId==='string'?data.requestId:null,
+      requested:subjectDetails,
+      requestAudit,
+      searchVerified,
       audit:checked.audit,
       providerItems:body.items.length,
       items:body.items.slice(0,maxItems),

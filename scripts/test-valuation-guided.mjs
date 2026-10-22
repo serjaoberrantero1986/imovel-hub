@@ -144,7 +144,8 @@ test('Pesquisa autenticada usa atributos congelados da avaliação e não local 
  assert.match(api,/assessmentId/);
  assert.match(api,/source_property_id/);
  assert.match(api,/assessment\.property_snapshot/);
- assert.match(api,/referenceLocation=\{city:assessment\.city,state:assessment\.state\}/);
+ assert.match(api,/referenceLocation=\{city:location\.city,state:location\.state\}/);
+ assert.match(api,/compareAssessmentSubject\(assessment,listing,location\)/);
  assert.match(ui,/assessmentId:selected\.id/);
 });
 

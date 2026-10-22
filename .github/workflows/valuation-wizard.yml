@@ -12,6 +12,7 @@ on:
       - 'api/valuation-credits.js'
       - 'supabase/migrations/20261022000002_valuation_candidates_preserved.sql'
       - 'scripts/test-valuation-guided.mjs'
+      - 'scripts/test-valuation-subject-safety.mjs'
       - 'src/lib/geocoding.ts'
       - 'src/lib/supabaseCrud.ts'
       - 'src/context/AppContext.tsx'
@@ -29,7 +30,7 @@ jobs:
       - uses: oven-sh/setup-bun@v2
       - run: bun install --no-save
       - name: Auditoria de comparáveis e permissões
-        run: node --test scripts/test-valuation-engine.mjs scripts/test-valuation-workspace.mjs scripts/test-valuation-wizard.mjs scripts/test-valuation-guided.mjs
+        run: node --test scripts/test-valuation-engine.mjs scripts/test-valuation-workspace.mjs scripts/test-valuation-wizard.mjs scripts/test-valuation-guided.mjs scripts/test-valuation-subject-safety.mjs
       - name: TypeScript
         run: bun run lint
       - name: Build

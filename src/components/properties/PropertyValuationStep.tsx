@@ -16,7 +16,8 @@ import {
   updateValuationComparable, type ValuationAssessment, type ValuationComparable,
   type ValuationComparableInput, type ValuationCandidate
 } from '../../lib/valuation/assessmentRepository';
-import { candidateFromGecko, screenOffers } from '../../lib/valuation/geckoMapping.mjs';
+import { candidateFromGecko, normalizeGeckoItem, screenOffers } from '../../lib/valuation/geckoMapping.mjs';
+import { compareAssessmentSubject } from '../../lib/valuation/subjectConsistency.mjs';
 
 // Mantém toda a experiência na oitava etapa do assistente já existente.
 // Nenhum mapa, geocodificação ou segundo cadastro é apresentado aqui.
@@ -66,6 +67,12 @@ const toneStatus:{[key:string]:string}={
   excluded:'border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-900 dark:bg-rose-950/30 dark:text-rose-300'
 };
 const initialProviders=['zapimoveis.com.br','vivareal.com.br','olx.com.br','chavesnamao.com.br'];
+const TYPE_LABELS:Record<string,string>={
+  chacara:'Chácara',farm:'Chácara / sítio',commercial:'Comercial',
+  house:'Casa',condo_house:'Casa em condomínio',apartment:'Apartamento',
+  land:'Terreno',flat:'Flat',kitnet:'Kitnet',penthouse:'Cobertura'
+};
+const PURPOSE_LABELS:Record<string,string>={sale:'Venda',rent:'Locação',launch:'Lançamento'};
 const numericField=(raw:string):number|null=>{
   if(!raw.trim())return null;
   const n=Number(raw);
@@ -117,6 +124,9 @@ function PropertyValuationStep({property,onReturnToCadastro,onComplete,onFlowCon
   const [creditError,setCreditError]=useState('');
   const [creditLoading,setCreditLoading]=useState(false);
   const [creditApproval,setCreditApproval]=useState(false);
+  const [remoteStaleChanges,setRemoteStaleChanges]=useState<
+    Array<{field:string;label:string;before:string;after:string}>>([]);
+  useEffect(()=>{setRemoteStaleChanges([]);},[selectedId]);
   useEffect(()=>{
     if(creditApproval)document.getElementById('valuation-credit-confirm')?.scrollIntoView({
       behavior:'smooth',block:'center'
@@ -150,6 +160,9 @@ function PropertyValuationStep({property,onReturnToCadastro,onComplete,onFlowCon
     return()=>{active=false;};
   },[phase]);
   const selected=history.find(x=>x.id===selectedId)||null;
+  const localStaleChanges=selected?compareAssessmentSubject(selected,property):[];
+  const staleChanges=localStaleChanges.length?localStaleChanges:remoteStaleChanges;
+  const isAssessmentStale=staleChanges.length>0;
   const amenities=(property.amenities||[]).map(id=>activeAmenities.find(a=>a.id===id)?.name||id);
 
   const reload=useCallback(async()=>{
@@ -179,8 +192,18 @@ function PropertyValuationStep({property,onReturnToCadastro,onComplete,onFlowCon
   // entram no indicador. Dados brutos permanecem intactos e auditáveis.
   const allOffers=useMemo(()=>[
     ...comparables,
-    ...candidates.map(c=>({
+    ...candidates.map(c=>{
+      const inferred=c.reviewed_by_broker?null:normalizeGeckoItem({
+        ...c.captured_data,
+        title:c.captured_data?.title||c.listing_title,
+        url:c.captured_data?.url||c.listing_url
+      },c.source_name);
+      return ({
       ...c.normalized_data,
+      property_type:c.normalized_data?.property_type==='unknown'&&inferred&&inferred.property_type!=='unknown'
+        ?inferred?.property_type:c.normalized_data?.property_type,
+      offer_purpose:c.normalized_data?.offer_purpose==='unknown'&&inferred&&inferred.offer_purpose!=='unknown'
+        ?inferred?.offer_purpose:c.normalized_data?.offer_purpose,
       id:c.id,
       source_name:c.source_name,
       listing_url:c.normalized_data?.listing_url||c.listing_url||'',
@@ -190,7 +213,8 @@ function PropertyValuationStep({property,onReturnToCadastro,onComplete,onFlowCon
       exclusion_reason:c.exclusion_reason,
       reviewed_by_broker:c.reviewed_by_broker,
       notes:c.review_note
-    } as unknown as ValuationComparable))
+    } as unknown as ValuationComparable);
+    })
   ],[comparables,candidates]);
   const indicator=useMemo(()=>selected?screenOffers(selected,allOffers):null,[selected,allOffers]);
   const options=indicator?.entries.filter(row=>triageFilter==='all'||row.status===triageFilter)||[];
@@ -209,6 +233,10 @@ function PropertyValuationStep({property,onReturnToCadastro,onComplete,onFlowCon
     setError('');setBusy(true);
     try{
       if(!subjectReady)throw new Error('Confira a cidade, o estado e a metragem pertinente na etapa 2 ou 3 do cadastro.');
+      if(remoteStaleChanges.length)
+        throw new Error('O cadastro mudou em outra sessão. Feche e reabra o imóvel para carregar os dados atualizados.');
+      if(!createNew&&selected&&isAssessmentStale)
+        throw new Error('A avaliação selecionada pertence a uma versão antiga. Crie uma nova avaliação antes de pesquisar.');
       if(createNew||!selected){
         // Preview usa o mesmo backend de produção. Não criar avaliações
         // parcialmente incompatíveis antes da migração estar aplicada.
@@ -241,6 +269,11 @@ function PropertyValuationStep({property,onReturnToCadastro,onComplete,onFlowCon
     if(busy)return;
     setError('');
     if(!selected){setError('Inicie a avaliação a partir do cadastro antes de pesquisar.');return;}
+    if(isAssessmentStale){
+      setCreditApproval(false);setPhase('subject');
+      setError('Esta avaliação utiliza dados antigos. Crie uma avaliação atualizada antes de consultar os portais. Nenhum crédito foi consumido.');
+      return;
+    }
     if(!sources.length){setError('Selecione pelo menos uma fonte.');return;}
     if(sources.includes('imovelweb.com.br')){
       try{
@@ -277,7 +310,9 @@ function PropertyValuationStep({property,onReturnToCadastro,onComplete,onFlowCon
       const values:SourceStatus[]=sources.map(id=>({id,state:'pending',accepted:0,skipped:0}));
       setSourceStates(values);
       let success=0;let total=0;let problems=0;
+      let interruptedForStale=false;
       const failedMessages:string[]=[];
+      const auditWarnings:string[]=[];
       for(const target of sources){
         setSourceStates(prev=>prev.map(item=>item.id===target?{...item,state:'running'}:item));
         try{
@@ -290,6 +325,15 @@ function PropertyValuationStep({property,onReturnToCadastro,onComplete,onFlowCon
           const data=await response.json().catch(()=>({}));
           if(!response.ok){
             const message=String(data.error||'Não foi possível consultar esta fonte.');
+            if(response.status===409&&data.code==='ASSESSMENT_STALE'){
+              interruptedForStale=true;
+              setRemoteStaleChanges(Array.isArray(data.changes)?data.changes:[]);
+              setError(message);
+              setCreditApproval(false);
+              setSourceStates(prev=>prev.map(item=>item.id===target?
+                {...item,state:'error',message:'A avaliação ficou desatualizada. Nenhum crédito desta fonte foi consumido.'}:item));
+              break;
+            }
             setSourceStates(prev=>prev.map(item=>item.id===target?
               {...item,state:'error',message}:item));
             failedMessages.push(PROVIDERS.find(x=>x.id===target)?.label||target);
@@ -304,8 +348,29 @@ function PropertyValuationStep({property,onReturnToCadastro,onComplete,onFlowCon
           const now=typeof data.retrievedAt==='string'?data.retrievedAt:new Date().toISOString();
           // Capturar todos, inclusive anúncios sem preço, cidade ou URL. Nunca
           // cobrar nova pesquisa para recuperar registros descartados localmente.
-          const proposals=returned.map((row:unknown,index:number)=>
-            candidateFromGecko(row,target,index,String(data.requestId||''),now));
+          const searchVerified=target!=='olx.com.br'||data.searchVerified===true;
+          if(!searchVerified){
+            auditWarnings.push('OLX: a URL efetivamente consultada não comprovou todos os filtros.'+
+              ' Os anúncios foram preservados, porém bloqueados para o cálculo.');
+          }
+          const proposals=returned.map((row:unknown,index:number)=>{
+            const candidate=candidateFromGecko(row,target,index,String(data.requestId||''),now);
+            candidate.normalized_data={
+              ...candidate.normalized_data,
+              search_query_verified:searchVerified,
+              search_query_issue:searchVerified?'':String(data.requestAudit?.reason||'Recorte não verificado')
+            };
+            candidate.captured_data={
+              ...candidate.captured_data,
+              searchContext:{
+                requestUrl:typeof data.requestAudit?.url==='string'?data.requestAudit.url:null,
+                queryStatus:String(data.requestAudit?.status||'not_applicable'),
+                requestedCity:selected.city,requestedState:selected.state,
+                requestedType:selected.property_type,requestId:String(data.requestId||'')
+              }
+            };
+            return candidate;
+          });
           const persisted=await addValuationCandidatesFromSearch(selected.id,proposals);
           success++;total+=persisted.saved.length;
           problems+=Number(data.limited?1:0);
@@ -313,6 +378,7 @@ function PropertyValuationStep({property,onReturnToCadastro,onComplete,onFlowCon
           setSourceStates(prev=>prev.map(item=>item.id===target?
             {...item,state:'done',accepted:persisted.saved.length,skipped:0,
               message:persisted.alreadyPresent+' anúncio(s) já estavam na avaliação.'+
+                (!searchVerified?' Recorte da pesquisa não confirmado; resultados bloqueados.':'')+
                 (data.limited?' A fonte superou o limite de transferência desta consulta.':'')}:item));
         }catch(e){
           const message=e instanceof Error?e.message:'Falha nesta fonte.';
@@ -328,9 +394,14 @@ function PropertyValuationStep({property,onReturnToCadastro,onComplete,onFlowCon
           }
         }
       }
+      if(interruptedForStale){
+        setPhase('subject');
+        return;
+      }
       setSearchNotice(success+' fonte(s) consultada(s); '+total+
         ' candidato(s) novos preservados, incluindo informações incompletas.'+
         (problems?' Algumas respostas excederam o limite e exigem nova paginação.':'')+
+        (auditWarnings.length?' '+auditWarnings.join(' '):'')+
         (failedMessages.length?' Fontes com falha: '+failedMessages.join(', ')+'.':''));
       try{setCreditAfter(await readCredits());}
       catch{setCreditError('Não foi possível atualizar o saldo após a pesquisa.');}
@@ -481,7 +552,8 @@ function PropertyValuationStep({property,onReturnToCadastro,onComplete,onFlowCon
     next: () => {
       if (busy || loading) return;
       if (phase === 'subject') {
-        void prepareAssessment(!selected);
+        if(remoteStaleChanges.length)onReturnToCadastro();
+        else void prepareAssessment(!selected||isAssessmentStale);
       } else if (phase === 'sources') {
         void research();
       } else if (phase === 'analysis') {
@@ -494,16 +566,19 @@ function PropertyValuationStep({property,onReturnToCadastro,onComplete,onFlowCon
 
   useEffect(() => {
     const primaryLabel = phase === 'subject'
-      ? selected ? 'Continuar avaliação' : 'Iniciar avaliação'
+      ? remoteStaleChanges.length?'Voltar ao cadastro':
+        isAssessmentStale?'Criar avaliação atualizada':
+        selected?'Continuar avaliação':'Iniciar avaliação'
       : phase === 'sources' ? 'Pesquisar mercado'
       : phase === 'analysis' ? 'Ver resultado' : 'Concluir / Fechar';
     onFlowControlsChange({
       phase, primaryLabel, busy,
       disabled: busy || loading ||
         (phase === 'subject' && !subjectReady) ||
-        (phase === 'sources' && sources.length === 0)
+        (phase === 'sources' && (sources.length === 0 || isAssessmentStale))
     });
-  }, [phase, selectedId, busy, loading, subjectReady, sources.length, onFlowControlsChange]);
+  }, [phase, selectedId, busy, loading, subjectReady, sources.length,
+    isAssessmentStale, remoteStaleChanges.length, onFlowControlsChange]);
 
   return <section className="space-y-5 pb-3">
     <div className="flex flex-wrap items-start justify-between gap-3">
@@ -565,10 +640,27 @@ function PropertyValuationStep({property,onReturnToCadastro,onComplete,onFlowCon
           {!subjectReady&&<div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800 dark:border-amber-900 dark:bg-amber-950/20 dark:text-amber-300">
             Falta cidade, UF ou metragem adequada ao tipo do imóvel. Corrija a informação no cadastro antes de iniciar.
           </div>}
+          {isAssessmentStale&&selected&&<div className="rounded-xl border border-amber-300 bg-amber-50 p-4 dark:border-amber-900 dark:bg-amber-950/25 space-y-2" role="alert">
+            <strong className="block text-sm text-amber-800 dark:text-amber-300">
+              <AlertCircle className="mr-2 inline h-4 w-4"/>Avaliação anterior desatualizada
+            </strong>
+            <p className="text-xs text-amber-800 dark:text-amber-200">
+              A avaliação selecionada foi criada com outros dados. Ela e seus anúncios continuarão no histórico,
+              mas novas pesquisas exigem uma avaliação atualizada.
+            </p>
+            <div className="space-y-1 text-xs text-slate-700 dark:text-slate-200">
+              {staleChanges.map(change=><p key={change.field}>
+                <strong>{change.label}:</strong> {change.before} → {change.after}
+              </p>)}
+            </div>
+            {remoteStaleChanges.length>0&&<p className="text-xs font-semibold text-amber-800">
+              O cadastro mudou em outra sessão; feche e reabra o anúncio após conferir as alterações.
+            </p>}
+          </div>}
           {selected&&<div className="flex flex-wrap gap-2">
-            <Button size="sm" variant="outline" disabled={busy||!subjectReady}
+            <Button size="sm" variant="outline" disabled={busy||!subjectReady||remoteStaleChanges.length>0}
               onClick={()=>void prepareAssessment(true)}>
-              Criar nova avaliação (preservar a anterior)
+              {isAssessmentStale?'Criar avaliação atualizada':'Criar nova avaliação (preservar a anterior)'}
             </Button>
           </div>}
           <p className={muted}>O preço anunciado não participa do cálculo de mercado. Para corrigir o imóvel, utilize as etapas anteriores do cadastro.</p>
@@ -583,15 +675,29 @@ function PropertyValuationStep({property,onReturnToCadastro,onComplete,onFlowCon
               'border-rose-600 bg-rose-50 text-rose-700 dark:bg-rose-950/30':
               'border-slate-200 text-slate-600 dark:border-slate-700 dark:text-slate-300')}>
             {new Date(item.created_at).toLocaleDateString('pt-BR')} · {item.status==='draft'?'Rascunho':item.status==='archived'?'Arquivada':'Em revisão'}
+            {compareAssessmentSubject(item,property).length>0?' · Dados antigos':''}
           </button>)}
         </CardContent></Card>}
     </div>}
 
     {phase==='sources'&&<Card className="animate-in fade-in">
       <CardHeader><CardTitle>Vamos pesquisar imóveis semelhantes</CardTitle>
-        <CardDescription>Escolha os portais. A pesquisa utilizará automaticamente as informações cadastradas do seu imóvel, sem mapa.</CardDescription>
+        <CardDescription>Confira o recorte da pesquisa antes de autorizar qualquer consumo de créditos.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
+        <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-800/40">
+          <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500">Pesquisar ofertas para</p>
+          <strong className="mt-1 block text-sm text-slate-900 dark:text-white">
+            {TYPE_LABELS[selected?.property_type||'']||selected?.property_type||'Imóvel'} ·
+            {' '}{PURPOSE_LABELS[selected?.property_snapshot?.purpose||'']||
+            selected?.property_snapshot?.purpose||'Finalidade não confirmada'}
+          </strong>
+          <p className={muted}>{selected?.city||'Cidade não informada'}/{selected?.state||'UF não informada'} ·
+            {' '}{selected?.neighborhood||'Bairro não informado'}</p>
+        </div>
+        {isAssessmentStale&&<p role="alert" className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-xs font-semibold text-amber-800">
+          Os dados desta avaliação estão desatualizados. Volte à primeira tela e crie uma avaliação atualizada antes de pesquisar.
+        </p>}
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
           {PROVIDERS.map(provider=><label key={provider.id}
             className={'flex cursor-pointer items-center gap-3 rounded-xl border p-3 text-xs font-semibold transition-colors '+
@@ -633,12 +739,15 @@ function PropertyValuationStep({property,onReturnToCadastro,onComplete,onFlowCon
         {creditApproval&&<div id="valuation-credit-confirm" className="space-y-3 rounded-2xl border border-rose-300 bg-rose-50 p-4 dark:border-rose-900 dark:bg-rose-950/20" role="group" aria-label="Autorizar pesquisa">
           <strong className="text-sm text-slate-900 dark:text-white">Confirmar pesquisa de mercado</strong>
           <p className="text-xs text-slate-700 dark:text-slate-200">
-            Consultar {sources.length} fonte(s), custo estimado de {estimatedCredits} crédito(s).
-            Esta autorização permite consumir créditos da conta compartilhada da GeckoAPI.
+            Consultar {sources.length} fonte(s) para
+            {' '}{TYPE_LABELS[selected?.property_type||'']||selected?.property_type||'imóvel'} em
+            {' '}{selected?.city}/{selected?.state},
+            finalidade {PURPOSE_LABELS[selected?.property_snapshot?.purpose||'']||'não confirmada'}.
+            Custo estimado de {estimatedCredits} crédito(s) da conta compartilhada da GeckoAPI.
           </p>
           <p className={muted}>O valor final dependerá da tarifa cobrada por cada fonte. Os anúncios retornados serão preservados, mesmo que precisem de conferência.</p>
           <div className="flex flex-wrap gap-2">
-            <Button variant="primary" size="sm" disabled={busy||creditLoading||creditBalance===null||creditBalance<estimatedCredits}
+            <Button variant="primary" size="sm" disabled={busy||isAssessmentStale||creditLoading||creditBalance===null||creditBalance<estimatedCredits}
               onClick={()=>void research(true)}>Confirmar e pesquisar</Button>
             <Button variant="outline" size="sm" disabled={busy}
               onClick={()=>setCreditApproval(false)}>Cancelar</Button>
@@ -724,7 +833,11 @@ function PropertyValuationStep({property,onReturnToCadastro,onComplete,onFlowCon
               <span className={'inline-flex rounded-lg border px-2 py-1 text-[11px] font-bold '+toneStatus[decision.status]}>
                 {labelStatus[decision.status]}</span>
             </div>
-            <p className="text-xs leading-relaxed text-slate-600 dark:text-slate-300">{decision.reason}</p>
+            {decision.reasons?.length>1?
+              <ul className="list-disc space-y-1 pl-5 text-xs leading-relaxed text-slate-600 dark:text-slate-300">
+                {decision.reasons.map((reason:string,i:number)=><li key={i}>{reason}</li>)}
+              </ul>:
+              <p className="text-xs leading-relaxed text-slate-600 dark:text-slate-300">{decision.reason}</p>}
             {candidates.some(row=>row.id===c.id)&&
               <details className="rounded-xl bg-slate-50 p-2 text-xs dark:bg-slate-800">
                 <summary className="cursor-pointer font-semibold">Dados originais recebidos da fonte</summary>

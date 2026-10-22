@@ -46,3 +46,23 @@ O proprietário utiliza `https://webimoveis.site/` como ambiente de testes da ap
 - **Saldo e confirmação:** `GET /api/valuation-credits` consulta `GET /v1/me/credits` somente após autenticação e autorização, usando segredo exclusivamente no servidor. A interface apresenta saldo **compartilhado** do fornecedor, custo **estimado** (base provisória de 1 crédito/consulta PLP), saldo projetado e autorização na própria tela. O custo real pode diferir entre endpoints e deve ser aferido no painel da GeckoAPI; a diferença do saldo compartilhado antes e depois pode incluir outras consultas simultâneas. Não existe carteira individual por corretor nesta versão.
 - A aplicação da migração ocorre ANTES da implantação do frontend. Nenhuma chamada real `/v1/extract` foi usada nos testes de implementação; fluxos de 50 anúncios foram validados com dados sintéticos.
 - **Aviso de migração de sessões antigas:** os resultados que já foram descartados por versões anteriores não podem ser recuperados do banco, pois nunca foram salvos. Para captá-los será necessária uma nova consulta autorizada, sujeita a cobrança.
+
+## Proteção contra avaliações desatualizadas — 22/10/2026
+
+**Causa encontrada no banco:** o anúncio `VCO-SP-3416` foi editado de comercial/Votorantim para chácara/Salto de Pirapora, porém uma avaliação pré-existente preservava a tipologia e cidade originais. Seus 50 anúncios OLX continuam no histórico privado; não são reutilizados em avaliações novas.
+
+**Mitigações implementadas:**
+- `src/lib/valuation/subjectConsistency.mjs` compara identidade, tipologia, finalidade, cidade, UF, bairro, área útil, área total/terreno e área construída entre cadastro e avaliação. Preço anunciado e dados meramente textuais não entram nesta trava.
+- O assistente identifica avaliação antiga, demonstra quais campos mudaram e oferece **Criar avaliação atualizada** sem apagar o histórico. A pesquisa de uma avaliação desatualizada fica bloqueada mesmo se o corretor tentou avançar por uma aba antiga.
+- **Controle autoritativo no servidor:** `api/valuation-search.js` consulta `properties`, `property_locations` e `valuation_assessments` sob autenticação e titularidade (RLS). Diferenças retornam **HTTP 409 ASSESSMENT_STALE** antes de qualquer chamada paga à GeckoAPI. O mesmo acontece se a localização atual não está disponível.
+- OLX: `lib/geckoContracts.mjs` usa categorias comprovadas nas páginas oficiais para chácara (`imoveis/terrenos/sitios-e-chacaras/compra`), terreno, apartamento e casa **à venda**, acrescidas de cidade/UF e região quando mapeada. Tipologias/negócios OLX sem categoria validada falham **antes da cobrança**, sem recorrer à categoria genérica `imoveis`.
+- O backend confronta a URL pública de consulta efetiva (`data.requestUrl` da GeckoAPI) com os filtros enviados usando `auditOlxRequestUrl`. Quando não há comprovação de categoria/cidade/UF, preserva os anúncios como **não utilizáveis no indicativo**, mostra o motivo e grava metadados da consulta em `captured_data.searchContext`.
+- Anúncios antigos não editados são reinterpretados localmente a partir dos dados originais preservados: títulos `SALA COMERCIAL` não devem aparecer com tipologia desconhecida. A triagem lista **todos** os motivos de inadequação (tipo, localização, finalidade, área, link), sem apagar candidatos.
+- O escopo do imóvel é apresentado também na confirmação do consumo de créditos.
+- Testes automáticos e verificações puras sem consulta paga à API: `scripts/test-valuation-subject-safety.mjs`. A funcionalidade precisa continuar usando o único rodapé e o visual do cadastro.
+
+**Fontes verificadas sem executar extrações pagas:**
+- https://geckoapi.com.br/docs/olx-com-br-plp/
+- https://www.olx.com.br/imoveis/terrenos/sitios-e-chacaras/compra/estado-sp/regiao-de-sorocaba
+
+**Operação:** use uma NOVA avaliação, não reutilize a antiga com dados comerciais. A primeira consulta real autorizada pelo corretor servirá para confirmar o comportamento do provedor com município/categoria solicitados. Não afirmar resultados de mercado ou consumo de créditos sem essa consulta.
