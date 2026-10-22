@@ -52,8 +52,8 @@ export default async function handler(req,res){
   const bearer=auth.slice(7);
   if(!req.body||typeof req.body!=='object'||Array.isArray(req.body))
     return json(res,400,{error:'Parâmetros da consulta inválidos.'});
-  const {propertyId,target,page=1,imovelwebUrl=''}=req.body;
-  if(!hasId(propertyId)||typeof target!=='string'||!PORTALS[target]||
+  const {propertyId,assessmentId,target,page=1,imovelwebUrl=''}=req.body;
+  if(!hasId(propertyId)||!hasId(assessmentId)||typeof target!=='string'||!PORTALS[target]||
      !Number.isInteger(page)||page<1||page>3||
      typeof imovelwebUrl!=='string'||imovelwebUrl.length>2300)
     return json(res,400,{error:'Imóvel, portal ou página inválidos.'});
@@ -79,15 +79,24 @@ export default async function handler(req,res){
   prev.count++;attempts.set(rateKey,prev);
   if(attempts.size>2000)attempts.clear();
   if(prev.count>7)return json(res,429,{error:'Limite temporário de consultas. Aguarde antes de pesquisar novamente.'});
-  let payload,property;
+  let payload,referenceLocation;
   try{
-    const {data,error}=await client.from('properties')
-      .select('*,property_locations(*)').eq('id',propertyId).eq('user_id',user.id).single();
-    if(error||!data)return json(res,403,{error:'Imóvel não localizado entre seus anúncios.'});
-    property=data;
-    const location=Array.isArray(data.property_locations)?
-      data.property_locations[0]:data.property_locations;
-    payload=proposalForProperty(data,location,target,page,imovelwebUrl);
+    const [{data:listing,error:propertyError},{data:assessment,error:assessmentError}]=await Promise.all([
+      client.from('properties')
+        .select('id,user_id,purpose,type').eq('id',propertyId).eq('user_id',user.id).single(),
+      client.from('valuation_assessments')
+        .select('id,owner_id,source_property_id,property_type,city,state,property_snapshot')
+        .eq('id',assessmentId).eq('owner_id',user.id)
+        .eq('source_property_id',propertyId).single()
+    ]);
+    if(propertyError||assessmentError||!listing||!assessment)
+      return json(res,403,{error:'A avaliação não pertence ao titular ou não está vinculada a este imóvel.'});
+    // Pesquisar com os mesmos atributos congelados na data de abertura
+    // da avaliação, evitando misturar dados atuais com histórico antigo.
+    const snap=assessment.property_snapshot||{};
+    const propertyForSearch={type:assessment.property_type,purpose:snap.purpose||listing.purpose};
+    referenceLocation={city:assessment.city,state:assessment.state};
+    payload=proposalForProperty(propertyForSearch,referenceLocation,target,page,imovelwebUrl);
   }catch(e){return json(res,400,{error:e.message||'Não foi possível preparar a pesquisa.'});}
   const controller=new AbortController();
   const timeout=setTimeout(()=>controller.abort(),26000);
@@ -109,9 +118,7 @@ export default async function handler(req,res){
     const body=data.data;
     if(!Array.isArray(body.items))
       return json(res,502,{error:'A fonte não retornou uma lista de anúncios válida.'});
-    const location=Array.isArray(property.property_locations)?
-      property.property_locations[0]:property.property_locations;
-    const checked=auditLocation(body,location.city,location.state);
+    const checked=auditLocation(body,referenceLocation.city,referenceLocation.state);
     return json(res,200,{
       source:target,
       retrievedAt:new Date().toISOString(),
