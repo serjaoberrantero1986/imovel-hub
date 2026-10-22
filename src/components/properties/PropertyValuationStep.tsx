@@ -190,7 +190,7 @@ export const PropertyValuationStep:React.FC<{property:Property}> = ({property})=
           const response=await fetch('/api/valuation-search',{
             method:'POST',
             headers:{'Content-Type':'application/json',Authorization:'Bearer '+session.access_token},
-            body:JSON.stringify({propertyId:property.id,target,page:1,
+            body:JSON.stringify({propertyId:property.id,assessmentId:selected.id,target,page:1,
               imovelwebUrl:target==='imovelweb.com.br'?imovelwebUrl:''})
           });
           const data=await response.json().catch(()=>({}));
