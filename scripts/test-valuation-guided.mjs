@@ -146,3 +146,17 @@ test('Pesquisa autenticada usa atributos congelados da avaliação e não local 
  assert.match(api,/referenceLocation=\{city:assessment\.city,state:assessment\.state\}/);
  assert.match(ui,/assessmentId:selected\.id/);
 });
+
+
+test('Campos explicitamente nomeados para terreno e área construída são respeitados',()=>{
+ const item={id:'area-identity',title:'Casa com lote e construção',
+   url:'https://www.vivareal.com.br/imovel/casa-area-identity',
+   unitTypes:['HOME'],prices:{mainValue:460000,businessType:'SALE'},
+   attributes:{usableAreas:[100],totalAreas:[220],builtAreas:[135],landAreas:[250]},
+   address:{city:'Salto de Pirapora',stateAcronym:'SP'}};
+ const found=normalizeGeckoItem(item,'vivareal.com.br');
+ assert.equal(found.usable_area,100);
+ assert.equal(found.total_area,220);
+ assert.equal(found.built_area,135);
+ assert.equal(found.land_area,250);
+});
