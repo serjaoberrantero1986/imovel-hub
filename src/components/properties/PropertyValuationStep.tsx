@@ -133,6 +133,17 @@ export const PropertyValuationStep:React.FC<{property:Property}> = ({property})=
     try{
       if(!subjectReady)throw new Error('Confira a cidade, o estado e a metragem pertinente na etapa 2 ou 3 do cadastro.');
       if(createNew||!selected){
+        // Preview usa o mesmo backend de produção. Não criar avaliações
+        // parcialmente incompatíveis antes da migração estar aplicada.
+        if(!supabase)throw new Error('O serviço privado de avaliações está indisponível.');
+        const [{error:e1},{error:e2}]=await Promise.all([
+          supabase.from('valuation_comparables')
+            .select('id,usable_area,total_area,listing_city,excluded_by_broker').limit(0),
+          supabase.from('properties').select('id,built_area').eq('id',property.id).limit(1)
+        ]);
+        if(e1||e2)
+          throw new Error('A atualização do banco de dados da Avaliação Inteligente ainda não foi aplicada. Nenhuma avaliação nova foi criada.');
+
         const created=await createValuationForProperty(property);
         setHistory(previous=>[created,...previous]);
         setSelectedId(created.id);
