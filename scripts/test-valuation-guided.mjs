@@ -112,3 +112,26 @@ test('Avaliação fica dentro da etapa 8 sem mapa; pesquisa só mediante clique 
  assert.match(api,/process.env.GECKO_API_TOKEN/);
  assert.doesNotMatch(step,/GECKO_API_TOKEN/);
 });
+
+
+test('Suspeita de imóvel repetido em portais distintos não duplica indicador',()=>{
+ const rows=[
+  sample('one',250000,100,{listing_neighborhood:'Centro',source_name:'vivareal.com.br'}),
+  sample('two',251000,101,{listing_neighborhood:'Centro',source_name:'olx.com.br'}),
+  sample('three',300000,110,{listing_neighborhood:'Outro bairro',source_name:'zapimoveis.com.br'})
+ ];
+ const result=screenOffers(ref,rows);
+ assert.equal(result.counts.included,2);
+ assert.equal(result.counts.pending,1);
+ assert.match(result.entries[1].reason,/Possível repetição/);
+});
+
+test('Preços de locação e de venda não são trocados no adaptador',()=>{
+ const row={id:'apt-1',url:'https://www.vivareal.com.br/aluguel/apartamento-1',
+  unitTypes:['APARTMENT'],title:'Apartamento para locação',
+  prices:[{businessType:'SALE',mainValue:650000},{businessType:'RENT',mainValue:2800}],
+  address:{city:'Salto de Pirapora',stateAcronym:'SP'}};
+ const rent=normalizeGeckoItem(row,'vivareal.com.br','rent');
+ assert.equal(rent.asking_price,2800);
+ assert.equal(rent.offer_purpose,'rent');
+});
