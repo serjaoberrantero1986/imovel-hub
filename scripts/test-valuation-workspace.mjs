@@ -32,16 +32,20 @@ test('persistência usa identidade do Supabase Auth e não IDs dos formulários'
   assert.match(service, /\.eq\('owner_id', owner\)/);
 });
 
-test('anúncios externos são registrados manualmente por URLs HTTPS', () => {
+test('pesquisa e inserção manual utilizam URLs HTTPS e permissões do titular', () => {
+  const api = readFileSync('api/valuation-search.js','utf8');
   assert.match(service, /url\.protocol !== 'https:'/);
-  assert.match(view, /Facebook Marketplace/);
-  assert.match(view, /addValuationComparable\(selected\.id,\s*input\)/);
+  assert.match(view, /Adicionar anúncio manualmente/);
+  assert.match(view, /addValuationComparable\(selected\.id,\s*c\)/);
+  assert.match(api, /can_manage_my_valuations/);
+  assert.match(api, /eq\('user_id',user\.id\)/);
 });
 
-test('painel permanece restrito e sem preço artificial', () => {
+test('avaliação guiada permanece privada e nunca declara indicativo como PTAM', () => {
   assert.match(myListings, /currentUser\.id === prop\.userId/);
-  assert.match(view, /Avaliação preliminar sem preço calculado/);
-  assert.match(view, /auditComparables\(/);
+  assert.match(view, /Indicativo de valor de mercado/);
+  assert.match(view, /screenOffers\(/);
+  assert.match(view, /Não constitui PTAM/);
   assert.doesNotMatch(app, /renderedView === 'valuation'/);
   assert.doesNotMatch(menu, /menu-item-valuation/);
   assert.match(wizard, /number: 8, title: 'Avaliação \(opcional\)'/);
