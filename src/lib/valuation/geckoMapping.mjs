@@ -65,6 +65,10 @@ export function normalizeGeckoItem(item,source,expectedPurpose='sale'){
     /^(rent|rental|aluguel|locacao|lease)$/.test(pricePurpose)||/\/(aluguel|locacao)\//i.test(url)?'rent':'unknown';
   const textEvidence=[];
   const title=txt(item.title||item.generatedTitle||item.name||'Imóvel anunciado',250);
+  const explicitlyBuilt=pos(first('builtAreas',item.area?.built??
+    item.property?.builtArea??item.builtArea));
+  const explicitlyLand=pos(first('landAreas',item.area?.land??
+    item.property?.landArea??item.landArea));
   for(const match of title.matchAll(/(\d{1,5}(?:[,.]\d{1,2})?)\s*(?:m²|m2)(?=\s|[,.;:!?/-]|$)/gi))
     textEvidence.push(match[0]); // Indicativo textual, nunca altera a metragem estruturada.
   return {
@@ -75,9 +79,10 @@ export function normalizeGeckoItem(item,source,expectedPurpose='sale'){
     property_type:kind,
     asking_price:price,
     usable_area:pos(first('usableAreas',item.area?.useful??item.property?.usableArea??item.usableArea)),
-    total_area:pos(first('totalAreas',item.area?.total??item.property?.totalArea??item.totalArea)),
-    land_area:null, // "totalAreas" não prova que seja metragem do terreno.
-    built_area:null, // "usableAreas" não prova que seja área construída.
+    total_area:pos(first('totalAreas',item.area?.total??item.property?.totalArea??item.totalArea))||
+      (kind==='land'||kind==='farm'?explicitlyLand:null),
+    land_area:explicitlyLand, // Só aceitar declaração explícita de terreno.
+    built_area:explicitlyBuilt, // Área útil NÃO implica área construída.
     bedrooms:count(first('bedrooms',counts.bedrooms?.count??item.bedrooms)),
     suites:count(first('suites',counts.suites?.count??item.suites)),
     bathrooms:count(first('bathrooms',counts.bathrooms?.count??item.bathrooms)),
