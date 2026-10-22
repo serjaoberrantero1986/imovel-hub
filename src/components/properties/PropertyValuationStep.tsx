@@ -10,12 +10,13 @@ import { useCatalog } from '../../context/AppContext';
 import { Button, Card, CardContent, CardHeader, CardTitle, CardDescription } from '../ui';
 import { supabase } from '../../lib/supabaseClient';
 import {
-  addComparablesFromSearch, addValuationComparable, createValuationForProperty,
-  listValuationComparables, listValuationsForProperty, setComparableExclusion,
+  addValuationComparable, createValuationForProperty,
+  listValuationComparables, listValuationCandidates, addValuationCandidatesFromSearch,
+  updateValuationCandidate, listValuationsForProperty, setComparableExclusion,
   updateValuationComparable, type ValuationAssessment, type ValuationComparable,
-  type ValuationComparableInput
+  type ValuationComparableInput, type ValuationCandidate
 } from '../../lib/valuation/assessmentRepository';
-import { normalizeGeckoItem, screenOffers } from '../../lib/valuation/geckoMapping.mjs';
+import { candidateFromGecko, screenOffers } from '../../lib/valuation/geckoMapping.mjs';
 
 // Mantém toda a experiência na oitava etapa do assistente já existente.
 // Nenhum mapa, geocodificação ou segundo cadastro é apresentado aqui.
@@ -71,12 +72,12 @@ const numericField=(raw:string):number|null=>{
   return Number.isFinite(n)&&n>=0?n:null;
 };
 type ReviewDraft={
-  asking_price:string;usable_area:string;total_area:string;built_area:string;
+  listing_url:string;offer_purpose:'sale'|'rent'|'unknown';asking_price:string;usable_area:string;total_area:string;built_area:string;
   bedrooms:string;bathrooms:string;listing_city:string;listing_state:string;
   property_type:string;notes:string;
 };
 const emptyReview:ReviewDraft={
-  asking_price:'',usable_area:'',total_area:'',built_area:'',
+  listing_url:'',offer_purpose:'unknown',asking_price:'',usable_area:'',total_area:'',built_area:'',
   bedrooms:'',bathrooms:'',listing_city:'',listing_state:'',property_type:'',notes:''
 };
 type SourceStatus={id:string;state:'pending'|'running'|'done'|'error'|'skipped';accepted:number;skipped:number;message?:string};
@@ -89,6 +90,7 @@ function PropertyValuationStep({property,onReturnToCadastro,onComplete,onFlowCon
   const [history,setHistory]=useState<ValuationAssessment[]>([]);
   const [selectedId,setSelectedId]=useState<string|null>(null);
   const [comparables,setComparables]=useState<ValuationComparable[]>([]);
+  const [candidates,setCandidates]=useState<ValuationCandidate[]>([]);
   const [loading,setLoading]=useState(true);
   const [busy,setBusy]=useState(false);
   const [error,setError]=useState('');
@@ -109,6 +111,44 @@ function PropertyValuationStep({property,onReturnToCadastro,onComplete,onFlowCon
   const [manualArea,setManualArea]=useState('');
   const [manualSource,setManualSource]=useState('Imobiliária');
   const [searchNotice,setSearchNotice]=useState('');
+  const [creditBalance,setCreditBalance]=useState<number|null>(null);
+  const [creditBefore,setCreditBefore]=useState<number|null>(null);
+  const [creditAfter,setCreditAfter]=useState<number|null>(null);
+  const [creditError,setCreditError]=useState('');
+  const [creditLoading,setCreditLoading]=useState(false);
+  const [creditApproval,setCreditApproval]=useState(false);
+  useEffect(()=>{
+    if(creditApproval)document.getElementById('valuation-credit-confirm')?.scrollIntoView({
+      behavior:'smooth',block:'center'
+    });
+  },[creditApproval]);
+  // Valor operacional provisório: 1 crédito por consulta PLP, conforme
+  // maioria da tabela GeckoAPI; a tarifa efetiva de cada portal pode variar.
+  const estimatedCredits=sources.length;
+  const readCredits=async()=>{
+    if(!supabase)throw new Error('Saldo indisponível.');
+    const {data:{session}}=await supabase.auth.getSession();
+    if(!session?.access_token)throw new Error('Faça login para consultar créditos.');
+    const res=await fetch('/api/valuation-credits',{
+      headers:{Authorization:'Bearer '+session.access_token},cache:'no-store'
+    });
+    const data=await res.json().catch(()=>({}));
+    if(!res.ok||!Number.isFinite(Number(data.currentCredits)))
+      throw new Error(String(data.error||'Saldo indisponível no momento.'));
+    const amount=Number(data.currentCredits);
+    setCreditBalance(amount);
+    setCreditError('');
+    return amount;
+  };
+  useEffect(()=>{
+    if(phase!=='sources')return;
+    let active=true;
+    setCreditLoading(true);
+    void readCredits().catch(e=>{
+      if(active)setCreditError(e instanceof Error?e.message:'Saldo indisponível.');
+    }).finally(()=>{if(active)setCreditLoading(false);});
+    return()=>{active=false;};
+  },[phase]);
   const selected=history.find(x=>x.id===selectedId)||null;
   const amenities=(property.amenities||[]).map(id=>activeAmenities.find(a=>a.id===id)?.name||id);
 
@@ -124,15 +164,35 @@ function PropertyValuationStep({property,onReturnToCadastro,onComplete,onFlowCon
   },[property.id]);
   useEffect(()=>{void reload();},[reload]);
   useEffect(()=>{
-    if(!selectedId){setComparables([]);return;}
+    if(!selectedId){setComparables([]);setCandidates([]);return;}
     let active=true;
-    void listValuationComparables(selectedId).then(rows=>{
-      if(active)setComparables(rows);
+    void Promise.all([
+      listValuationComparables(selectedId),
+      listValuationCandidates(selectedId)
+    ]).then(([rows,found])=>{
+      if(active){setComparables(rows);setCandidates(found);}
     }).catch(()=>{if(active)setError('Não foi possível recuperar as amostras desta avaliação.');});
     return()=>{active=false;};
   },[selectedId]);
 
-  const indicator=useMemo(()=>selected?screenOffers(selected,comparables):null,[selected,comparables]);
+  // Candidatos incompletos também são visíveis; somente ofertas suficientes
+  // entram no indicador. Dados brutos permanecem intactos e auditáveis.
+  const allOffers=useMemo(()=>[
+    ...comparables,
+    ...candidates.map(c=>({
+      ...c.normalized_data,
+      id:c.id,
+      source_name:c.source_name,
+      listing_url:c.normalized_data?.listing_url||c.listing_url||'',
+      listing_title:c.normalized_data?.listing_title||c.listing_title,
+      asking_price:c.normalized_data?.asking_price??null,
+      excluded_by_broker:c.excluded_by_broker,
+      exclusion_reason:c.exclusion_reason,
+      reviewed_by_broker:c.reviewed_by_broker,
+      notes:c.review_note
+    } as unknown as ValuationComparable))
+  ],[comparables,candidates]);
+  const indicator=useMemo(()=>selected?screenOffers(selected,allOffers):null,[selected,allOffers]);
   const options=indicator?.entries.filter(row=>triageFilter==='all'||row.status===triageFilter)||[];
   const shown=options.slice(0,visibleCount);
   const requiredArea=['land','chacara','farm'].includes(property.type)?
@@ -165,6 +225,7 @@ function PropertyValuationStep({property,onReturnToCadastro,onComplete,onFlowCon
         setHistory(previous=>[created,...previous]);
         setSelectedId(created.id);
         setComparables([]);
+        setCandidates([]);
         setSearchNotice('');
         notify('Avaliação privada iniciada com os dados do cadastro.');
       }
@@ -176,7 +237,7 @@ function PropertyValuationStep({property,onReturnToCadastro,onComplete,onFlowCon
   const toggleSource=(id:string)=>{
     setSources(items=>items.includes(id)?items.filter(x=>x!==id):[...items,id]);
   };
-  const research=async()=>{
+  const research=async(authorized=false)=>{
     if(busy)return;
     setError('');
     if(!selected){setError('Inicie a avaliação a partir do cadastro antes de pesquisar.');return;}
@@ -191,23 +252,28 @@ function PropertyValuationStep({property,onReturnToCadastro,onComplete,onFlowCon
         return;
       }
     }
-    // Falhar antes de qualquer chamada paga se as colunas necessárias da
-    // migração ainda não estiverem disponíveis no banco do projeto.
     if(!supabase){setError('O serviço de avaliações está indisponível.');return;}
+    if(!authorized){
+      setCreditApproval(true);
+      return;
+    }
+    setCreditApproval(false);
     setBusy(true);
     try{
-      const [{error:e1},{error:e2}]=await Promise.all([
+      const [{error:e1},{error:e2},{error:e3}]=await Promise.all([
         supabase.from('valuation_comparables')
           .select('id,usable_area,total_area,listing_city,offer_purpose,excluded_by_broker').limit(0),
-        supabase.from('properties').select('id,built_area').eq('id',property.id).limit(1)
+        supabase.from('properties').select('id,built_area').eq('id',property.id).limit(1),
+        supabase.from('valuation_candidates').select('id').limit(0)
       ]);
-      if(e1||e2)throw new Error('O banco de dados ainda não possui a atualização de áreas e comparáveis. Nenhuma consulta paga foi executada.');
+      if(e1||e2||e3)throw new Error('O armazenamento da avaliação não está atualizado. Nenhuma pesquisa paga foi realizada.');
+      // Conferir saldo novamente na autorização para evitar usar um número antigo.
+      const startCredits=await readCredits();
+      if(startCredits<estimatedCredits)
+        throw new Error('Saldo disponível insuficiente para o custo estimado. Reduza as fontes ou recarregue créditos.');
+      setCreditBefore(startCredits);setCreditAfter(null);
       const {data:{session}}=await supabase.auth.getSession();
       if(!session?.access_token)throw new Error('Sua sessão expirou. Entre novamente para pesquisar.');
-      const confirmed=window.confirm(
-        'Você selecionou '+sources.length+' fonte(s). A pesquisa executará até '+sources.length+
-        ' consulta(s) à GeckoAPI (uma página por fonte), que poderão consumir créditos. Deseja continuar?');
-      if(!confirmed)return;
       const values:SourceStatus[]=sources.map(id=>({id,state:'pending',accepted:0,skipped:0}));
       setSourceStates(values);
       let success=0;let total=0;let problems=0;
@@ -234,43 +300,20 @@ function PropertyValuationStep({property,onReturnToCadastro,onComplete,onFlowCon
             }
             continue;
           }
-          const mapped=(Array.isArray(data.items)?data.items:[]).map((row:unknown)=>
-            normalizeGeckoItem(row,target,property.purpose==='rent'?'rent':'sale')).filter(Boolean);
-          const valid=mapped.filter((row:any)=>row.asking_price>0&&row.listing_url);
-          const skipped=mapped.length-valid.length+
-            Number(data.audit?.discardedMissingLocation||0)+
-            Number(data.audit?.discardedOtherCities||0);
+          const returned=Array.isArray(data.items)?data.items:[];
           const now=typeof data.retrievedAt==='string'?data.retrievedAt:new Date().toISOString();
-          const proposals:ValuationComparableInput[]=valid.map((row:any)=>({
-            source_type:target==='olx.com.br'?'olx':'portal',
-            source_name:target,listing_url:row.listing_url,
-            listing_reference:row.listing_reference,
-            property_type:row.property_type,
-            asking_price:row.asking_price,
-            usable_area:row.usable_area,total_area:row.total_area,
-            built_area:row.built_area,land_area:row.land_area,
-            bedrooms:row.bedrooms,suites:row.suites,bathrooms:row.bathrooms,
-            parking_spots:row.parking_spots,
-            listing_title:row.listing_title,listing_city:row.listing_city,
-            listing_state:row.listing_state,listing_neighborhood:row.listing_neighborhood,
-            offer_purpose:row.offer_purpose,collected_at:now,
-            excluded_by_broker:false,exclusion_reason:'',
-            condominium:null,latitude:null,longitude:null,coordinate_quality:'unknown',
-            availability:'unknown',market_zone_verified:false,reviewed_by_broker:false,
-            conflicting_data:false,multi_unit:false,unfinished:false,
-            notes:('Pesquisa GeckoAPI · '+now+
-              (data.requestId?' · Consulta '+String(data.requestId).slice(0,80):'')+
-              (Array.isArray(row.evidence_text)&&row.evidence_text.length?
-                 ' · Indícios textuais não confirmados: '+row.evidence_text.join(' | '):'')
-              ).slice(0,3000)
-          }));
-          const persisted=await addComparablesFromSearch(selected.id,proposals);
+          // Capturar todos, inclusive anúncios sem preço, cidade ou URL. Nunca
+          // cobrar nova pesquisa para recuperar registros descartados localmente.
+          const proposals=returned.map((row:unknown,index:number)=>
+            candidateFromGecko(row,target,index,String(data.requestId||''),now));
+          const persisted=await addValuationCandidatesFromSearch(selected.id,proposals);
           success++;total+=persisted.saved.length;
-          problems+=skipped;
-          setComparables(prev=>[...persisted.saved,...prev]);
+          problems+=Number(data.limited?1:0);
+          setCandidates(prev=>[...persisted.saved,...prev]);
           setSourceStates(prev=>prev.map(item=>item.id===target?
-            {...item,state:'done',accepted:persisted.saved.length,skipped,
-              message:persisted.duplicates+' anúncio(s) já estavam na avaliação.'}:item));
+            {...item,state:'done',accepted:persisted.saved.length,skipped:0,
+              message:persisted.alreadyPresent+' anúncio(s) já estavam na avaliação.'+
+                (data.limited?' A fonte superou o limite de transferência desta consulta.':'')}:item));
         }catch(e){
           const message=e instanceof Error?e.message:'Falha nesta fonte.';
           failedMessages.push(PROVIDERS.find(x=>x.id===target)?.label||target);
@@ -286,9 +329,11 @@ function PropertyValuationStep({property,onReturnToCadastro,onComplete,onFlowCon
         }
       }
       setSearchNotice(success+' fonte(s) consultada(s); '+total+
-        ' anúncio(s) novos gravados. '+problems+
-        ' anúncio(s) não aproveitados na importação por ausência de preço, URL ou localização.'+
+        ' candidato(s) novos preservados, incluindo informações incompletas.'+
+        (problems?' Algumas respostas excederam o limite e exigem nova paginação.':'')+
         (failedMessages.length?' Fontes com falha: '+failedMessages.join(', ')+'.':''));
+      try{setCreditAfter(await readCredits());}
+      catch{setCreditError('Não foi possível atualizar o saldo após a pesquisa.');}
       setPhase('analysis');
       if(success)notify('Pesquisa concluída. Confira a triagem automática antes de usar o indicativo.');
     }catch(e){setError(e instanceof Error?e.message:'Não foi possível executar a pesquisa.');}
@@ -299,8 +344,16 @@ function PropertyValuationStep({property,onReturnToCadastro,onComplete,onFlowCon
     if(!selected||busy)return;
     setBusy(true);setError('');
     try{
-      const changed=await setComparableExclusion(selected.id,row.id,exclude,exclude?excludeReason:'');
-      setComparables(prev=>prev.map(c=>c.id===changed.id?changed:c));
+      const candidate=candidates.find(c=>c.id===row.id);
+      if(candidate){
+        const changed=await updateValuationCandidate(selected.id,row.id,{
+          excluded_by_broker:exclude,exclusion_reason:exclude?excludeReason.trim():''
+        });
+        setCandidates(prev=>prev.map(c=>c.id===changed.id?changed:c));
+      }else{
+        const changed=await setComparableExclusion(selected.id,row.id,exclude,exclude?excludeReason:'');
+        setComparables(prev=>prev.map(c=>c.id===changed.id?changed:c));
+      }
       setExcludeId(null);setExcludeReason('');
       notify(exclude?'Anúncio retirado da amostra com justificativa.':'Exclusão manual removida; critérios automáticos reaplicados.');
     }catch(e){setError(e instanceof Error?e.message:'Não foi possível alterar a seleção.');}
@@ -309,6 +362,8 @@ function PropertyValuationStep({property,onReturnToCadastro,onComplete,onFlowCon
   const openReview=(row:ValuationComparable)=>{
     setEditId(row.id);setExcludeId(null);setError('');
     setReviewDraft({
+      listing_url:row.listing_url||'',
+      offer_purpose:row.offer_purpose||'unknown',
       asking_price:String(row.asking_price??''),
       usable_area:row.usable_area!=null?String(row.usable_area):'',
       total_area:row.total_area!=null?String(row.total_area):'',
@@ -329,14 +384,16 @@ function PropertyValuationStep({property,onReturnToCadastro,onComplete,onFlowCon
       const value=numericField(reviewDraft[field]);
       if((reviewDraft[field].trim()!==''&&value===null)||
         (['bedrooms','bathrooms'].includes(field)&&value!==null&&!Number.isInteger(value))||
-        (field==='asking_price'&&(!value||value<=0))){
+        (field==='asking_price'&&reviewDraft.asking_price.trim()!==''&&
+          (!value||value<=0))){
         setError('Confira os campos numéricos; preço positivo é obrigatório.');return;
       }
     }
     setBusy(true);setError('');
     try{
-      const changed=await updateValuationComparable(selected.id,row.id,{
-        asking_price:Number(reviewDraft.asking_price),
+      const candidate=candidates.find(c=>c.id===row.id);
+      const dataChecked={
+        asking_price:numericField(reviewDraft.asking_price),
         usable_area:numericField(reviewDraft.usable_area),
         total_area:numericField(reviewDraft.total_area),
         built_area:numericField(reviewDraft.built_area),
@@ -345,11 +402,34 @@ function PropertyValuationStep({property,onReturnToCadastro,onComplete,onFlowCon
         listing_city:reviewDraft.listing_city.trim().slice(0,120),
         listing_state:reviewDraft.listing_state.trim().toUpperCase().slice(0,2),
         property_type:reviewDraft.property_type,
-        reviewed_by_broker:true,
-        notes:(row.notes+'\nConferência '+new Date().toISOString()+
-          ': '+reviewDraft.notes.trim()).slice(-3000)
-      });
-      setComparables(prev=>prev.map(c=>c.id===changed.id?changed:c));
+        offer_purpose:reviewDraft.offer_purpose,
+        listing_url:reviewDraft.listing_url.trim()
+      };
+      if(dataChecked.listing_url){
+        const link=new URL(dataChecked.listing_url);
+        if(link.protocol!=='https:'||link.username||link.password)
+          throw new Error('Informe somente um link HTTPS válido.');
+      }
+      if(candidate){
+        const changed=await updateValuationCandidate(selected.id,row.id,{
+          listing_url:dataChecked.listing_url||null,
+          normalized_data:{...candidate.normalized_data,...dataChecked},
+          reviewed_by_broker:true,
+          review_note:(candidate.review_note+'\n'+new Date().toISOString()+
+            ': '+reviewDraft.notes.trim()).slice(-1500)
+        });
+        setCandidates(prev=>prev.map(c=>c.id===changed.id?changed:c));
+      }else{
+        if(!dataChecked.asking_price||!dataChecked.listing_url)
+          throw new Error('Comparáveis manuais exigem preço e link confirmados.');
+        const changed=await updateValuationComparable(selected.id,row.id,{
+          ...dataChecked,asking_price:dataChecked.asking_price,
+          reviewed_by_broker:true,
+          notes:(row.notes+'\nConferência '+new Date().toISOString()+
+            ': '+reviewDraft.notes.trim()).slice(-3000)
+        });
+        setComparables(prev=>prev.map(c=>c.id===changed.id?changed:c));
+      }
       setEditId(null);setReviewDraft(emptyReview);
       notify('Informações conferidas e gravadas; análise recalculada.');
     }catch(e){setError(e instanceof Error?e.message:'Não foi possível salvar a conferência.');}
@@ -527,13 +607,43 @@ function PropertyValuationStep({property,onReturnToCadastro,onComplete,onFlowCon
           <input type="url" value={imovelwebUrl} onChange={e=>setImovelwebUrl(e.target.value)}
             className={inputClass+' mt-1'} placeholder="https://www.imovelweb.com.br/...html"/>
         </label>}
-        <div className="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3 dark:border-amber-900 dark:bg-amber-950/20">
-          <Info className="h-4 w-4 shrink-0 text-amber-700"/>
-          <p className="text-xs leading-relaxed text-amber-900 dark:text-amber-300">
-            {sources.length} fonte(s) selecionada(s): até {sources.length} consulta(s) pagas à GeckoAPI, uma página por portal.
-            Uma confirmação será solicitada antes da pesquisa. A disponibilidade e o consumo de créditos dependem do provedor.
-          </p>
+        <div className="rounded-2xl border border-slate-200 p-4 dark:border-slate-700 space-y-2">
+          <strong className="block text-sm text-slate-900 dark:text-white">Créditos da pesquisa</strong>
+          <div className="flex justify-between text-xs">
+            <span>Saldo disponível da integração</span>
+            <strong>{creditLoading?'Consultando...':creditBalance!==null?creditBalance:'Indisponível'}</strong>
+          </div>
+          <div className="flex justify-between text-xs">
+            <span>Custo estimado · {sources.length} fonte(s)</span>
+            <strong>{estimatedCredits} crédito(s)</strong>
+          </div>
+          <div className="flex justify-between text-xs">
+            <span>Saldo previsto</span>
+            <strong>{creditBalance!==null?Math.max(0,creditBalance-estimatedCredits):'A consultar'}</strong>
+          </div>
+          <p className={muted}>Saldo compartilhado da conta GeckoAPI, não uma carteira individual do corretor.
+            Os valores são estimados; a tarifa real pode variar por portal. O saldo final será consultado após a pesquisa.</p>
+          {creditError&&<p role="alert" className="text-xs text-amber-600">{creditError}</p>}
+          {creditAfter!==null&&creditBefore!==null&&
+            <p className="text-xs text-emerald-600">Saldo após a pesquisa: {creditAfter} · variação na conta compartilhada: {creditBefore-creditAfter} crédito(s).</p>}
+          <Button size="xs" variant="outline" disabled={creditLoading}
+            onClick={()=>{setCreditLoading(true);void readCredits().catch(e=>setCreditError(String(e.message||e)))
+              .finally(()=>setCreditLoading(false));}}>Atualizar saldo</Button>
         </div>
+        {creditApproval&&<div id="valuation-credit-confirm" className="space-y-3 rounded-2xl border border-rose-300 bg-rose-50 p-4 dark:border-rose-900 dark:bg-rose-950/20" role="group" aria-label="Autorizar pesquisa">
+          <strong className="text-sm text-slate-900 dark:text-white">Confirmar pesquisa de mercado</strong>
+          <p className="text-xs text-slate-700 dark:text-slate-200">
+            Consultar {sources.length} fonte(s), custo estimado de {estimatedCredits} crédito(s).
+            Esta autorização permite consumir créditos da conta compartilhada da GeckoAPI.
+          </p>
+          <p className={muted}>O valor final dependerá da tarifa cobrada por cada fonte. Os anúncios retornados serão preservados, mesmo que precisem de conferência.</p>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="primary" size="sm" disabled={busy||creditLoading||creditBalance===null||creditBalance<estimatedCredits}
+              onClick={()=>void research(true)}>Confirmar e pesquisar</Button>
+            <Button variant="outline" size="sm" disabled={busy}
+              onClick={()=>setCreditApproval(false)}>Cancelar</Button>
+          </div>
+        </div>}
         <details className="rounded-xl border border-slate-200 p-3 dark:border-slate-700">
           <summary className="flex cursor-pointer items-center gap-2 text-xs font-bold text-slate-700 dark:text-slate-200">
             <Settings2 className="h-4 w-4"/> Entender os filtros automáticos e as opções avançadas
@@ -541,7 +651,7 @@ function PropertyValuationStep({property,onReturnToCadastro,onComplete,onFlowCon
           <p className={'mt-2 '+muted}>Cidade, UF, tipologia e finalidade são extraídas do imóvel cadastrado.
             As fontes têm filtros diferentes. A seleção final depende da triagem dos dados retornados;
             não se presume que o portal entregou todas as ofertas existentes.</p>
-          <p className={'mt-2 '+muted}>A pesquisa usa uma página por fonte nesta etapa. Paginação ampliada e importação de CSV continuam recursos técnicos opcionais do laboratório, não do fluxo principal.</p>
+          <p className={'mt-2 '+muted}>A pesquisa utiliza uma página por fonte. Os anúncios incompletos são preservados e podem ser conferidos sem repetir a consulta.</p>
         </details>
         <div className="flex flex-wrap gap-2">
           <Button size="sm" variant="ghost" disabled={busy} onClick={()=>setPhase('analysis')}>
@@ -552,7 +662,7 @@ function PropertyValuationStep({property,onReturnToCadastro,onComplete,onFlowCon
           {sourceStates.map(x=><div key={x.id} className="flex items-center justify-between gap-2 text-xs">
             <span className="truncate">{PROVIDERS.find(p=>p.id===x.id)?.label||x.id}</span>
             <span className="text-slate-500">{x.state==='running'?'Consultando...':
-              x.state==='done'?x.accepted+' salvos · '+x.skipped+' incompletos':
+              x.state==='done'?x.accepted+' candidatos preservados':
               x.state==='error'?x.message:
               x.state==='skipped'?'Não consultado':'Aguardando'}</span>
           </div>)}
@@ -579,7 +689,7 @@ function PropertyValuationStep({property,onReturnToCadastro,onComplete,onFlowCon
       </div>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <button type="button" className="text-xs font-semibold text-rose-600" onClick={()=>{setTriageFilter('all');setVisibleCount(20);}}>
-          Ver todos os anúncios ({comparables.length})
+          Ver todos os anúncios ({allOffers.length})
         </button>
         <Button size="xs" variant="outline" onClick={()=>setShowManual(v=>!v)}
           leftIcon={<Plus className="h-3.5 w-3.5"/>}>Adicionar anúncio manualmente</Button>
@@ -608,20 +718,28 @@ function PropertyValuationStep({property,onReturnToCadastro,onComplete,onFlowCon
               <div className="min-w-0 flex-1">
                 <strong className="block text-sm text-slate-900 dark:text-white">{c.listing_title||c.source_name}</strong>
                 <p className={muted}>{c.source_name} · {c.listing_city||'Município não confirmado'}{c.listing_neighborhood?' · '+c.listing_neighborhood:''}</p>
-                <p className="mt-1 text-sm font-extrabold text-slate-900 dark:text-white">{money(Number(c.asking_price))}</p>
+                <p className="mt-1 text-sm font-extrabold text-slate-900 dark:text-white">{Number(c.asking_price)>0?money(Number(c.asking_price)):'Preço não informado'}</p>
                 <p className={muted}>Útil: {area(c.usable_area)} · Total: {area(c.total_area)}</p>
               </div>
               <span className={'inline-flex rounded-lg border px-2 py-1 text-[11px] font-bold '+toneStatus[decision.status]}>
                 {labelStatus[decision.status]}</span>
             </div>
             <p className="text-xs leading-relaxed text-slate-600 dark:text-slate-300">{decision.reason}</p>
+            {candidates.some(row=>row.id===c.id)&&
+              <details className="rounded-xl bg-slate-50 p-2 text-xs dark:bg-slate-800">
+                <summary className="cursor-pointer font-semibold">Dados originais recebidos da fonte</summary>
+                <p className="mt-2 whitespace-pre-wrap break-words text-slate-500">
+                  {JSON.stringify(candidates.find(row=>row.id===c.id)?.captured_data,null,2)}
+                </p>
+              </details>}
             {decision.warnings?.length>0&&<p className={muted}>{decision.warnings.join(' · ')}</p>}
             {c.notes?.includes('Indícios textuais não confirmados:')&&
               <p className={muted}>{c.notes.split('Indícios textuais não confirmados:')[1]?.split('\n')[0]}</p>}
             {c.excluded_by_broker&&<p className={muted}>Decisão do corretor: {c.exclusion_reason}</p>}
             <div className="flex flex-wrap items-center gap-2">
-              <a href={c.listing_url} target="_blank" rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 text-xs font-bold text-rose-600">Anúncio original <ArrowUpRight className="h-3 w-3"/></a>
+              {c.listing_url&&<a href={c.listing_url} target="_blank" rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-xs font-bold text-rose-600">
+                Anúncio original <ArrowUpRight className="h-3 w-3"/></a>}
               <Button size="xs" variant="outline" disabled={busy}
                 onClick={()=>{setExcludeId(null);openReview(c);}}>Conferir dados</Button>
               {c.excluded_by_broker?
@@ -642,6 +760,19 @@ function PropertyValuationStep({property,onReturnToCadastro,onComplete,onFlowCon
             </div>}
             {editId===c.id&&<div className="space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-800">
               <p className="text-xs font-bold text-slate-700 dark:text-slate-200">Conferência assistida · dados do anúncio</p>
+              <label className={textLabel}>URL do anúncio (se disponível)
+                <input value={reviewDraft.listing_url}
+                  onChange={e=>setReviewDraft(prev=>({...prev,listing_url:e.target.value}))}
+                  className={inputClass+' mt-1'} placeholder="https://..."/>
+              </label>
+              <label className={textLabel}>Finalidade anunciada (confirme no anúncio)
+                <select className={inputClass+' mt-1'} value={reviewDraft.offer_purpose}
+                  onChange={e=>setReviewDraft(prev=>({...prev,offer_purpose:e.target.value as ReviewDraft['offer_purpose']}))}>
+                  <option value="unknown">Não confirmada</option>
+                  <option value="sale">Venda</option>
+                  <option value="rent">Locação</option>
+                </select>
+              </label>
               <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                 {([
                   ['asking_price','Preço pedido (R$)'],['usable_area','Área útil (m²)'],

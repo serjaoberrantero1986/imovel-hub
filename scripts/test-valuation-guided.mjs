@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {readFileSync} from 'node:fs';
-import {normalizeGeckoItem,screenOffers} from '../src/lib/valuation/geckoMapping.mjs';
+import {normalizeGeckoItem,candidateFromGecko,screenOffers} from '../src/lib/valuation/geckoMapping.mjs';
 import {proposalForProperty} from '../api/valuation-search.js';
 
 const sample=(id,price,area,extra={})=>({
@@ -103,7 +103,8 @@ test('Avaliação fica dentro da etapa 8 sem mapa; pesquisa só mediante clique 
  const api=readFileSync('api/valuation-search.js','utf8');
  assert.match(wizard,/currentStep === 8/);
  assert.match(step,/Pesquisar mercado/);
- assert.match(step,/window.confirm/);
+ assert.match(step,/Confirmar e pesquisar/);
+ assert.doesNotMatch(step,/window.confirm/);
  assert.match(step,/screenOffers/);
  assert.doesNotMatch(step,/\bLeaflet\b|<PrivatePropertyLocationMap|<Map/);
  assert.match(api,/getUser\(bearer\)/);
@@ -187,4 +188,51 @@ test('Cabeçalho dá prioridade ao avatar em mobile e Perfil inferior abre o men
  assert.match(userMenu,/Meus Anúncios/);
  assert.match(editor,/!isWizardOpen && \(currentView/);
  assert.match(css,/\.member-profile-menu:focus-visible \{ width: 44px; \}/);
+});
+
+test('50 resultados incompletos permanecem visíveis e não são aprovados automaticamente',()=>{
+ const offers=Array.from({length:50},(_,i)=>({
+   id:String(i+1),title:'Chácara no interior '+(i+1),
+   price:null,location:{state:'SP'},url:'',
+   properties:[{name:'Área',value:'120 m²'}]
+ }));
+ const converted=offers.map((item,i)=>candidateFromGecko(item,'olx.com.br',i,'teste','2026-10-22T18:00:00Z'));
+ assert.equal(converted.length,50);
+ assert.ok(converted.every(item=>item.listing_url===null));
+ assert.ok(converted.every(item=>item.captured_data.title));
+ const subject={...ref,property_type:'chacara',land_area:120};
+ const result=screenOffers(subject,converted.map((x,i)=>({
+   ...x.normalized_data,id:String(i),excluded_by_broker:false,reviewed_by_broker:false
+ })));
+ assert.equal(result.counts.pending,50);
+ assert.equal(result.counts.included,0);
+});
+test('Pesquisa retorna todos os itens brutos, triagem geográfica é informativa',()=>{
+ const source=readFileSync('api/valuation-search.js','utf8');
+ const ui=readFileSync('src/components/properties/PropertyValuationStep.tsx','utf8');
+ const migration=readFileSync('supabase/migrations/20261022000002_valuation_candidates_preserved.sql','utf8');
+ assert.match(source,/items:body\.items\.slice\(0,maxItems\)/);
+ assert.match(source,/const checked=auditLocation/);
+ assert.match(ui,/candidateFromGecko\(row,target,index/);
+ assert.match(ui,/addValuationCandidatesFromSearch\(selected\.id,proposals\)/);
+ assert.match(migration,/enable row level security/);
+ assert.match(migration,/foreign key \(assessment_id,owner_id\)/);
+});
+test('Saldo é consultado sem chamada extract, credenciais secretas e sem diálogo nativo',()=>{
+ const api=readFileSync('api/valuation-credits.js','utf8');
+ const ui=readFileSync('src/components/properties/PropertyValuationStep.tsx','utf8');
+ assert.match(api,/\/v1\/me\/credits/);
+ assert.doesNotMatch(api,/\/v1\/extract/);
+ assert.match(api,/getUser\(jwt\)/);
+ assert.match(api,/can_manage_my_valuations/);
+ assert.match(ui,/Saldo disponível da integração/);
+ assert.match(ui,/custo estimado/i);
+ assert.match(ui,/Confirmar e pesquisar/);
+ assert.doesNotMatch(ui,/window\.confirm/);
+});
+test('Mapa usa marcador SVG local independente das imagens padrão do Leaflet',()=>{
+ const map=readFileSync('src/components/properties/PrivatePropertyLocationMap.tsx','utf8');
+ assert.match(map,/L\.divIcon/);
+ assert.match(map,/markerIcon\.current/);
+ assert.doesNotMatch(map,/marker-icon\.png/);
 });

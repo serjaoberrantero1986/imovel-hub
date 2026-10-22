@@ -118,14 +118,18 @@ export default async function handler(req,res){
     const body=data.data;
     if(!Array.isArray(body.items))
       return json(res,502,{error:'A fonte não retornou uma lista de anúncios válida.'});
+    // Auditoria informativa: NÃO descartar respostas antes de o corretor
+    // poder analisar e corrigir informações ausentes ou regiões divergentes.
     const checked=auditLocation(body,referenceLocation.city,referenceLocation.state);
+    const maxItems=300;
     return json(res,200,{
       source:target,
       retrievedAt:new Date().toISOString(),
       requestId:typeof data.requestId==='string'?data.requestId:null,
       audit:checked.audit,
-      items:checked.items.slice(0,150),
-      limited:checked.items.length>150
+      providerItems:body.items.length,
+      items:body.items.slice(0,maxItems),
+      limited:body.items.length>maxItems
     });
   }catch(e){return json(res,502,{error:e?.name==='AbortError'?
     'O portal demorou demais para responder. As outras fontes continuam disponíveis.':

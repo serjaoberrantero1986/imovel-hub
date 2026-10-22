@@ -2,13 +2,15 @@ name: Validar cadastro unificado e avaliação opcional
 
 on:
   push:
-    branches: ['feature/avaliacao-etapa8-cadastro-unificado']
+    branches: ['main']
   pull_request:
     paths:
       - 'src/components/properties/**'
       - 'src/lib/valuation/**'
       - 'lib/geckoContracts.mjs'
       - 'api/valuation-search.js'
+      - 'api/valuation-credits.js'
+      - 'supabase/migrations/20261022000002_valuation_candidates_preserved.sql'
       - 'scripts/test-valuation-guided.mjs'
       - 'src/lib/geocoding.ts'
       - 'src/lib/supabaseCrud.ts'

@@ -258,3 +258,59 @@ export async function setComparableExclusion(
     exclusion_reason:excluded?reason.trim().slice(0,500):''
   });
 }
+
+/** Captura primária: qualquer anúncio, com ou sem preço ou endereço verificável. */
+export interface ValuationCandidate {
+  id:string; assessment_id:string; owner_id:string; source_name:string; source_key:string;
+  listing_url:string|null; listing_title:string; normalized_data:Record<string,any>;
+  captured_data:Record<string,any>; reviewed_by_broker:boolean; review_note:string;
+  excluded_by_broker:boolean; exclusion_reason:string; collected_at:string;
+}
+export type ValuationCandidateInput=Pick<ValuationCandidate,
+  'source_name'|'source_key'|'listing_url'|'listing_title'|'normalized_data'|'captured_data'|'collected_at'>;
+
+export async function listValuationCandidates(assessmentId:string):Promise<ValuationCandidate[]>{
+  const owner=await requireProfessionalOwner();
+  const {data,error}=await requireClient().from('valuation_candidates').select('*')
+    .eq('assessment_id',assessmentId).eq('owner_id',owner)
+    .order('collected_at',{ascending:false}).limit(2000);
+  if(error)throw error;
+  return (data||[]) as ValuationCandidate[];
+}
+export async function addValuationCandidatesFromSearch(
+  assessmentId:string,items:ValuationCandidateInput[]
+):Promise<{saved:ValuationCandidate[];alreadyPresent:number}>{
+  const owner_id=await requireProfessionalOwner();
+  const existing=await listValuationCandidates(assessmentId);
+  const seen=new Set(existing.map(x=>x.source_name+'|'+x.source_key));
+  const unique:Record<string,unknown>[]=[];
+  let alreadyPresent=0;
+  for(const item of items){
+    const key=item.source_name+'|'+item.source_key;
+    if(seen.has(key)){alreadyPresent++;continue;}
+    seen.add(key);
+    unique.push({...item,owner_id,assessment_id:assessmentId});
+  }
+  const saved:ValuationCandidate[]=[];
+  for(let i=0;i<unique.length;i+=25){
+    const {data,error}=await requireClient().from('valuation_candidates')
+      .insert(unique.slice(i,i+25)).select('*');
+    if(error)throw new Error('Não foi possível preservar os anúncios: '+error.message);
+    saved.push(...(data||[]) as ValuationCandidate[]);
+  }
+  return {saved,alreadyPresent};
+}
+export async function updateValuationCandidate(
+  assessmentId:string,id:string,
+  changes:Partial<Pick<ValuationCandidate,
+    'normalized_data'|'reviewed_by_broker'|'review_note'|'listing_url'|
+    'excluded_by_broker'|'exclusion_reason'>>
+):Promise<ValuationCandidate>{
+  const owner=await requireProfessionalOwner();
+  if(changes.listing_url)validateListingUrl(changes.listing_url);
+  const {data,error}=await requireClient().from('valuation_candidates')
+    .update({...changes,updated_at:new Date().toISOString()})
+    .eq('id',id).eq('assessment_id',assessmentId).eq('owner_id',owner).select('*').single();
+  if(error)throw error;
+  return data as ValuationCandidate;
+}

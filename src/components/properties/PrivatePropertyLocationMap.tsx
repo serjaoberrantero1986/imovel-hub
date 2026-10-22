@@ -13,6 +13,14 @@ export const PrivatePropertyLocationMap: React.FC<Props> = ({latitude,longitude,
   const map = useRef<L.Map | null>(null);
   const marker = useRef<L.Marker | null>(null);
   const [candidate,setCandidate] = useState<{lat:number;lng:number}|null>(null);
+  // SVG próprio evita caminhos de imagem quebrados do marcador padrão do Leaflet
+  // após a compilação Vite. Mantém identidade visual e tamanho de toque no mobile.
+  const markerIcon=useRef(L.divIcon({
+    className:'',
+    html:'<svg xmlns="http://www.w3.org/2000/svg" width="38" height="48" viewBox="0 0 38 48" role="img" aria-label="Local do imóvel"><path d="M19 2C9.6 2 2 9.6 2 19c0 13.2 17 27 17 27s17-13.8 17-27C36 9.6 28.4 2 19 2Z" fill="var(--portal-primary, #e11d48)" stroke="#fff" stroke-width="3"/><circle cx="19" cy="19" r="7" fill="#fff"/></svg>',
+    iconSize:[38,48],iconAnchor:[19,46]
+  }));
+
   const valid = latitude!==null&&longitude!==null&&Number.isFinite(latitude)&&Number.isFinite(longitude)
     &&Math.abs(latitude)<=90&&Math.abs(longitude)<=180&&(latitude!==0||longitude!==0);
 
@@ -27,7 +35,7 @@ export const PrivatePropertyLocationMap: React.FC<Props> = ({latitude,longitude,
     map.current=instance;
     const update=(lat:number,lng:number)=>{
       if(!marker.current){
-        marker.current=L.marker([lat,lng],{draggable:true}).addTo(instance);
+        marker.current=L.marker([lat,lng],{draggable:true,icon:markerIcon.current}).addTo(instance);
         marker.current.on('dragend',()=>{const next=marker.current?.getLatLng();if(next)setCandidate({lat:next.lat,lng:next.lng});});
       }else marker.current.setLatLng([lat,lng]);
       setCandidate({lat,lng});
@@ -44,7 +52,7 @@ export const PrivatePropertyLocationMap: React.FC<Props> = ({latitude,longitude,
     // A confirmed position may be edited by dragging, without geocoding overriding it.
     marker.current?.setLatLng(position);
     if(!marker.current){
-      marker.current=L.marker(position,{draggable:true}).addTo(map.current);
+      marker.current=L.marker(position,{draggable:true,icon:markerIcon.current}).addTo(map.current);
       marker.current.on('dragend',()=>{const next=marker.current?.getLatLng();if(next)setCandidate({lat:next.lat,lng:next.lng});});
     }
     map.current.setView(position,17);

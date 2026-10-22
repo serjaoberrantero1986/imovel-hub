@@ -38,6 +38,15 @@ export function normalizeGeckoItem(item,source,expectedPurpose='sale'){
   const loc=item.location&&typeof item.location==='object'?item.location:{};
   const attributes=item.attributes&&!Array.isArray(item.attributes)?item.attributes:{};
   const counts=item.counts||{};
+  const olxProperties=Array.isArray(item.properties)?item.properties:[];
+  const fromOlx=(terms)=>{
+    const record=olxProperties.find(p=>terms.some(t=>
+      norm([p?.name,p?.label].filter(Boolean).join(' ')).includes(t)));
+    if(!record)return null;
+    const parsed=String(record.value??'').replace(/[^0-9,.]/g,'').replace(',','.');
+    const n=Number(parsed);
+    return Number.isFinite(n)&&n>0?n:null;
+  };
   const first=(name,fallback)=>num(attributes[name])??num(fallback);
   const prices=Array.isArray(item.prices)?
     item.prices.find(p=>norm(p?.businessType)===expectedPurpose)||item.prices[0]||{}:
@@ -45,13 +54,15 @@ export function normalizeGeckoItem(item,source,expectedPurpose='sale'){
   const price=pos(prices.mainValue??prices.value??prices.rawPrice??prices.price??
     item.askingPrice??item.price?.amount??item.price);
   const link=txt(item.url||item.listingUrl||item.link,2000);
-  let url;
+  // Link ausente/incorreto não deve apagar o candidato. Apenas impede
+  // abrir anúncio e utilizá-lo até o profissional confirmar um link válido.
+  let url='';
   try{
     const parsed=new URL(link);
-    if(parsed.protocol!=='https:'||parsed.username||parsed.password||
-      (parsed.hostname!==source&&!parsed.hostname.endsWith('.'+source)))return null;
-    url=parsed.toString();
-  }catch{return null;}
+    if(parsed.protocol==='https:'&&!parsed.username&&!parsed.password&&
+      (parsed.hostname===source||parsed.hostname.endsWith('.'+source)))
+      url=parsed.toString();
+  }catch{/* candidato permanece pendente */}
   const id=txt(String(item.id||item.listingId||item.externalId||item.listingExternalId||
     item.adId||url),120);
   const actualCity=txt(address.city||loc.city||item.city,120);
@@ -59,7 +70,7 @@ export function normalizeGeckoItem(item,source,expectedPurpose='sale'){
     loc.stateAcronym||loc.stateCode||loc.state||item.stateCode||item.state,120);
   const actualState=stateCode(rawState)||rawState.slice(0,2).toUpperCase();
   const kind=resolveType(item);
-  const pricePurpose=norm(item.offerPurpose||item.businessType||
+  const pricePurpose=norm(item.offerPurpose||item.businessType||item.business||
     item.transactionType||item.operation||prices.businessType);
   const purpose=/^(sale|sell|venda|buy)$/.test(pricePurpose)||/\/venda\//i.test(url)?'sale':
     /^(rent|rental|aluguel|locacao|lease)$/.test(pricePurpose)||/\/(aluguel|locacao)\//i.test(url)?'rent':'unknown';
@@ -78,12 +89,14 @@ export function normalizeGeckoItem(item,source,expectedPurpose='sale'){
     listing_title:title,
     property_type:kind,
     asking_price:price,
-    usable_area:pos(first('usableAreas',item.area?.useful??item.property?.usableArea??item.usableArea)),
-    total_area:pos(first('totalAreas',item.area?.total??item.property?.totalArea??item.totalArea))||
+    usable_area:pos(first('usableAreas',item.area?.useful??item.property?.usableArea??
+      item.usableArea??fromOlx(['area util','area construida','metragem']))),
+    total_area:pos(first('totalAreas',item.area?.total??item.property?.totalArea??
+      item.totalArea??fromOlx(['area do terreno','area total','terreno'])) )||
       (kind==='land'||kind==='farm'?explicitlyLand:null),
     land_area:explicitlyLand, // Só aceitar declaração explícita de terreno.
     built_area:explicitlyBuilt, // Área útil NÃO implica área construída.
-    bedrooms:count(first('bedrooms',counts.bedrooms?.count??item.bedrooms)),
+    bedrooms:count(first('bedrooms',counts.bedrooms?.count??item.bedrooms??fromOlx(['quarto','dormitorio']))),
     suites:count(first('suites',counts.suites?.count??item.suites)),
     bathrooms:count(first('bathrooms',counts.bathrooms?.count??item.bathrooms)),
     parking_spots:count(first('parkingSpaces',counts.garages?.count??item.parkingSpaces)),
@@ -110,6 +123,7 @@ function basisFor(reference){
 }
 function similarType(a,b){
   if(a===b)return true;
+  if((a==='chacara'&&b==='farm')||(a==='farm'&&b==='chacara'))return true;
   // Casa de condomínio não é presumida equivalente a casa de rua.
   if(a==='condo_house'||b==='condo_house')return false;
   return false;
@@ -122,6 +136,7 @@ export function screenOffers(reference,records,{tolerance=0.25}={}){
     const fail=(status,reason)=>entries.push({item:row,status,reason});
     if(row.excluded_by_broker){fail('excluded','Excluído por decisão manual do corretor'+
       (row.exclusion_reason?': '+row.exclusion_reason:'')+'.');continue;}
+    if(!row.listing_url){fail('pending','Link do anúncio ausente ou não confirmado.');continue;}
     if(row.offer_purpose!==purpose){
       fail(row.offer_purpose==='unknown'?'pending':'excluded',
         row.offer_purpose==='unknown'?'A finalidade da oferta não foi identificada.':
@@ -200,5 +215,65 @@ export function screenOffers(reference,records,{tolerance=0.25}={}){
       ...(included.length<5?['Quantidade reduzida de anúncios comparáveis.']:[]),
       ...(included.some(e=>e.warnings?.length)?['Existem diferenças físicas não ajustadas.']:[])
     ]
+  };
+}
+
+/** Preserva as informações fornecidas pelo portal, sem copiar campos ambíguos
+ *  para as áreas técnicas. A triagem decide uso; a coleta nunca descarta.
+ */
+export function candidateFromGecko(item,source,index,requestId='',collectedAt=''){
+  const normalized=normalizeGeckoItem(item,source)||{
+    source_name:source,listing_reference:'',listing_url:'',listing_title:'Anúncio sem ficha legível',
+    property_type:'unknown',asking_price:null,usable_area:null,total_area:null,
+    built_area:null,land_area:null,bedrooms:null,suites:null,bathrooms:null,
+    parking_spots:null,listing_city:'',listing_state:'',listing_neighborhood:'',
+    offer_purpose:'unknown',evidence_text:[]
+  };
+  const raw=item&&typeof item==='object'?item:{};
+  // Subconjunto público da listagem. Nunca salvar dados pessoais do anunciante.
+  const original={
+    id:raw.id??raw.listingId??null,
+    title:raw.title??raw.generatedTitle??null,
+    url:String(raw.url??raw.listingUrl??raw.link??'').slice(0,2000),
+    description:typeof raw.description==='string'?raw.description.slice(0,3500):null,
+    price:raw.price??null,
+    prices:Array.isArray(raw.prices)?raw.prices.slice(0,5):raw.prices??null,
+    unitTypes:raw.unitTypes??null,
+    propertyType:raw.propertyType??null,
+    business:raw.business??raw.businessType??null,
+    attributes:raw.attributes??null,
+    properties:Array.isArray(raw.properties)?raw.properties.slice(0,35).map(p=>({
+      name:String(p?.name??'').slice(0,90),
+      label:String(p?.label??'').slice(0,90),
+      value:String(p?.value??'').slice(0,180)
+    })):null,
+    address:raw.address&&typeof raw.address==='object'?{
+      city:raw.address.city,state:raw.address.state,
+      stateAcronym:raw.address.stateAcronym,neighborhood:raw.address.neighborhood
+    }:null,
+    location:raw.location&&typeof raw.location==='object'?{
+      city:raw.location.city,state:raw.location.state,
+      neighborhood:raw.location.neighborhood
+    }:null
+  };
+  const publicData=JSON.stringify(original);
+  // Excedentes ficam reduzidos, mas o registro nunca é descartado.
+  const capturedData=publicData.length>16000?{
+    title:String(original.title??'').slice(0,250),
+    description:String(original.description??'').slice(0,3000),
+    properties:original.properties,
+    truncated:true
+  }:original;
+  const reference=String(normalized.listing_reference||'').slice(0,120);
+  const sourceKey=reference&&reference!==normalized.listing_url?
+    'id:'+reference:normalized.listing_url?
+      'url:'+normalized.listing_url.slice(0,260):
+      'sem-id:'+requestId.slice(0,55)+':'+index;
+  return {
+    source_name:source,source_key:sourceKey.slice(0,300),
+    listing_url:normalized.listing_url||null,
+    listing_title:normalized.listing_title||'Imóvel anunciado',
+    normalized_data:normalized,captured_data:capturedData,
+    collected_at:collectedAt||new Date().toISOString()
   };
 }
