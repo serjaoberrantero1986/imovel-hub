@@ -344,7 +344,7 @@ export const PropertyValuationStep:React.FC<{property:Property}> = ({property})=
         land_area:null,built_area:null,
         listing_title:'Anúncio cadastrado manualmente',
         listing_city:manualCity.trim(),listing_state:manualState.trim().toUpperCase(),
-        listing_neighborhood:'',offer_purpose:property.purpose==='rent'?'rent':'sale',
+        listing_neighborhood:'',offer_purpose:property.purpose==='rent'?'rent':property.purpose==='sale'?'sale':'unknown',
         excluded_by_broker:false,exclusion_reason:'',
         bedrooms:null,bathrooms:null,suites:null,parking_spots:null,
         latitude:null,longitude:null,coordinate_quality:'unknown',condominium:null,
@@ -628,7 +628,7 @@ export const PropertyValuationStep:React.FC<{property:Property}> = ({property})=
     {phase==='result'&&<div className="space-y-4 animate-in fade-in">
       <Card>
         <CardHeader><CardTitle>Indicativo de valor de mercado</CardTitle>
-          <CardDescription>Estimativa preliminar baseada em ofertas qualificados para a pesquisa.</CardDescription>
+          <CardDescription>Estimativa preliminar baseada em ofertas qualificadas para a pesquisa.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           {indicator?.ready&&Number.isFinite(indicator.value)?<>
