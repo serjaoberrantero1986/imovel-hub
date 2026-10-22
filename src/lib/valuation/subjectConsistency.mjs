@@ -55,6 +55,6 @@ export function compareAssessmentSubject(assessment, property, location=property
     const before=numeric?area(stored[field]):clean(stored[field]);
     const after=numeric?area(current[field]):clean(current[field]);
     if(before===after)return [];
-    return [{field,label,before:format(stored[field]),after:format(current[field])}];
+    return [{field:String(field),label:String(label),before:format(stored[field]),after:format(current[field])}];
   });
 }

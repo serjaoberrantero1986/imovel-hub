@@ -649,7 +649,7 @@ function PropertyValuationStep({property,onReturnToCadastro,onComplete,onFlowCon
               mas novas pesquisas exigem uma avaliação atualizada.
             </p>
             <div className="space-y-1 text-xs text-slate-700 dark:text-slate-200">
-              {staleChanges.map(change=><p key={change.field}>
+              {staleChanges.map(change=><p key={String(change.field)}>
                 <strong>{change.label}:</strong> {change.before} → {change.after}
               </p>)}
             </div>
@@ -689,8 +689,8 @@ function PropertyValuationStep({property,onReturnToCadastro,onComplete,onFlowCon
           <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500">Pesquisar ofertas para</p>
           <strong className="mt-1 block text-sm text-slate-900 dark:text-white">
             {TYPE_LABELS[selected?.property_type||'']||selected?.property_type||'Imóvel'} ·
-            {' '}{PURPOSE_LABELS[selected?.property_snapshot?.purpose||'']||
-            selected?.property_snapshot?.purpose||'Finalidade não confirmada'}
+            {' '}{PURPOSE_LABELS[String(selected?.property_snapshot?.purpose||'')]||
+            String(selected?.property_snapshot?.purpose||'Finalidade não confirmada')}
           </strong>
           <p className={muted}>{selected?.city||'Cidade não informada'}/{selected?.state||'UF não informada'} ·
             {' '}{selected?.neighborhood||'Bairro não informado'}</p>
@@ -742,7 +742,7 @@ function PropertyValuationStep({property,onReturnToCadastro,onComplete,onFlowCon
             Consultar {sources.length} fonte(s) para
             {' '}{TYPE_LABELS[selected?.property_type||'']||selected?.property_type||'imóvel'} em
             {' '}{selected?.city}/{selected?.state},
-            finalidade {PURPOSE_LABELS[selected?.property_snapshot?.purpose||'']||'não confirmada'}.
+            finalidade {PURPOSE_LABELS[String(selected?.property_snapshot?.purpose||'')]||'não confirmada'}.
             Custo estimado de {estimatedCredits} crédito(s) da conta compartilhada da GeckoAPI.
           </p>
           <p className={muted}>O valor final dependerá da tarifa cobrada por cada fonte. Os anúncios retornados serão preservados, mesmo que precisem de conferência.</p>
