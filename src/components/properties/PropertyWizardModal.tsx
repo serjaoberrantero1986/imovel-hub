@@ -25,7 +25,7 @@ import { useApp, useCatalog } from '../../context/AppContext';
 import { Property, PropertyType, PropertyPurpose, PropertyMedia, PropertyStatus } from '../../types';
 import { formatCurrency, getPropertyTypeLabel, getPropertyPurposeLabel, generatePropertyCode } from '../../lib/utils';
 import { PropertyImageManager } from '../media/PropertyImageManager';
-import { PropertyValuationStep } from './PropertyValuationStep';
+import { PropertyValuationStep, type PropertyValuationHandle, type ValuationFlowControls } from './PropertyValuationStep';
 import { PrivatePropertyLocationMap } from './PrivatePropertyLocationMap';
 import { NeighborhoodAutocomplete } from './NeighborhoodAutocomplete';
 import { registerNeighborhoodFromInput } from '../../lib/neighborhoodCatalog';
@@ -65,6 +65,17 @@ export const PropertyWizardModal: React.FC = () => {
   const [currentStep, setCurrentStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [stepError, setStepError] = useState<string | null>(null);
+  const valuationRef = useRef<PropertyValuationHandle>(null);
+  const [valuationFlow, setValuationFlow] = useState<ValuationFlowControls>({
+    phase: 'subject', primaryLabel: 'Iniciar avaliação', disabled: true, busy: false
+  });
+
+  // Reinicia a rolagem do modal ao avançar entre telas da avaliação.
+  useEffect(() => {
+    if (currentStep === 8) {
+      document.getElementById('valuation-stage-scroll')?.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }, [currentStep, valuationFlow.phase]);
 
   // Form State
   const [purpose, setPurpose] = useState<PropertyPurpose>('sale');
@@ -518,7 +529,7 @@ export const PropertyWizardModal: React.FC = () => {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/75 backdrop-blur-md overflow-y-auto animate-in fade-in duration-200">
+    <div role="dialog" aria-modal="true" aria-label="Cadastro e avaliação do imóvel" className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/75 backdrop-blur-md overflow-y-auto animate-in fade-in duration-200">
       <div className="relative w-full max-w-4xl bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col max-h-[90vh]">
         
         {/* Modal Header */}
@@ -587,7 +598,7 @@ export const PropertyWizardModal: React.FC = () => {
         )}
 
         {/* Form Body Scrollable Container */}
-        <div className="p-6 overflow-y-auto flex-1 space-y-6">
+        <div id="valuation-stage-scroll" className="p-4 sm:p-6 overflow-y-auto flex-1 space-y-6">
           
           {/* STEP 1: Finalidade & Tipo */}
           {currentStep === 1 && (
@@ -1124,7 +1135,17 @@ export const PropertyWizardModal: React.FC = () => {
           )}
 
           {currentStep === 8 && (
-            editingProperty ? <PropertyValuationStep property={editingProperty} /> :
+            editingProperty ? <PropertyValuationStep
+              ref={valuationRef}
+              property={editingProperty}
+              onReturnToCadastro={() => setCurrentStep(7)}
+              onComplete={() => {
+                setIsWizardOpen(false);
+                setEditingProperty(null);
+                setWizardStartStep(1);
+              }}
+              onFlowControlsChange={setValuationFlow}
+            /> :
             <p className="p-5 text-sm text-slate-500">Salve o anúncio antes de iniciar uma avaliação.</p>
           )}
 
@@ -1134,7 +1155,11 @@ export const PropertyWizardModal: React.FC = () => {
         <div className="px-6 py-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30 flex items-center justify-between">
           <button
             type="button"
-            onClick={() => { setStepError(null); setCurrentStep(prev => Math.max(1, prev - 1)); }}
+            onClick={() => {
+              setStepError(null);
+              if (currentStep === 8 && editingProperty) valuationRef.current?.back();
+              else setCurrentStep(prev => Math.max(1, prev - 1));
+            }}
             disabled={currentStep === 1}
             className="px-4 py-2 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-30 flex items-center gap-1 cursor-pointer"
           >
@@ -1144,7 +1169,13 @@ export const PropertyWizardModal: React.FC = () => {
 
           <div className="flex gap-2">
             {currentStep === 8 ? (
-              <button type="button" onClick={() => {setIsWizardOpen(false);setEditingProperty(null);setWizardStartStep(1);}} className="px-6 py-2.5 rounded-xl bg-rose-600 text-white text-xs font-bold">Concluir / Fechar</button>
+              <button type="button" onClick={() => valuationRef.current?.next()}
+                disabled={!editingProperty || valuationFlow.disabled}
+                className="px-4 sm:px-6 py-2.5 min-h-[42px] rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs sm:text-sm font-bold disabled:opacity-50 inline-flex items-center gap-2 transition-colors"
+              >
+                {valuationFlow.busy && <Loader2 className="h-4 w-4 animate-spin"/>}
+                {valuationFlow.primaryLabel}
+              </button>
             ) : currentStep < 7 ? (
               <button
                 type="button"

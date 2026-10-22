@@ -24,3 +24,11 @@ src/types/index.ts; src/lib/supabaseCrud.ts; src/lib/valuation/assessmentReposit
 
 ## Publicação manual
 Este branch já tem commits no GitHub; NÃO criar commits duplicados. Em um clone local, para enviar somente esses arquivos, confira primeiro git status e git diff e use git add -p nos arquivos citados, seguido de git commit -m "feat: avaliacao guiada etapa 8" e git push origin feat/avaliacao-guiada-etapa8-20261022. Não inclua modificações alheias. Nunca efetue o merge em produção antes dos pré-requisitos.
+
+## Refinamento mobile e navegação única — 22/10/2026
+
+- Cabeçalho em tela pequena: preservar logo, botão Anunciar, foto/ícone real do usuário e botão de menu; comparador, favoritos, mensagens, parcerias e tema continuam acessíveis no menu de usuário, no menu inferior ou nas respectivas páginas, mas não disputam espaço no topo. O botão Perfil do menu inferior abre o mesmo `UserMenu`; o acesso a **Meus Anúncios** permanece no menu compartilhado.
+- A etapa 8 utiliza quatro fases progressivas (Imóvel, Pesquisar, Analisar e Resultado); não apresenta mapa, CSV nem formulário completo de anúncios na primeira tela. O dossiê ainda não implementado aparece apenas como detalhe opcional na tela de resultado.
+- O rodapé do `PropertyWizardModal` controla Voltar e ação principal da fase ativa através de uma ref tipada do `PropertyValuationStep`; não existem dois conjuntos de botões de avanço competindo. O botão X continua permitindo fechar, e o preço do imóvel permanece inalterado.
+- O atalho flutuante **Editar portal** é temporariamente oculto enquanto o cadastro/avaliação estiver aberto, sem encerrar a sessão do editor.
+- A entrega é feita em **um único commit na branch de prévia**, sem merge automático para produção. A migração do Supabase, a chave GeckoAPI e a validação de CI ainda são requisitos antes da publicação do motor de pesquisa em produção.

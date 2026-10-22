@@ -55,6 +55,20 @@ export const UserMenu: React.FC = () => {
     };
   }, [isOpen]);
 
+  // Avatar superior e atalho Perfil inferior controlam o mesmo menu.
+  useEffect(() => {
+    const openAccountMenu = () => setIsOpen(true);
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setIsOpen(false);
+    };
+    window.addEventListener('open-account-menu', openAccountMenu);
+    document.addEventListener('keydown', closeOnEscape);
+    return () => {
+      window.removeEventListener('open-account-menu', openAccountMenu);
+      document.removeEventListener('keydown', closeOnEscape);
+    };
+  }, []);
+
   const handleNav = (view: any) => {
     setCurrentView(view);
     setIsOpen(false);
@@ -79,6 +93,7 @@ export const UserMenu: React.FC = () => {
         type="button"
         onClick={() => setIsOpen(!isOpen)}
         aria-expanded={isOpen}
+        aria-haspopup="true"
         aria-label={`Menu de ${currentUser.name}`}
         className="member-profile-menu border border-slate-200 dark:border-slate-700/80 hover:bg-slate-100 dark:hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-rose-500/20"
       >

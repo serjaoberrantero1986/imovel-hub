@@ -19,11 +19,27 @@ import { normalizeGeckoItem, screenOffers } from '../../lib/valuation/geckoMappi
 
 // Mantém toda a experiência na oitava etapa do assistente já existente.
 // Nenhum mapa, geocodificação ou segundo cadastro é apresentado aqui.
-type Phase = 'subject' | 'sources' | 'analysis' | 'result' | 'dossier';
+export type ValuationPhase = 'subject' | 'sources' | 'analysis' | 'result';
+export interface PropertyValuationHandle {
+  back: () => void;
+  next: () => void;
+}
+export interface ValuationFlowControls {
+  phase: ValuationPhase;
+  primaryLabel: string;
+  disabled: boolean;
+  busy: boolean;
+}
+interface PropertyValuationStepProps {
+  property: Property;
+  onReturnToCadastro: () => void;
+  onComplete: () => void;
+  onFlowControlsChange: (controls: ValuationFlowControls) => void;
+}
+type Phase = ValuationPhase;
 const PHASES: {id:Phase;label:string}[] = [
   {id:'subject',label:'Imóvel'}, {id:'sources',label:'Pesquisar'},
-  {id:'analysis',label:'Analisar'}, {id:'result',label:'Resultado'},
-  {id:'dossier',label:'Dossiê'}
+  {id:'analysis',label:'Analisar'}, {id:'result',label:'Resultado'}
 ];
 const PROVIDERS: {id:string;label:string}[] = [
   {id:'zapimoveis.com.br',label:'ZAP Imóveis'},
@@ -65,7 +81,8 @@ const emptyReview:ReviewDraft={
 };
 type SourceStatus={id:string;state:'pending'|'running'|'done'|'error'|'skipped';accepted:number;skipped:number;message?:string};
 
-export const PropertyValuationStep:React.FC<{property:Property}> = ({property})=>{
+export const PropertyValuationStep = React.forwardRef<PropertyValuationHandle,PropertyValuationStepProps>(
+function PropertyValuationStep({property,onReturnToCadastro,onComplete,onFlowControlsChange},ref){
   const {addToast}=useApp();
   const {activeAmenities}=useCatalog();
   const [phase,setPhase]=useState<Phase>('subject');
@@ -374,6 +391,40 @@ export const PropertyValuationStep:React.FC<{property:Property}> = ({property})=
     finally{setBusy(false);}
   };
 
+  // Um único conjunto de botões, no rodapé já existente do cadastro.
+  React.useImperativeHandle(ref, () => ({
+    back: () => {
+      if (busy) return;
+      if (phase === 'subject') onReturnToCadastro();
+      else setPhase(PHASES[Math.max(0, currentIndex - 1)].id);
+    },
+    next: () => {
+      if (busy || loading) return;
+      if (phase === 'subject') {
+        void prepareAssessment(!selected);
+      } else if (phase === 'sources') {
+        void research();
+      } else if (phase === 'analysis') {
+        setPhase('result');
+      } else {
+        onComplete();
+      }
+    }
+  }));
+
+  useEffect(() => {
+    const primaryLabel = phase === 'subject'
+      ? selected ? 'Continuar avaliação' : 'Iniciar avaliação'
+      : phase === 'sources' ? 'Pesquisar mercado'
+      : phase === 'analysis' ? 'Ver resultado' : 'Concluir / Fechar';
+    onFlowControlsChange({
+      phase, primaryLabel, busy,
+      disabled: busy || loading ||
+        (phase === 'subject' && !subjectReady) ||
+        (phase === 'sources' && sources.length === 0)
+    });
+  }, [phase, selectedId, busy, loading, subjectReady, sources.length, onFlowControlsChange]);
+
   return <section className="space-y-5 pb-3">
     <div className="flex flex-wrap items-start justify-between gap-3">
       <div className="space-y-1">
@@ -434,15 +485,12 @@ export const PropertyValuationStep:React.FC<{property:Property}> = ({property})=
           {!subjectReady&&<div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800 dark:border-amber-900 dark:bg-amber-950/20 dark:text-amber-300">
             Falta cidade, UF ou metragem adequada ao tipo do imóvel. Corrija a informação no cadastro antes de iniciar.
           </div>}
-          <div className="flex flex-wrap items-center gap-2">
-            <Button variant="primary" disabled={busy||!subjectReady} isLoading={busy}
-              onClick={()=>void prepareAssessment(true)} rightIcon={<ChevronRight className="h-4 w-4"/>}>
-              Iniciar nova avaliação
+          {selected&&<div className="flex flex-wrap gap-2">
+            <Button size="sm" variant="outline" disabled={busy||!subjectReady}
+              onClick={()=>void prepareAssessment(true)}>
+              Criar nova avaliação (preservar a anterior)
             </Button>
-            {selected&&<Button variant="outline" disabled={busy} onClick={()=>void prepareAssessment(false)}>
-              Continuar avaliação anterior
-            </Button>}
-          </div>
+          </div>}
           <p className={muted}>O preço anunciado não participa do cálculo de mercado. Para corrigir o imóvel, utilize as etapas anteriores do cadastro.</p>
         </CardContent>
       </Card>
@@ -496,10 +544,9 @@ export const PropertyValuationStep:React.FC<{property:Property}> = ({property})=
           <p className={'mt-2 '+muted}>A pesquisa usa uma página por fonte nesta etapa. Paginação ampliada e importação de CSV continuam recursos técnicos opcionais do laboratório, não do fluxo principal.</p>
         </details>
         <div className="flex flex-wrap gap-2">
-          <Button variant="outline" onClick={()=>setPhase('subject')} leftIcon={<ChevronLeft className="h-4 w-4"/>}>Voltar</Button>
-          <Button variant="primary" disabled={busy||sources.length===0} isLoading={busy}
-            onClick={()=>void research()} leftIcon={<Search className="h-4 w-4"/>}>Pesquisar mercado</Button>
-          <Button variant="ghost" disabled={busy} onClick={()=>setPhase('analysis')}>Ver anúncios já salvos</Button>
+          <Button size="sm" variant="ghost" disabled={busy} onClick={()=>setPhase('analysis')}>
+            Ver anúncios salvos sem nova consulta
+          </Button>
         </div>
         {sourceStates.length>0&&<div aria-live="polite" className="space-y-2">
           {sourceStates.map(x=><div key={x.id} className="flex items-center justify-between gap-2 text-xs">
@@ -635,10 +682,6 @@ export const PropertyValuationStep:React.FC<{property:Property}> = ({property})=
       {options.length>visibleCount&&<Button variant="outline" onClick={()=>setVisibleCount(c=>c+20)}>
         Mostrar mais ({shown.length} de {options.length})
       </Button>}
-      <div className="flex flex-wrap gap-2">
-        <Button variant="outline" onClick={()=>setPhase('sources')} leftIcon={<ChevronLeft className="h-4 w-4"/>}>Voltar às fontes</Button>
-        <Button variant="primary" onClick={()=>setPhase('result')} rightIcon={<ChevronRight className="h-4 w-4"/>}>Ver resultado</Button>
-      </div>
     </div>}
 
     {phase==='result'&&<div className="space-y-4 animate-in fade-in">
@@ -685,32 +728,17 @@ export const PropertyValuationStep:React.FC<{property:Property}> = ({property})=
           </details>
         </CardContent>
       </Card>
-      <div className="flex flex-wrap gap-2">
-        <Button variant="outline" onClick={()=>setPhase('analysis')} leftIcon={<ChevronLeft className="h-4 w-4"/>}>Revisar anúncios</Button>
-        <Button variant="primary" onClick={()=>setPhase('dossier')} rightIcon={<ChevronRight className="h-4 w-4"/>}>Próxima etapa</Button>
-      </div>
     </div>}
 
-    {phase==='dossier'&&<Card className="animate-in fade-in">
-      <CardHeader><CardTitle>Preparação do dossiê técnico</CardTitle>
-        <CardDescription>O parecer formal será uma etapa posterior à qualificação da amostra e ao tratamento técnico.</CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        {[
-          ['Cadastro de referência e características','Dados provenientes do anúncio vinculado'],
-          ['Fontes e comparáveis consultados','Registrados no histórico privado da avaliação'],
-          ['Justificativas de seleção e exclusão','Mantidas junto aos comparáveis'],
-          ['Tratamento técnico e memória de cálculo','Ainda não disponível para emissão de PTAM'],
-          ['Revisão e assinatura profissional','A implementar após a validação metodológica']
-        ].map(([name,description],i)=><div key={name} className="flex items-start gap-3 rounded-xl bg-slate-50 p-3 dark:bg-slate-800/60">
-          {i<3?<CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600"/>:
-            <FileCheck2 className="mt-0.5 h-4 w-4 shrink-0 text-slate-400"/>}
-          <div><strong className="block text-xs text-slate-900 dark:text-white">{name}</strong>
-            <p className={muted}>{description}</p></div>
-        </div>)}
-        <p className={muted}>Nenhum documento formal é emitido automaticamente. A avaliação anterior continua no histórico mesmo que o preço anunciado do imóvel seja alterado depois.</p>
-        <Button variant="outline" onClick={()=>setPhase('result')} leftIcon={<ChevronLeft className="h-4 w-4"/>}>Voltar ao resultado</Button>
-      </CardContent>
-    </Card>}
+    {phase==='result'&&<details className="rounded-2xl border border-slate-200 p-3 dark:border-slate-700">
+      <summary className="cursor-pointer text-sm font-bold text-slate-700 dark:text-slate-200">
+        <FileCheck2 className="mr-2 inline h-4 w-4"/> Preparação do dossiê técnico (futuro)
+      </summary>
+      <p className={muted+' mt-2'}>
+        Cadastro, fontes, exclusões e memória de cálculo formarão um dossiê revisável.
+        A emissão de PTAM, a homogeneização técnica e a assinatura profissional ainda não estão disponíveis.
+      </p>
+    </details>}
+
   </section>;
-};
+});

@@ -160,3 +160,31 @@ test('Campos explicitamente nomeados para terreno e área construída são respe
  assert.equal(found.built_area,135);
  assert.equal(found.land_area,250);
 });
+
+
+test('Etapa 8 usa somente quatro telas e um único rodapé do cadastro',()=>{
+ const step=readFileSync('src/components/properties/PropertyValuationStep.tsx','utf8');
+ const wizard=readFileSync('src/components/properties/PropertyWizardModal.tsx','utf8');
+ assert.match(step,/ValuationPhase = 'subject' \| 'sources' \| 'analysis' \| 'result'/);
+ assert.match(step,/React\.useImperativeHandle\(ref/);
+ assert.match(wizard,/valuationRef\.current\?\.next\(\)/);
+ assert.match(wizard,/valuationRef\.current\?\.back\(\)/);
+ assert.match(wizard,/onFlowControlsChange=\{setValuationFlow\}/);
+ assert.doesNotMatch(step,/phase==='dossier'/);
+ assert.doesNotMatch(step,/setPhase\('dossier'\)/);
+ assert.match(step,/Preparação do dossiê técnico \(futuro\)/);
+});
+test('Cabeçalho dá prioridade ao avatar em mobile e Perfil inferior abre o menu existente',()=>{
+ const nav=readFileSync('src/components/layout/Navbar.tsx','utf8');
+ const bottom=readFileSync('src/components/layout/MobileNav.tsx','utf8');
+ const userMenu=readFileSync('src/components/layout/UserMenu.tsx','utf8');
+ const editor=readFileSync('src/components/visual-editor/PortalEditorProvider.tsx','utf8');
+ const css=readFileSync('src/index.css','utf8');
+ assert.match(nav,/hidden lg:contents/);
+ assert.match(nav,/<UserMenu \/>/);
+ assert.match(bottom,/open-account-menu/);
+ assert.match(userMenu,/window\.addEventListener\('open-account-menu'/);
+ assert.match(userMenu,/Meus Anúncios/);
+ assert.match(editor,/!isWizardOpen && \(currentView/);
+ assert.match(css,/\.member-profile-menu:focus-visible \{ width: 44px; \}/);
+});

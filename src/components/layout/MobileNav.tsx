@@ -22,7 +22,9 @@ export const MobileNav: React.FC = () => {
     conversations,
     leads,
     unreadLeadsCount, 
-    currentUser 
+    currentUser,
+    isAuthenticated,
+    openAuthModal
   } = useApp();
 
   const totalUnread = (conversations || []).reduce((sum, c) => sum + (c.unreadCount || 0), 0);
@@ -106,6 +108,15 @@ export const MobileNav: React.FC = () => {
               key={item.id}
               id={`mobile-bottom-nav-${item.id}`}
               onClick={() => {
+                if (item.id === 'profile') {
+                  if (!isAuthenticated) {
+                    openAuthModal('login');
+                  } else {
+                    // O mesmo menu do avatar; sem criar outro painel paralelo.
+                    window.dispatchEvent(new Event('open-account-menu'));
+                  }
+                  return;
+                }
                 setCurrentView(item.id);
                 window.scrollTo({ top: 0, behavior: 'smooth' });
               }}
