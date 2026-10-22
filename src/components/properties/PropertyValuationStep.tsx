@@ -230,8 +230,11 @@ export const PropertyValuationStep:React.FC<{property:Property}> = ({property})=
             condominium:null,latitude:null,longitude:null,coordinate_quality:'unknown',
             availability:'unknown',market_zone_verified:false,reviewed_by_broker:false,
             conflicting_data:false,multi_unit:false,unfinished:false,
-            notes:'Pesquisa GeckoAPI · '+now+
-              (data.requestId?' · Consulta '+String(data.requestId).slice(0,80):'')
+            notes:('Pesquisa GeckoAPI · '+now+
+              (data.requestId?' · Consulta '+String(data.requestId).slice(0,80):'')+
+              (Array.isArray(row.evidence_text)&&row.evidence_text.length?
+                 ' · Indícios textuais não confirmados: '+row.evidence_text.join(' | '):'')
+              ).slice(0,3000)
           }));
           const persisted=await addComparablesFromSearch(selected.id,proposals);
           success++;total+=persisted.saved.length;
@@ -555,6 +558,8 @@ export const PropertyValuationStep:React.FC<{property:Property}> = ({property})=
             </div>
             <p className="text-xs leading-relaxed text-slate-600 dark:text-slate-300">{decision.reason}</p>
             {decision.warnings?.length>0&&<p className={muted}>{decision.warnings.join(' · ')}</p>}
+            {c.notes?.includes('Indícios textuais não confirmados:')&&
+              <p className={muted}>{c.notes.split('Indícios textuais não confirmados:')[1]?.split('\n')[0]}</p>}
             {c.excluded_by_broker&&<p className={muted}>Decisão do corretor: {c.exclusion_reason}</p>}
             <div className="flex flex-wrap items-center gap-2">
               <a href={c.listing_url} target="_blank" rel="noopener noreferrer"
