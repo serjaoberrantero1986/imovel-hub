@@ -116,8 +116,9 @@ export function mapDbPropertyToApp(
     pricePerMeter: dbProp.useful_area > 0 ? Math.round(Number(dbProp.price) / Number(dbProp.useful_area)) : undefined,
     condoFee: dbProp.condo_fee ? Number(dbProp.condo_fee) : undefined,
     iptuFee: dbProp.iptu_fee ? Number(dbProp.iptu_fee) : undefined,
-    totalArea: Number(dbProp.total_area || dbProp.useful_area || 0),
-    usefulArea: dbProp.useful_area ? Number(dbProp.useful_area) : undefined,
+    totalArea: Number(dbProp.total_area ?? 0),
+    usefulArea: Number(dbProp.useful_area ?? 0),
+    builtArea: dbProp.built_area != null ? Number(dbProp.built_area) : undefined,
     bedrooms: dbProp.bedrooms,
     suites: dbProp.suites,
     bathrooms: dbProp.bathrooms,
@@ -274,6 +275,7 @@ export async function insertPropertyToSupabase(property: Property): Promise<Inse
       iptu_fee: property.iptuFee ?? 0,
       total_area: property.totalArea,
       useful_area: property.usefulArea,
+      built_area: property.builtArea && property.builtArea > 0 ? property.builtArea : null,
       bedrooms: property.bedrooms,
       suites: property.suites,
       bathrooms: property.bathrooms,
@@ -432,6 +434,7 @@ export async function updatePropertyInSupabase(
     if (updates.iptuFee !== undefined) dbUpdates.iptu_fee = updates.iptuFee;
     if (updates.totalArea !== undefined) dbUpdates.total_area = updates.totalArea;
     if (updates.usefulArea !== undefined) dbUpdates.useful_area = updates.usefulArea;
+    if (updates.builtArea !== undefined) dbUpdates.built_area = updates.builtArea && updates.builtArea > 0 ? updates.builtArea : null;
     if (updates.bedrooms !== undefined) dbUpdates.bedrooms = updates.bedrooms;
     if (updates.suites !== undefined) dbUpdates.suites = updates.suites;
     if (updates.bathrooms !== undefined) dbUpdates.bathrooms = updates.bathrooms;
