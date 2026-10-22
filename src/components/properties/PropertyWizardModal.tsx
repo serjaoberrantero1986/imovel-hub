@@ -101,6 +101,7 @@ export const PropertyWizardModal: React.FC = () => {
   // Specs
   const [usefulArea, setUsefulArea] = useState<number>(0);
   const [totalArea, setTotalArea] = useState<number>(0);
+  const [builtArea, setBuiltArea] = useState<number>(0);
   const [bedrooms, setBedrooms] = useState<number>(0);
   const [suites, setSuites] = useState<number>(0);
   const [bathrooms, setBathrooms] = useState<number>(1);
@@ -139,6 +140,7 @@ export const PropertyWizardModal: React.FC = () => {
       setCondoName(editingProperty.condoName || '');
       setUsefulArea(editingProperty.usefulArea || 0);
       setTotalArea(editingProperty.totalArea || 0);
+      setBuiltArea(editingProperty.builtArea || 0);
       setBedrooms(editingProperty.bedrooms || 0);
       setSuites(editingProperty.suites || 0);
       setBathrooms(editingProperty.bathrooms || 1);
@@ -179,6 +181,7 @@ export const PropertyWizardModal: React.FC = () => {
       setGeocodeStatus(null);
       setUsefulArea(0);
       setTotalArea(0);
+      setBuiltArea(0);
       setBedrooms(0);
       setSuites(0);
       setBathrooms(1);
@@ -343,9 +346,22 @@ export const PropertyWizardModal: React.FC = () => {
         return false;
       }
     } else if (stepNumber === 3) {
-      if ((usefulArea || 0) <= 0 && (totalArea || 0) <= 0) {
-        setStepError('Por favor, informe a Área Útil ou Área Total do imóvel (m²).');
+      // Não copiar uma área para outra; cada medida tem sua definição.
+      const landTypes = ['land','chacara','farm'];
+      const areaRequired = landTypes.includes(type) ? totalArea > 0 :
+        ['apartment','flat','kitnet','penthouse'].includes(type) ? usefulArea > 0 :
+        usefulArea > 0 || builtArea > 0;
+      if (!areaRequired) {
+        setStepError(landTypes.includes(type)
+          ? 'Informe a área do terreno para esta tipologia.'
+          : 'Informe a área útil/privativa ou a área construída, conforme a tipologia.');
         return false;
+      }
+      for (const area of [usefulArea,totalArea,builtArea]) {
+        if (!Number.isFinite(area) || area < 0 || area > 1000000000) {
+          setStepError('As metragens devem ser números positivos e coerentes.');
+          return false;
+        }
       }
     } else if (stepNumber === 4) {
       if ((price || 0) <= 0) {
@@ -453,8 +469,9 @@ export const PropertyWizardModal: React.FC = () => {
       pricePerMeter: usefulArea ? Math.round(price / usefulArea) : undefined,
       acceptsFinancing,
       acceptsExchange,
-      totalArea: totalArea || usefulArea || 0,
-      usefulArea: usefulArea || totalArea || 0,
+      totalArea: totalArea || 0,
+      usefulArea: usefulArea || 0,
+      builtArea: builtArea > 0 ? builtArea : undefined,
       bedrooms,
       suites,
       bathrooms,
@@ -812,7 +829,7 @@ export const PropertyWizardModal: React.FC = () => {
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-bold text-slate-500 mb-1 block">Área Total / Construída (m²)</label>
+                  <label className="text-xs font-bold text-slate-500 mb-1 block">Área total / terreno (m²)</label>
                   <input
                     type="number"
                     min={0}
@@ -824,6 +841,16 @@ export const PropertyWizardModal: React.FC = () => {
                 </div>
               </div>
 
+              <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4 dark:border-slate-700 dark:bg-slate-800/40 space-y-2">
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-200">Área construída (m²) · opcional</label>
+                <input type="number" min={0} step="0.01"
+                  value={builtArea || ''}
+                  onChange={e=>{setBuiltArea(Number(e.target.value));setStepError(null);}}
+                  placeholder="Informe somente se conhecida"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white text-sm text-slate-900 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+                />
+                <p className="text-[11px] leading-relaxed text-slate-500">Área construída, área útil e área do terreno são medidas diferentes. Deixe em branco quando não souber; o sistema não copia os valores.</p>
+              </div>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                 <div>
                   <label className="text-xs font-bold text-slate-500 mb-1 block">Dormitórios</label>
@@ -1078,14 +1105,14 @@ export const PropertyWizardModal: React.FC = () => {
                 </div>
 
                 <div className="grid grid-cols-4 gap-2 text-center text-xs py-2 border-y border-slate-200 dark:border-slate-700">
-                  <div><span className="text-slate-400">Área:</span> <strong>{usefulArea || totalArea} m²</strong></div>
+                  <div><span className="text-slate-400">Área útil:</span> <strong>{usefulArea > 0 ? usefulArea+' m²' : 'Não informada'}</strong></div>
                   <div><span className="text-slate-400">Quartos:</span> <strong>{bedrooms} ({suites} suítes)</strong></div>
                   <div><span className="text-slate-400">Banheiros:</span> <strong>{bathrooms}</strong></div>
                   <div><span className="text-slate-400">Vagas:</span> <strong>{parkingSpots}</strong></div>
                 </div>
 
                 <div className="text-xs text-slate-600 dark:text-slate-300">
-                  {mediaList.length} foto(s) anexada(s) • {selectedAmenities.length} comodidade(s) selecionada(s)
+                  {mediaList.length} foto(s) anexada(s) • {selectedAmenities.length} comodidade(s) • área total/terreno: {totalArea > 0 ? totalArea+' m²' : 'não informada'} • construída: {builtArea > 0 ? builtArea+' m²' : 'não informada'}
                 </div>
               </div>
               <label className="flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50/70 p-4 text-left dark:border-amber-900/60 dark:bg-amber-950/20">
