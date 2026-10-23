@@ -195,6 +195,33 @@ test('Chácara com área rural próxima não é excluída pela tolerância urban
  assert.ok(result.entries[0].warnings.some(item=>item.includes('faixa ampliada')));
 });
 
+test('Decisão manual reaproveita amostra excluída sem inventar dormitórios',()=>{
+ const subject={property_type:'chacara',property_snapshot:{purpose:'sale'},land_area:700,
+   city:'Salto de Pirapora',state:'SP'};
+ const row={property_type:'farm',offer_purpose:'sale',asking_price:200000,total_area:1200,
+   listing_url:'https://www.chavesnamao.com.br/imovel/manual-1',listing_city:'Salto de Pirapora',
+   listing_state:'SP',source_name:'chavesnamao.com.br',listing_reference:'manual-1',
+   reviewed_by_broker:true,manual_selection:'include',search_query_verified:true,
+   bedrooms:null,bathrooms:null};
+ const result=screenOffers(subject,[row]);
+ assert.equal(result.counts.included,1);
+ assert.equal(result.entries[0].item.bedrooms,null);
+ assert.ok(result.entries[0].warnings.some(item=>item.includes('decisão manual')));
+});
+
+test('A seleção manual preserva o agrupamento automático da etapa 8',()=>{
+ const migration=readFileSync('supabase/migrations/20261023000001_manual_valuation_selection_and_property_views.sql','utf8');
+ const ui=readFileSync('src/components/properties/PropertyValuationStep.tsx','utf8');
+ const detail=readFileSync('src/components/properties/PropertyDetailView.tsx','utf8');
+ assert.match(migration,/manual_selection text/);
+ assert.match(migration,/increment_property_view/);
+ assert.match(ui,/Aproveitados/);
+ assert.match(ui,/Conferência/);
+ assert.match(ui,/Excluídos/);
+ assert.match(ui,/Reaproveitar no cálculo/);
+ assert.match(detail,/registerPublicPropertyView/);
+});
+
 
 test('Etapa 8 usa somente quatro telas e um único rodapé do cadastro',()=>{
  const step=readFileSync('src/components/properties/PropertyValuationStep.tsx','utf8');

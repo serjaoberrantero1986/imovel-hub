@@ -37,6 +37,7 @@ import { SwipeableImageGallery } from './SwipeableImageGallery';
 import { PropertyLeadContactForm } from './PropertyLeadContactForm';
 import { UserAvatar } from '../ui/UserAvatar';
 import { PartnerListingReportModal } from './PartnerListingReportModal';
+import { registerPublicPropertyView } from '../../lib/supabaseCrud';
 
 const PENDING_PROPERTY_CONTACT_KEY = 'imovelhub_pending_property_contact';
 const PENDING_PROPERTY_CONTACT_MAX_AGE = 24 * 60 * 60 * 1000;
@@ -125,6 +126,26 @@ export const PropertyDetailView: React.FC = () => {
     return tomorrow.toISOString().slice(0, 10);
   });
   const [visitTime, setVisitTime] = useState('10:00');
+
+  useEffect(() => {
+    if (!property || property.status !== 'active' || currentUser?.id === property.userId) return;
+    try {
+      const propertyKey = `imovelhub_property_view:${property.id}`;
+      const lastSeen = Number(sessionStorage.getItem(propertyKey) || 0);
+      if (Date.now() - lastSeen < 30 * 60 * 1000) return;
+      let visitorToken = sessionStorage.getItem('imovelhub_visitor_token');
+      if (!visitorToken) {
+        visitorToken = typeof crypto !== 'undefined' && crypto.randomUUID
+          ? crypto.randomUUID()
+          : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+        sessionStorage.setItem('imovelhub_visitor_token', visitorToken);
+      }
+      sessionStorage.setItem(propertyKey, String(Date.now()));
+      void registerPublicPropertyView(property.id, visitorToken);
+    } catch {
+      // A falha no armazenamento do navegador não deve impedir a visita.
+    }
+  }, [property?.id, property?.status, property?.userId, currentUser?.id]);
 
   if (!property) {
     return (

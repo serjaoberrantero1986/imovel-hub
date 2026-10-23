@@ -116,7 +116,7 @@ export const PropertyProvider: React.FC<{
       code,
       userId: currentUser.id,
       advertiser: currentUser,
-      viewsCount: 1,
+      viewsCount: 0,
       leadsCount: 0,
       favoritesCount: 0,
       sharesCount: 0,

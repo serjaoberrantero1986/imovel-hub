@@ -70,6 +70,7 @@ export interface ValuationComparable {
   offer_purpose?: 'sale' | 'rent' | 'unknown';
   excluded_by_broker?: boolean;
   exclusion_reason?: string;
+  manual_selection?: 'include' | 'exclude' | null;
   collected_at?: string | null;
   created_at: string;
   updated_at: string;
@@ -90,6 +91,7 @@ export type ValuationComparableInput = Pick<ValuationComparable,
 > & Partial<Pick<ValuationComparable,
   'usable_area' | 'total_area' | 'listing_title' | 'listing_city' | 'listing_state' |
   'listing_neighborhood' | 'offer_purpose' | 'excluded_by_broker' | 'exclusion_reason' | 'collected_at'
+  | 'manual_selection'
 >>;
 
 const requireClient = () => {
@@ -264,7 +266,8 @@ export interface ValuationCandidate {
   id:string; assessment_id:string; owner_id:string; source_name:string; source_key:string;
   listing_url:string|null; listing_title:string; normalized_data:Record<string,any>;
   captured_data:Record<string,any>; reviewed_by_broker:boolean; review_note:string;
-  excluded_by_broker:boolean; exclusion_reason:string; collected_at:string;
+  excluded_by_broker:boolean; exclusion_reason:string;
+  manual_selection:'include'|'exclude'|null; collected_at:string;
 }
 export type ValuationCandidateInput=Pick<ValuationCandidate,
   'source_name'|'source_key'|'listing_url'|'listing_title'|'normalized_data'|'captured_data'|'collected_at'>;
@@ -304,7 +307,7 @@ export async function updateValuationCandidate(
   assessmentId:string,id:string,
   changes:Partial<Pick<ValuationCandidate,
     'normalized_data'|'reviewed_by_broker'|'review_note'|'listing_url'|
-    'excluded_by_broker'|'exclusion_reason'>>
+    'excluded_by_broker'|'exclusion_reason'|'manual_selection'>>
 ):Promise<ValuationCandidate>{
   const owner=await requireProfessionalOwner();
   if(changes.listing_url)validateListingUrl(changes.listing_url);

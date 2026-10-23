@@ -108,6 +108,8 @@ function PropertyValuationStep({property,onReturnToCadastro,onComplete,onFlowCon
   const [visibleCount,setVisibleCount]=useState(20);
   const [excludeId,setExcludeId]=useState<string|null>(null);
   const [excludeReason,setExcludeReason]=useState('');
+  const [selectionId,setSelectionId]=useState<string|null>(null);
+  const [selectionReason,setSelectionReason]=useState('');
   const [editId,setEditId]=useState<string|null>(null);
   const [reviewDraft,setReviewDraft]=useState<ReviewDraft>(emptyReview);
   const [showManual,setShowManual]=useState(false);
@@ -211,6 +213,7 @@ function PropertyValuationStep({property,onReturnToCadastro,onComplete,onFlowCon
       asking_price:c.normalized_data?.asking_price??null,
       excluded_by_broker:c.excluded_by_broker,
       exclusion_reason:c.exclusion_reason,
+      manual_selection:c.manual_selection||null,
       reviewed_by_broker:c.reviewed_by_broker,
       notes:c.review_note
     } as unknown as ValuationComparable);
@@ -428,6 +431,38 @@ function PropertyValuationStep({property,onReturnToCadastro,onComplete,onFlowCon
       setExcludeId(null);setExcludeReason('');
       notify(exclude?'Anúncio retirado da amostra com justificativa.':'Exclusão manual removida; critérios automáticos reaplicados.');
     }catch(e){setError(e instanceof Error?e.message:'Não foi possível alterar a seleção.');}
+    finally{setBusy(false);}
+  };
+  const changeManualSelection=async(row:ValuationComparable,include:boolean)=>{
+    if(!selected||busy)return;
+    if(include&&!row.reviewed_by_broker){
+      setSelectionId(null);openReview(row);
+      setError('Confira os dados do anúncio antes de reaproveitá-lo no cálculo. Não é necessário preencher dormitórios que não estejam informados.');
+      return;
+    }
+    if(include&&selectionReason.trim().length<12){
+      setError('Explique por que este anúncio pode ser utilizado no cálculo (mínimo de 12 caracteres).');
+      return;
+    }
+    setBusy(true);setError('');
+    try{
+      const candidate=candidates.find(c=>c.id===row.id);
+      if(candidate){
+        const changed=await updateValuationCandidate(selected.id,row.id,{
+          manual_selection:include?'include':null,
+          excluded_by_broker:include?false:candidate.excluded_by_broker,
+          exclusion_reason:include?'':candidate.exclusion_reason,
+          reviewed_by_broker:include?true:candidate.reviewed_by_broker,
+          review_note:include?(candidate.review_note+'\n'+new Date().toISOString()+': Reaproveitado manualmente: '+selectionReason.trim()).slice(-1500):candidate.review_note
+        });
+        setCandidates(prev=>prev.map(c=>c.id===changed.id?changed:c));
+      }else{
+        const changed=await updateValuationComparable(selected.id,row.id,{manual_selection:include?'include':null});
+        setComparables(prev=>prev.map(c=>c.id===changed.id?changed:c));
+      }
+      setSelectionId(null);setSelectionReason('');
+      notify(include?'Anúncio reaproveitado no cálculo por decisão do corretor.':'Decisão manual removida; triagem automática restaurada.');
+    }catch(e){setError(e instanceof Error?e.message:'Não foi possível alterar a decisão do anúncio.');}
     finally{setBusy(false);}
   };
   const openReview=(row:ValuationComparable)=>{
@@ -782,7 +817,7 @@ function PropertyValuationStep({property,onReturnToCadastro,onComplete,onFlowCon
     {phase==='analysis'&&<div className="space-y-4 animate-in fade-in">
       <div>
         <h4 className="text-base font-bold text-slate-900 dark:text-white">Limpeza automática da amostra</h4>
-        <p className={muted}>Os anúncios são avaliados sem seleção individual. Você pode excluir ofertas, revisar pendências e conferir cada motivo.</p>
+        <p className={muted}>A triagem automática mantém os critérios atuais. Você pode revisar pendências, conferir cada motivo e decidir manualmente se deseja reaproveitar um anúncio.</p>
       </div>
       {searchNotice&&<div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs leading-relaxed text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300">{searchNotice}</div>}
       <div className="grid grid-cols-3 gap-2">
@@ -855,12 +890,29 @@ function PropertyValuationStep({property,onReturnToCadastro,onComplete,onFlowCon
                 Anúncio original <ArrowUpRight className="h-3 w-3"/></a>}
               <Button size="xs" variant="outline" disabled={busy}
                 onClick={()=>{setExcludeId(null);openReview(c);}}>Conferir dados</Button>
+              {c.manual_selection==='include'?
+                <Button size="xs" variant="secondary" disabled={busy}
+                  onClick={()=>void changeManualSelection(c,false)}>Restaurar triagem automática</Button>:
+                (decision.status==='excluded'||decision.status==='pending')&&
+                <Button size="xs" variant="primary" disabled={busy}
+                  onClick={()=>{setSelectionId(c.id);setSelectionReason('');setExcludeId(null);}}>Reaproveitar no cálculo</Button>}
               {c.excluded_by_broker?
                 <Button size="xs" variant="secondary" disabled={busy}
                   onClick={()=>void changeExclusion(c,false)}>Reconsiderar</Button>:
                 <Button size="xs" variant="ghost" disabled={busy}
                   onClick={()=>{setExcludeId(c.id);setExcludeReason('');setEditId(null);}}>Excluir da análise</Button>}
             </div>
+            {selectionId===c.id&&c.manual_selection!=='include'&&<div className="space-y-2 rounded-xl border border-emerald-200 bg-emerald-50 p-3 dark:border-emerald-900 dark:bg-emerald-950/20">
+              <p className="text-xs text-emerald-800 dark:text-emerald-300">A triagem automática será preservada. Esta decisão apenas autoriza o uso deste anúncio no cálculo, sem inventar dados ausentes.</p>
+              <label className={textLabel}>Justificativa da decisão manual
+                <input value={selectionReason} onChange={e=>setSelectionReason(e.target.value)} maxLength={500}
+                  placeholder="Ex.: terreno, construção e localização são comparáveis" className={inputClass+' mt-1'}/></label>
+              <div className="flex gap-2">
+                <Button size="xs" variant="primary" disabled={busy||selectionReason.trim().length<12}
+                  onClick={()=>void changeManualSelection(c,true)}>Confirmar reaproveitamento</Button>
+                <Button size="xs" variant="outline" onClick={()=>setSelectionId(null)}>Cancelar</Button>
+              </div>
+            </div>}
             {excludeId===c.id&&<div className="space-y-2 rounded-xl bg-slate-50 p-3 dark:bg-slate-800">
               <label className={textLabel}>Motivo da exclusão manual
                 <input value={excludeReason} onChange={e=>setExcludeReason(e.target.value)} maxLength={500}

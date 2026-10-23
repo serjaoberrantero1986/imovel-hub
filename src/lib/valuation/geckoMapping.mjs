@@ -198,14 +198,18 @@ export function screenOffers(reference,records,{tolerance=0.25}={}){
   for(const row of records){
     const reasons=[],warnings=[];
     let rejected=false,pending=false;
+    const manuallyIncluded=row.manual_selection==='include';
     const reject=text=>{rejected=true;reasons.push(text);};
     const review=text=>{pending=true;reasons.push(text);};
-    if(row.excluded_by_broker){
+    if(row.excluded_by_broker&&!manuallyIncluded){
       reject('Excluído por decisão manual do corretor'+
         (row.exclusion_reason?': '+row.exclusion_reason:'')+'.');
     }
     if(row.search_query_verified===false){
-      reject('A busca original não confirmou os filtros de tipo/cidade/UF. Não utilizar sem uma pesquisa válida.');
+      if(manuallyIncluded&&row.reviewed_by_broker===true)
+        warnings.push('Pesquisa original não confirmou todos os filtros; uso autorizado pelo corretor após conferência.');
+      else
+        reject('A busca original não confirmou os filtros de tipo/cidade/UF. Não utilizar sem uma pesquisa válida.');
     }
     if(!row.listing_url)review('Link do anúncio ausente ou não confirmado.');
     if(row.offer_purpose!==purpose){
@@ -235,11 +239,15 @@ export function screenOffers(reference,records,{tolerance=0.25}={}){
       const deviation=Math.abs(surface-basis.referenceArea)/basis.referenceArea;
       const rural=['land','farm','chacara'].includes(reference.property_type);
       const effectiveTolerance=rural?Math.max(tolerance,0.5):tolerance;
-      if(deviation>effectiveTolerance)
+      if(deviation>effectiveTolerance&&!manuallyIncluded)
         reject('Área fora da tolerância de '+Math.round(effectiveTolerance*100)+'% em relação à referência.');
+      else if(deviation>effectiveTolerance&&manuallyIncluded)
+        warnings.push('Área fora da faixa automática; uso autorizado manualmente pelo corretor.');
       else if(rural&&deviation>tolerance)
         warnings.push('Área rural dentro da faixa ampliada de conferência.');
     }
+    if(manuallyIncluded&&row.reviewed_by_broker!==true)
+      review('Conferência dos dados pelo corretor necessária antes do reaproveitamento.');
     if(row.usable_area>0&&row.total_area>0&&Number(row.usable_area)>Number(row.total_area))
       review('Áreas informadas contraditórias ou com definições distintas.');
     const key=norm(row.source_name)+':'+norm(row.listing_reference||row.listing_url);
@@ -267,6 +275,7 @@ export function screenOffers(reference,records,{tolerance=0.25}={}){
     const status=rejected?'excluded':pending?'pending':'included';
     if(status==='included'){
       if(row.reviewed_by_broker!==true)warnings.push('Atributos não conferidos pelo corretor.');
+      if(manuallyIncluded)warnings.push('Incluído por decisão manual do corretor.');
       if(!row.listing_neighborhood)warnings.push('Bairro não confirmado.');
       if(row.bedrooms!==null&&reference.bedrooms!==null&&row.bedrooms!==reference.bedrooms)
         warnings.push('Número de dormitórios diferente.');

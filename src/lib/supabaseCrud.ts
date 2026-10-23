@@ -284,7 +284,7 @@ export async function insertPropertyToSupabase(property: Property): Promise<Inse
       total_floors: property.totalFloors ?? null,
       video_url: property.videoUrl ?? null,
       tour_360_url: property.tour360Url ?? null,
-      views_count: property.viewsCount || 1,
+      views_count: property.viewsCount || 0,
       leads_count: property.leadsCount || 0,
       favorites_count: property.favoritesCount || 0,
       shares_count: property.sharesCount || 0
@@ -578,6 +578,28 @@ export async function updatePropertyInSupabase(
   } catch (e: any) {
     console.error('Failed to update property in Supabase:', e);
     return { success: false, error: e?.message || 'Falha inesperada ao atualizar imóvel no banco de dados.' };
+  }
+}
+
+/** Registra uma visita pública sem contar a visualização do próprio anunciante. */
+export async function registerPublicPropertyView(
+  propertyId: string, visitorToken: string,
+): Promise<boolean> {
+  if (!supabase) return false;
+  try {
+    const { error } = await supabase.rpc('increment_property_view', {
+      p_property_id: ensureValidUuid(propertyId),
+      p_visitor_token: visitorToken.slice(0, 120),
+      p_user_agent: typeof navigator !== 'undefined' ? navigator.userAgent : null,
+    });
+    if (error) {
+      console.warn('Supabase public property view error:', error.message);
+      return false;
+    }
+    return true;
+  } catch (error) {
+    console.warn('Public property view could not be registered:', error);
+    return false;
   }
 }
 

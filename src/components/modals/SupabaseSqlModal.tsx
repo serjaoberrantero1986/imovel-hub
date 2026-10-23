@@ -394,7 +394,7 @@ CREATE TABLE IF NOT EXISTS public.properties (
     delivery_date DATE,
     video_url TEXT,
     tour_360_url TEXT,
-    views_count INT NOT NULL DEFAULT 1,
+    views_count INT NOT NULL DEFAULT 0,
     leads_count INT NOT NULL DEFAULT 0,
     favorites_count INT NOT NULL DEFAULT 0,
     shares_count INT NOT NULL DEFAULT 0,
