@@ -440,8 +440,8 @@ function PropertyValuationStep({property,onReturnToCadastro,onComplete,onFlowCon
       setError('Confira os dados do anúncio antes de reaproveitá-lo no cálculo.');
       return;
     }
-    if(include&&selectionReason.trim().length<12){
-      setError('Explique por que este anúncio pode ser utilizado no cálculo (mínimo de 12 caracteres).');
+    if(include&&selectionReason.trim().length<3){
+      setError('Explique por que este anúncio pode ser utilizado no cálculo (mínimo de 3 caracteres).');
       return;
     }
     setBusy(true);setError('');
@@ -493,10 +493,6 @@ function PropertyValuationStep({property,onReturnToCadastro,onComplete,onFlowCon
   };
   const saveReview=async(row:ValuationComparable)=>{
     if(!selected||busy)return;
-    if(reviewDraft.notes.trim().length<12){
-      setError('Explique de onde vieram as informações conferidas (mínimo de 12 caracteres).');
-      return;
-    }
     for(const field of ['asking_price','usable_area','total_area','built_area','bedrooms','bathrooms'] as const){
       const value=numericField(reviewDraft[field]);
       if((reviewDraft[field].trim()!==''&&value===null)||
@@ -532,8 +528,8 @@ function PropertyValuationStep({property,onReturnToCadastro,onComplete,onFlowCon
           listing_url:dataChecked.listing_url||null,
           normalized_data:{...candidate.normalized_data,...dataChecked},
           reviewed_by_broker:true,
-          review_note:(candidate.review_note+'\n'+new Date().toISOString()+
-            ': '+reviewDraft.notes.trim()).slice(-1500)
+          review_note:(candidate.review_note+(reviewDraft.notes.trim()?'\n'+new Date().toISOString()+
+            ': '+reviewDraft.notes.trim():'')).slice(-1500)
         });
         setCandidates(prev=>prev.map(c=>c.id===changed.id?changed:c));
       }else{
@@ -542,8 +538,8 @@ function PropertyValuationStep({property,onReturnToCadastro,onComplete,onFlowCon
         const changed=await updateValuationComparable(selected.id,row.id,{
           ...dataChecked,asking_price:dataChecked.asking_price,
           reviewed_by_broker:true,
-          notes:(row.notes+'\nConferência '+new Date().toISOString()+
-            ': '+reviewDraft.notes.trim()).slice(-3000)
+          notes:(row.notes+(reviewDraft.notes.trim()?'\nConferência '+new Date().toISOString()+
+            ': '+reviewDraft.notes.trim():'')).slice(-3000)
         });
         setComparables(prev=>prev.map(c=>c.id===changed.id?changed:c));
       }
@@ -919,7 +915,7 @@ function PropertyValuationStep({property,onReturnToCadastro,onComplete,onFlowCon
                 <input value={selectionReason} onChange={e=>setSelectionReason(e.target.value)} maxLength={500}
                   placeholder="Ex.: terreno, construção e localização são comparáveis" className={inputClass+' mt-1'}/></label>
               <div className="flex gap-2">
-                <Button size="xs" variant="primary" disabled={busy||selectionReason.trim().length<12}
+                <Button size="xs" variant="primary" disabled={busy||selectionReason.trim().length<3}
                   onClick={()=>void changeManualSelection(c,true)}>Confirmar reaproveitamento</Button>
                 <Button size="xs" variant="outline" onClick={()=>setSelectionId(null)}>Cancelar</Button>
               </div>
@@ -971,7 +967,7 @@ function PropertyValuationStep({property,onReturnToCadastro,onComplete,onFlowCon
                   </select>
                 </label>
               </div>
-              <label className={textLabel}>O que você conferiu e em qual evidência?
+              <label className={textLabel}>Observações da conferência (opcional)
                 <textarea rows={2} value={reviewDraft.notes}
                   onChange={e=>setReviewDraft(prev=>({...prev,notes:e.target.value}))}
                   maxLength={500} className={inputClass+' mt-1'}
