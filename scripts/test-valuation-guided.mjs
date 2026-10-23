@@ -163,6 +163,38 @@ test('Campos explicitamente nomeados para terreno e área construída são respe
  assert.equal(found.land_area,250);
 });
 
+test('Normaliza áreas rurais brasileiras e reconcilia hectares implícitos com evidência do anúncio',()=>{
+ const items=[
+  ['area-1000','Chácara à venda com 1.000 m²',1000],
+  ['area-2800','Chácara à venda com 2800m2',2800],
+  ['area-55700','Fazenda à venda com 55.700 m²',55700]
+ ];
+ for(const [id,title,expected] of items){
+  const found=normalizeGeckoItem({id,title,url:`https://www.chavesnamao.com.br/imovel/${id}`,
+    propertyType:'FARM',attributes:{totalAreas:[expected/1000]},
+    address:{city:'Salto de Pirapora',stateAcronym:'SP'}},'chavesnamao.com.br');
+  assert.equal(found.total_area,expected);
+  assert.equal(found.area_source,'text_reconciled');
+  assert.ok(found.area_evidence.some(item=>item.value_m2===expected));
+ }
+ const decimal=normalizeGeckoItem({id:'area-decimal',title:'Chácara com 2,8 hectares',
+   url:'https://www.chavesnamao.com.br/imovel/area-decimal',propertyType:'FARM',
+   address:{city:'Salto de Pirapora',stateAcronym:'SP'}},'chavesnamao.com.br');
+ assert.equal(decimal.area_evidence[0].value_m2,28000);
+});
+
+test('Chácara com área rural próxima não é excluída pela tolerância urbana de 25%',()=>{
+ const subject={property_type:'chacara',property_snapshot:{purpose:'sale'},
+   land_area:700,city:'Salto de Pirapora',state:'SP'};
+ const row={property_type:'farm',offer_purpose:'sale',asking_price:320000,total_area:1000,
+   listing_url:'https://www.chavesnamao.com.br/imovel/chacara-1000',
+   listing_city:'Salto de Pirapora',listing_state:'SP',source_name:'chavesnamao.com.br',
+   listing_reference:'chacara-1000'};
+ const result=screenOffers(subject,[row]);
+ assert.equal(result.counts.included,1);
+ assert.ok(result.entries[0].warnings.some(item=>item.includes('faixa ampliada')));
+});
+
 
 test('Etapa 8 usa somente quatro telas e um único rodapé do cadastro',()=>{
  const step=readFileSync('src/components/properties/PropertyValuationStep.tsx','utf8');

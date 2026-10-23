@@ -12,6 +12,52 @@ const num=x=>{
 const pos=x=>{const n=num(x);return n!==null&&n>0?n:null;};
 const count=x=>{const n=num(x);return Number.isInteger(n)&&n<=50?n:null;};
 const txt=(v,max=250)=>typeof v==='string'?v.trim().slice(0,max):'';
+const parseBrazilianNumber=value=>{
+  const raw=String(value??'').trim().replace(/\s+/g,'');
+  if(!raw)return null;
+  const cleaned=raw.replace(/[^0-9.,-]/g,'');
+  if(!cleaned)return null;
+  const lastComma=cleaned.lastIndexOf(','),lastDot=cleaned.lastIndexOf('.');
+  let normalized=cleaned;
+  if(lastComma>=0&&lastDot>=0){
+    const decimal=lastComma>lastDot?',':'.';
+    const thousands=decimal===','?'.':',';
+    normalized=cleaned.split(thousands).join('').replace(decimal,'.');
+  }else if(lastComma>=0){
+    const decimals=cleaned.length-lastComma-1;
+    normalized=decimals<=2?cleaned.replace(',','.'):cleaned.replace(/,/g,'');
+  }else if(lastDot>=0){
+    const decimals=cleaned.length-lastDot-1;
+    normalized=decimals===3?cleaned.replace(/\./g,''):cleaned;
+  }
+  const parsed=Number(normalized);
+  return Number.isFinite(parsed)&&parsed>0?parsed:null;
+};
+const areaInSquareMeters=(value,unit='m2')=>{
+  const n=parseBrazilianNumber(value);
+  if(!n)return null;
+  const normalizedUnit=norm(unit);
+  if(/^(ha|hectare|hectares)$/.test(normalizedUnit))return n*10000;
+  return n;
+};
+const areaEvidenceFromText=text=>{
+  const evidence=[];
+  const source=String(text??'');
+  const pattern=/(\d[\d.,]*)\s*(m²|m2|metros? quadrados?|ha|hectares?)/gi;
+  for(const match of source.matchAll(pattern)){
+    const value_m2=areaInSquareMeters(match[1],match[2]);
+    if(value_m2)evidence.push({text:match[0],value_m2,unit:match[2]});
+  }
+  return evidence;
+};
+const reconcileRuralArea=(structured,evidence)=>{
+  const value=pos(structured);
+  if(!value)return {value:null,source:'missing'};
+  const candidate=evidence.find(item=>item.value_m2>=1000&&
+    Math.abs(value*1000-item.value_m2)/item.value_m2<=0.05);
+  if(candidate)return {value:candidate.value_m2,source:'text_reconciled',evidence:candidate};
+  return {value,source:'structured'};
+};
 const unitTypes={
   HOME:'house',HOUSE:'house',APARTMENT:'apartment',LOT:'land',LAND:'land',
   ALLOTMENT_LAND:'land',FARM:'farm',RURAL:'farm',CONDOMINIUM:'condo_house',
@@ -53,9 +99,7 @@ export function normalizeGeckoItem(item,source,expectedPurpose='sale'){
     const record=olxProperties.find(p=>terms.some(t=>
       norm([p?.name,p?.label].filter(Boolean).join(' ')).includes(t)));
     if(!record)return null;
-    const parsed=String(record.value??'').replace(/[^0-9,.]/g,'').replace(',','.');
-    const n=Number(parsed);
-    return Number.isFinite(n)&&n>0?n:null;
+    return areaInSquareMeters(record.value,record.unit||record.unitName||'m2');
   };
   const first=(name,fallback)=>num(attributes[name])??num(fallback);
   const prices=Array.isArray(item.prices)?
@@ -89,14 +133,17 @@ export function normalizeGeckoItem(item,source,expectedPurpose='sale'){
   const purpose=/^(sale|sell|venda|buy)$/.test(pricePurpose)||/\/venda\//i.test(url)?'sale':
     /^(rent|rental|aluguel|locacao|lease)$/.test(pricePurpose)||/\/(aluguel|locacao)\//i.test(url)?'rent':
     saleSignal&&!rentSignal?'sale':rentSignal&&!saleSignal?'rent':'unknown';
-  const textEvidence=[];
   const title=txt(item.title||item.generatedTitle||item.name||'Imóvel anunciado',250);
+  const areaEvidence=[...areaEvidenceFromText(title),...areaEvidenceFromText(link)].slice(0,6);
   const explicitlyBuilt=pos(first('builtAreas',item.area?.built??
     item.property?.builtArea??item.builtArea));
   const explicitlyLand=pos(first('landAreas',item.area?.land??
     item.property?.landArea??item.landArea));
-  for(const match of title.matchAll(/(\d{1,5}(?:[,.]\d{1,2})?)\s*(?:m²|m2)(?=\s|[,.;:!?/-]|$)/gi))
-    textEvidence.push(match[0]); // Indicativo textual, nunca altera a metragem estruturada.
+  const structuredTotal=first('totalAreas',item.area?.total??item.property?.totalArea??item.totalArea??
+    fromOlx(['area do terreno','area total','terreno']));
+  const ruralArea=reconcileRuralArea(structuredTotal,areaEvidence);
+  const totalArea=kind==='land'||kind==='farm'?ruralArea.value:
+    pos(structuredTotal);
   return {
     source_name:source,
     listing_reference:id,
@@ -106,9 +153,7 @@ export function normalizeGeckoItem(item,source,expectedPurpose='sale'){
     asking_price:price,
     usable_area:pos(first('usableAreas',item.area?.useful??item.property?.usableArea??
       item.usableArea??fromOlx(['area util','area construida','metragem']))),
-    total_area:pos(first('totalAreas',item.area?.total??item.property?.totalArea??
-      item.totalArea??fromOlx(['area do terreno','area total','terreno'])) )||
-      (kind==='land'||kind==='farm'?explicitlyLand:null),
+    total_area:totalArea||(kind==='land'||kind==='farm'?explicitlyLand:null),
     land_area:explicitlyLand, // Só aceitar declaração explícita de terreno.
     built_area:explicitlyBuilt, // Área útil NÃO implica área construída.
     bedrooms:count(first('bedrooms',counts.bedrooms?.count??item.bedrooms??fromOlx(['quarto','dormitorio']))),
@@ -118,7 +163,10 @@ export function normalizeGeckoItem(item,source,expectedPurpose='sale'){
     listing_city:actualCity,listing_state:actualState,
     listing_neighborhood:txt(address.neighborhood||loc.neighborhood||item.neighborhood,120),
     offer_purpose:purpose,
-    evidence_text:textEvidence.slice(0,4)
+    evidence_text:areaEvidence.map(item=>item.text).slice(0,4),
+    area_evidence:areaEvidence,
+    area_source:kind==='land'||kind==='farm'?ruralArea.source:
+      (structuredTotal?'structured':'missing')
   };
 }
 
@@ -183,9 +231,15 @@ export function screenOffers(reference,records,{tolerance=0.25}={}){
       review('Metragem da referência ('+basis.label+') ausente.');
     if(!Number.isFinite(surface)||surface<=0)
       review('Metragem '+basis.label+' não confirmada no anúncio.');
-    else if(basis.referenceArea>0&&
-       Math.abs(surface-basis.referenceArea)/basis.referenceArea>tolerance)
-      reject('Área fora da tolerância de '+Math.round(tolerance*100)+'% em relação à referência.');
+    else if(basis.referenceArea>0){
+      const deviation=Math.abs(surface-basis.referenceArea)/basis.referenceArea;
+      const rural=['land','farm','chacara'].includes(reference.property_type);
+      const effectiveTolerance=rural?Math.max(tolerance,0.5):tolerance;
+      if(deviation>effectiveTolerance)
+        reject('Área fora da tolerância de '+Math.round(effectiveTolerance*100)+'% em relação à referência.');
+      else if(rural&&deviation>tolerance)
+        warnings.push('Área rural dentro da faixa ampliada de conferência.');
+    }
     if(row.usable_area>0&&row.total_area>0&&Number(row.usable_area)>Number(row.total_area))
       review('Áreas informadas contraditórias ou com definições distintas.');
     const key=norm(row.source_name)+':'+norm(row.listing_reference||row.listing_url);
@@ -253,7 +307,7 @@ export function candidateFromGecko(item,source,index,requestId='',collectedAt=''
     property_type:'unknown',asking_price:null,usable_area:null,total_area:null,
     built_area:null,land_area:null,bedrooms:null,suites:null,bathrooms:null,
     parking_spots:null,listing_city:'',listing_state:'',listing_neighborhood:'',
-    offer_purpose:'unknown',evidence_text:[]
+    offer_purpose:'unknown',evidence_text:[],area_evidence:[],area_source:'missing'
   };
   const raw=item&&typeof item==='object'?item:{};
   // Subconjunto público da listagem. Nunca salvar dados pessoais do anunciante.
