@@ -18,6 +18,8 @@ import {
 } from '../../lib/valuation/assessmentRepository';
 import { candidateFromGecko, normalizeGeckoItem, screenOffers } from '../../lib/valuation/geckoMapping.mjs';
 import { compareAssessmentSubject } from '../../lib/valuation/subjectConsistency.mjs';
+import { reviewNumber as numericField, validateReview, reviewSaveError,
+  savedReviewFeedback, visibleTriageEntries } from '../../lib/valuation/reviewFeedback.mjs';
 
 // Mantém toda a experiência na oitava etapa do assistente já existente.
 // Nenhum mapa, geocodificação ou segundo cadastro é apresentado aqui.
@@ -73,11 +75,6 @@ const TYPE_LABELS:Record<string,string>={
   land:'Terreno',flat:'Flat',kitnet:'Kitnet',penthouse:'Cobertura'
 };
 const PURPOSE_LABELS:Record<string,string>={sale:'Venda',rent:'Locação',launch:'Lançamento'};
-const numericField=(raw:string):number|null=>{
-  if(!raw.trim())return null;
-  const n=Number(raw);
-  return Number.isFinite(n)&&n>=0?n:null;
-};
 type ReviewDraft={
   listing_url:string;offer_purpose:'sale'|'rent'|'unknown';asking_price:string;usable_area:string;total_area:string;built_area:string;
   bedrooms:string;bathrooms:string;listing_city:string;listing_state:string;
@@ -112,6 +109,10 @@ function PropertyValuationStep({property,onReturnToCadastro,onComplete,onFlowCon
   const [selectionReason,setSelectionReason]=useState('');
   const [editId,setEditId]=useState<string|null>(null);
   const [reviewDraft,setReviewDraft]=useState<ReviewDraft>(emptyReview);
+  const [reviewErrors,setReviewErrors]=useState<Partial<Record<keyof ReviewDraft,string>>>({});
+  const [cardFeedback,setCardFeedback]=useState<{
+    id:string;type:'success'|'warning'|'error';message:string
+  }|null>(null);
   const [showManual,setShowManual]=useState(false);
   const [manualUrl,setManualUrl]=useState('');
   const [manualPrice,setManualPrice]=useState('');
@@ -129,6 +130,16 @@ function PropertyValuationStep({property,onReturnToCadastro,onComplete,onFlowCon
   const [remoteStaleChanges,setRemoteStaleChanges]=useState<
     Array<{field:string;label:string;before:string;after:string}>>([]);
   useEffect(()=>{setRemoteStaleChanges([]);},[selectedId]);
+  useEffect(()=>{
+    setCardFeedback(null);setReviewErrors({});setEditId(null);setSelectionId(null);setExcludeId(null);
+  },[selectedId]);
+  useEffect(()=>{
+    if(phase==='analysis'&&cardFeedback){
+      const feedback=document.getElementById('valuation-feedback-'+cardFeedback.id);
+      feedback?.scrollIntoView({block:'nearest'});
+      if(cardFeedback.type==='error')feedback?.focus({preventScroll:true});
+    }
+  },[cardFeedback,phase]);
   useEffect(()=>{
     if(creditApproval)document.getElementById('valuation-credit-confirm')?.scrollIntoView({
       behavior:'smooth',block:'center'
@@ -221,7 +232,7 @@ function PropertyValuationStep({property,onReturnToCadastro,onComplete,onFlowCon
   ],[comparables,candidates]);
   const indicator=useMemo(()=>selected?screenOffers(selected,allOffers):null,[selected,allOffers]);
   const options=indicator?.entries.filter(row=>triageFilter==='all'||row.status===triageFilter)||[];
-  const shown=options.slice(0,visibleCount);
+  const shown=visibleTriageEntries(indicator?.entries||[],triageFilter,visibleCount,cardFeedback?.id);
   const requiredArea=['land','chacara','farm'].includes(property.type)?
     property.totalArea>0 : ['apartment','flat','kitnet','penthouse'].includes(property.type)?
     property.usefulArea>0 : property.usefulArea>0||Number(property.builtArea)>0;
@@ -231,6 +242,26 @@ function PropertyValuationStep({property,onReturnToCadastro,onComplete,onFlowCon
   const notify=(message:string)=>{
     addToast({type:'success',title:'Avaliação Inteligente',message});
   };
+  const reportCardError=(id:string,message:string)=>{
+    setCardFeedback({id,type:'error',message});
+    addToast({type:'error',title:'Avaliação Inteligente',message});
+  };
+  const reportSavedDecision=(row:ValuationComparable,action:'review'|'reuse'|'restore')=>{
+    if(!selected)return;
+    const decision=screenOffers(selected,allOffers.map(offer=>offer.id===row.id?row:offer))
+      .entries.find(entry=>entry.item.id===row.id);
+    const feedback=savedReviewFeedback(decision,action);
+    setCardFeedback({id:row.id,...feedback} as NonNullable<typeof cardFeedback>);
+    addToast({type:feedback.type as 'success'|'warning',title:'Avaliação Inteligente',message:feedback.message});
+  };
+  const renderCardFeedback=(id:string)=>cardFeedback?.id===id&&
+    <div id={'valuation-feedback-'+id} tabIndex={-1}
+      role={cardFeedback.type==='error'?'alert':'status'}
+      className={'rounded-xl border p-3 text-xs leading-relaxed '+toneStatus[
+        cardFeedback.type==='error'?'excluded':cardFeedback.type==='warning'?'pending':'included'
+      ]}>
+      {cardFeedback.message}
+    </div>;
   const prepareAssessment=async(createNew:boolean)=>{
     if(busy)return;
     setError('');setBusy(true);
@@ -437,16 +468,17 @@ function PropertyValuationStep({property,onReturnToCadastro,onComplete,onFlowCon
     if(!selected||busy)return;
     if(include&&!row.reviewed_by_broker){
       setSelectionId(null);openReview(row);
-      setError('Confira os dados do anúncio antes de reaproveitá-lo no cálculo.');
+      reportCardError(row.id,'Confira e salve os dados do anúncio antes de reaproveitá-lo no cálculo.');
       return;
     }
     if(include&&selectionReason.trim().length<3){
-      setError('Explique por que este anúncio pode ser utilizado no cálculo (mínimo de 3 caracteres).');
+      reportCardError(row.id,'Explique por que este anúncio pode ser utilizado no cálculo (mínimo de 3 caracteres).');
       return;
     }
     setBusy(true);setError('');
     try{
       const candidate=candidates.find(c=>c.id===row.id);
+      let savedOffer:ValuationComparable;
       if(candidate){
         const changed=await updateValuationCandidate(selected.id,row.id,{
           manual_selection:include?'include':null,
@@ -456,28 +488,22 @@ function PropertyValuationStep({property,onReturnToCadastro,onComplete,onFlowCon
           review_note:include?(candidate.review_note+'\n'+new Date().toISOString()+': Reaproveitado manualmente: '+selectionReason.trim()).slice(-1500):candidate.review_note
         });
         setCandidates(prev=>prev.map(c=>c.id===changed.id?changed:c));
+        savedOffer={...row,...changed.normalized_data,
+          manual_selection:changed.manual_selection,
+          reviewed_by_broker:changed.reviewed_by_broker,
+          excluded_by_broker:changed.excluded_by_broker,exclusion_reason:changed.exclusion_reason};
       }else{
         const changed=await updateValuationComparable(selected.id,row.id,{manual_selection:include?'include':null});
         setComparables(prev=>prev.map(c=>c.id===changed.id?changed:c));
+        savedOffer=changed;
       }
       setSelectionId(null);setSelectionReason('');
-      if(include){
-        const updatedOffers=allOffers.map(offer=>offer.id===row.id?{
-          ...offer,manual_selection:'include',reviewed_by_broker:true,
-          excluded_by_broker:false,exclusion_reason:''
-        }:offer);
-        const decision=screenOffers(selected,updatedOffers).entries.find(entry=>entry.item.id===row.id);
-        if(decision?.status==='included')
-          notify('Anúncio reaproveitado no cálculo por decisão do corretor.');
-        else
-          setError('Decisão registrada, mas o anúncio ainda não pode compor o cálculo: '+
-            (decision?.reason||'verifique os dados obrigatórios.'));
-      }else notify('Decisão manual removida; triagem automática restaurada.');
-    }catch(e){setError(e instanceof Error?e.message:'Não foi possível alterar a decisão do anúncio.');}
+      reportSavedDecision(savedOffer,include?'reuse':'restore');
+    }catch(e){reportCardError(row.id,reviewSaveError(e));}
     finally{setBusy(false);}
   };
   const openReview=(row:ValuationComparable)=>{
-    setEditId(row.id);setExcludeId(null);setError('');
+    setEditId(row.id);setExcludeId(null);setSelectionId(null);setError('');setReviewErrors({});
     setReviewDraft({
       listing_url:row.listing_url||'',
       offer_purpose:row.offer_purpose||'unknown',
@@ -493,18 +519,16 @@ function PropertyValuationStep({property,onReturnToCadastro,onComplete,onFlowCon
   };
   const saveReview=async(row:ValuationComparable)=>{
     if(!selected||busy)return;
-    for(const field of ['asking_price','usable_area','total_area','built_area','bedrooms','bathrooms'] as const){
-      const value=numericField(reviewDraft[field]);
-      if((reviewDraft[field].trim()!==''&&value===null)||
-        (['bedrooms','bathrooms'].includes(field)&&value!==null&&!Number.isInteger(value))||
-        (field==='asking_price'&&reviewDraft.asking_price.trim()!==''&&
-          (!value||value<=0))){
-        setError('Confira os campos numéricos; preço positivo é obrigatório.');return;
-      }
+    const candidate=candidates.find(c=>c.id===row.id);
+    const validation=validateReview(reviewDraft,!candidate);
+    setReviewErrors(validation);
+    if(Object.keys(validation).length){
+      reportCardError(row.id,'Não foi possível salvar. Confira os campos destacados; os dados preenchidos foram mantidos.');
+      return;
     }
     setBusy(true);setError('');
     try{
-      const candidate=candidates.find(c=>c.id===row.id);
+      let savedOffer:ValuationComparable;
       const dataChecked={
         asking_price:numericField(reviewDraft.asking_price),
         usable_area:numericField(reviewDraft.usable_area),
@@ -518,11 +542,6 @@ function PropertyValuationStep({property,onReturnToCadastro,onComplete,onFlowCon
         offer_purpose:reviewDraft.offer_purpose,
         listing_url:reviewDraft.listing_url.trim()
       };
-      if(dataChecked.listing_url){
-        const link=new URL(dataChecked.listing_url);
-        if(link.protocol!=='https:'||link.username||link.password)
-          throw new Error('Informe somente um link HTTPS válido.');
-      }
       if(candidate){
         const changed=await updateValuationCandidate(selected.id,row.id,{
           listing_url:dataChecked.listing_url||null,
@@ -532,9 +551,11 @@ function PropertyValuationStep({property,onReturnToCadastro,onComplete,onFlowCon
             ': '+reviewDraft.notes.trim():'')).slice(-1500)
         });
         setCandidates(prev=>prev.map(c=>c.id===changed.id?changed:c));
+        savedOffer={...row,...changed.normalized_data,
+          listing_url:changed.listing_url||'',manual_selection:changed.manual_selection,
+          reviewed_by_broker:changed.reviewed_by_broker,
+          excluded_by_broker:changed.excluded_by_broker,exclusion_reason:changed.exclusion_reason};
       }else{
-        if(!dataChecked.asking_price||!dataChecked.listing_url)
-          throw new Error('Comparáveis manuais exigem preço e link confirmados.');
         const changed=await updateValuationComparable(selected.id,row.id,{
           ...dataChecked,asking_price:dataChecked.asking_price,
           reviewed_by_broker:true,
@@ -542,10 +563,11 @@ function PropertyValuationStep({property,onReturnToCadastro,onComplete,onFlowCon
             ': '+reviewDraft.notes.trim():'')).slice(-3000)
         });
         setComparables(prev=>prev.map(c=>c.id===changed.id?changed:c));
+        savedOffer=changed;
       }
       setEditId(null);setReviewDraft(emptyReview);
-      notify('Informações conferidas e gravadas; análise recalculada.');
-    }catch(e){setError(e instanceof Error?e.message:'Não foi possível salvar a conferência.');}
+      reportSavedDecision(savedOffer,'review');
+    }catch(e){reportCardError(row.id,reviewSaveError(e));}
     finally{setBusy(false);}
   };
 
@@ -831,7 +853,8 @@ function PropertyValuationStep({property,onReturnToCadastro,onComplete,onFlowCon
         {[
           ['included','Aproveitados'],['pending','Conferência'],['excluded','Excluídos']
         ].map(([key,label])=><button type="button" key={key}
-          onClick={()=>{setTriageFilter(key as 'included'|'pending'|'excluded');setVisibleCount(20);}}
+          disabled={busy}
+          onClick={()=>{setTriageFilter(key as 'included'|'pending'|'excluded');setVisibleCount(20);setCardFeedback(null);}}
           className={'rounded-2xl border p-3 text-center transition-colors '+(triageFilter===key?'border-rose-500 ring-1 ring-rose-500/20':'border-slate-200 dark:border-slate-700')}>
           <strong className="block text-xl font-extrabold text-slate-900 dark:text-white">
             {indicator?.counts[key as keyof typeof indicator.counts]??0}</strong>
@@ -839,7 +862,7 @@ function PropertyValuationStep({property,onReturnToCadastro,onComplete,onFlowCon
         </button>)}
       </div>
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <button type="button" className="text-xs font-semibold text-rose-600" onClick={()=>{setTriageFilter('all');setVisibleCount(20);}}>
+        <button type="button" disabled={busy} className="text-xs font-semibold text-rose-600" onClick={()=>{setTriageFilter('all');setVisibleCount(20);setCardFeedback(null);}}>
           Ver todos os anúncios ({allOffers.length})
         </button>
         <Button size="xs" variant="outline" onClick={()=>setShowManual(v=>!v)}
@@ -865,6 +888,8 @@ function PropertyValuationStep({property,onReturnToCadastro,onComplete,onFlowCon
         const c=decision.item as ValuationComparable;
         return <Card key={c.id} className="overflow-visible">
           <CardContent className="space-y-3 py-4">
+            {triageFilter!=='all'&&decision.status!==triageFilter&&
+              <p className={muted}>Anúncio recém-alterado, mantido visível até você trocar de filtro. Ele já está contabilizado na nova classificação.</p>}
             <div className="flex flex-wrap items-start justify-between gap-2">
               <div className="min-w-0 flex-1">
                 <strong className="block text-sm text-slate-900 dark:text-white">{c.listing_title||c.source_name}</strong>
@@ -902,22 +927,24 @@ function PropertyValuationStep({property,onReturnToCadastro,onComplete,onFlowCon
                   onClick={()=>void changeManualSelection(c,false)}>Restaurar triagem automática</Button>:
                 (decision.status==='excluded'||decision.status==='pending')&&
                 <Button size="xs" variant="primary" disabled={busy}
-                  onClick={()=>{setSelectionId(c.id);setSelectionReason('');setExcludeId(null);}}>Reaproveitar no cálculo</Button>}
+                  onClick={()=>{setSelectionId(c.id);setSelectionReason('');setExcludeId(null);setEditId(null);setReviewErrors({});}}>Reaproveitar no cálculo</Button>}
               {c.excluded_by_broker?
                 <Button size="xs" variant="secondary" disabled={busy}
                   onClick={()=>void changeExclusion(c,false)}>Reconsiderar</Button>:
                 <Button size="xs" variant="ghost" disabled={busy}
                   onClick={()=>{setExcludeId(c.id);setExcludeReason('');setEditId(null);}}>Excluir da análise</Button>}
             </div>
+            {editId!==c.id&&renderCardFeedback(c.id)}
             {selectionId===c.id&&c.manual_selection!=='include'&&<div className="space-y-2 rounded-xl border border-emerald-200 bg-emerald-50 p-3 dark:border-emerald-900 dark:bg-emerald-950/20">
               <p className="text-xs text-emerald-800 dark:text-emerald-300">A triagem automática será preservada. Esta decisão apenas autoriza o uso deste anúncio no cálculo, sem inventar dados ausentes.</p>
               <label className={textLabel}>Justificativa da decisão manual
-                <input value={selectionReason} onChange={e=>setSelectionReason(e.target.value)} maxLength={500}
+                <input disabled={busy} value={selectionReason} onChange={e=>setSelectionReason(e.target.value)} maxLength={500}
                   placeholder="Ex.: terreno, construção e localização são comparáveis" className={inputClass+' mt-1'}/></label>
+              <p className={muted}>Justificativa obrigatória: mínimo de 3 caracteres. Dados essenciais ainda precisam estar confirmados.</p>
               <div className="flex gap-2">
-                <Button size="xs" variant="primary" disabled={busy||selectionReason.trim().length<3}
+                <Button size="xs" variant="primary" isLoading={busy} disabled={busy||selectionReason.trim().length<3}
                   onClick={()=>void changeManualSelection(c,true)}>Confirmar reaproveitamento</Button>
-                <Button size="xs" variant="outline" onClick={()=>setSelectionId(null)}>Cancelar</Button>
+                <Button size="xs" variant="outline" disabled={busy} onClick={()=>setSelectionId(null)}>Cancelar</Button>
               </div>
             </div>}
             {excludeId===c.id&&<div className="space-y-2 rounded-xl bg-slate-50 p-3 dark:bg-slate-800">
@@ -930,12 +957,15 @@ function PropertyValuationStep({property,onReturnToCadastro,onComplete,onFlowCon
                 <Button size="xs" variant="outline" onClick={()=>setExcludeId(null)}>Cancelar</Button>
               </div>
             </div>}
-            {editId===c.id&&<div className="space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-800">
+            {editId===c.id&&<fieldset disabled={busy} className="min-w-0 space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-800">
               <p className="text-xs font-bold text-slate-700 dark:text-slate-200">Conferência assistida · dados do anúncio</p>
               <label className={textLabel}>URL do anúncio (se disponível)
                 <input value={reviewDraft.listing_url}
+                  aria-invalid={Boolean(reviewErrors.listing_url)}
+                  aria-describedby={reviewErrors.listing_url?'valuation-url-error-'+c.id:undefined}
                   onChange={e=>setReviewDraft(prev=>({...prev,listing_url:e.target.value}))}
                   className={inputClass+' mt-1'} placeholder="https://..."/>
+                {reviewErrors.listing_url&&<span id={'valuation-url-error-'+c.id} className="mt-1 block text-xs text-rose-600 dark:text-rose-300">{reviewErrors.listing_url}</span>}
               </label>
               <label className={textLabel}>Finalidade anunciada (confirme no anúncio)
                 <select className={inputClass+' mt-1'} value={reviewDraft.offer_purpose}
@@ -953,9 +983,14 @@ function PropertyValuationStep({property,onReturnToCadastro,onComplete,onFlowCon
                   ['listing_city','Cidade'],['listing_state','UF']
                 ] as const).map(([key,label])=><label key={key} className={textLabel}>{label}
                   <input value={reviewDraft[key]} onChange={e=>setReviewDraft(prev=>({...prev,[key]:e.target.value}))}
+                    aria-invalid={Boolean(reviewErrors[key])}
+                    aria-describedby={reviewErrors[key]?'valuation-field-error-'+c.id+'-'+key:undefined}
                     type={['listing_city','listing_state'].includes(key)?'text':'number'}
                     min={['listing_city','listing_state'].includes(key)?undefined:0}
-                    className={inputClass+' mt-1'}/></label>)}
+                    step={['bedrooms','bathrooms'].includes(key)?1:'any'}
+                    className={inputClass+' mt-1'}/>
+                  {reviewErrors[key]&&<span id={'valuation-field-error-'+c.id+'-'+key} className="mt-1 block text-xs text-rose-600 dark:text-rose-300">{reviewErrors[key]}</span>}
+                </label>)}
                 <label className={textLabel+' sm:col-span-2'}>Tipologia conferida
                   <select value={reviewDraft.property_type}
                     onChange={e=>setReviewDraft(prev=>({...prev,property_type:e.target.value}))}
@@ -973,12 +1008,13 @@ function PropertyValuationStep({property,onReturnToCadastro,onComplete,onFlowCon
                   maxLength={500} className={inputClass+' mt-1'}
                   placeholder="Ex.: dados conferidos no anúncio original. A área privativa consta expressamente..."/>
               </label>
+              {renderCardFeedback(c.id)}
               <div className="flex flex-wrap gap-2">
                 <Button size="sm" variant="primary" isLoading={busy} disabled={busy} onClick={()=>void saveReview(c)}>
                   Salvar e voltar à lista</Button>
-                <Button size="sm" variant="outline" onClick={()=>setEditId(null)}>Cancelar</Button>
+                <Button size="sm" variant="outline" disabled={busy} onClick={()=>{setEditId(null);setReviewErrors({});setCardFeedback(null);}}>Cancelar</Button>
               </div>
-            </div>}
+            </fieldset>}
           </CardContent>
         </Card>;
       })}
