@@ -437,7 +437,7 @@ function PropertyValuationStep({property,onReturnToCadastro,onComplete,onFlowCon
     if(!selected||busy)return;
     if(include&&!row.reviewed_by_broker){
       setSelectionId(null);openReview(row);
-      setError('Confira os dados do anúncio antes de reaproveitá-lo no cálculo. Não é necessário preencher dormitórios que não estejam informados.');
+      setError('Confira os dados do anúncio antes de reaproveitá-lo no cálculo.');
       return;
     }
     if(include&&selectionReason.trim().length<12){
@@ -461,7 +461,18 @@ function PropertyValuationStep({property,onReturnToCadastro,onComplete,onFlowCon
         setComparables(prev=>prev.map(c=>c.id===changed.id?changed:c));
       }
       setSelectionId(null);setSelectionReason('');
-      notify(include?'Anúncio reaproveitado no cálculo por decisão do corretor.':'Decisão manual removida; triagem automática restaurada.');
+      if(include){
+        const updatedOffers=allOffers.map(offer=>offer.id===row.id?{
+          ...offer,manual_selection:'include',reviewed_by_broker:true,
+          excluded_by_broker:false,exclusion_reason:''
+        }:offer);
+        const decision=screenOffers(selected,updatedOffers).entries.find(entry=>entry.item.id===row.id);
+        if(decision?.status==='included')
+          notify('Anúncio reaproveitado no cálculo por decisão do corretor.');
+        else
+          setError('Decisão registrada, mas o anúncio ainda não pode compor o cálculo: '+
+            (decision?.reason||'verifique os dados obrigatórios.'));
+      }else notify('Decisão manual removida; triagem automática restaurada.');
     }catch(e){setError(e instanceof Error?e.message:'Não foi possível alterar a decisão do anúncio.');}
     finally{setBusy(false);}
   };

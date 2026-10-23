@@ -220,12 +220,16 @@ export function screenOffers(reference,records,{tolerance=0.25}={}){
     if(!similarType(reference.property_type,row.property_type)){
       if(!row.property_type||row.property_type==='unknown')
         review('Tipologia do anúncio não identificada.');
+      else if(manuallyIncluded&&row.reviewed_by_broker===true)
+        warnings.push('Tipologia diferente da referência; inclusão manual justificada pelo corretor.');
       else reject('Tipologia incompatível: '+row.property_type+' ≠ '+reference.property_type+'.');
     }
     if(!desiredCity||!desiredState||!row.listing_city||!row.listing_state){
       review('Município ou UF não confirmados.');
     }else if(norm(row.listing_city)!==desiredCity||norm(row.listing_state)!==desiredState){
-      reject('Localização incompatível: '+row.listing_city+'/'+row.listing_state+
+      if(manuallyIncluded&&row.reviewed_by_broker===true)
+        warnings.push('Município/UF diferentes da referência; inclusão manual justificada pelo corretor.');
+      else reject('Localização incompatível: '+row.listing_city+'/'+row.listing_state+
         ', referência '+reference.city+'/'+reference.state+'.');
     }
     const asking=Number(row.asking_price);

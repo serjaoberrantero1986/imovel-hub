@@ -296,3 +296,32 @@ test('Mapa usa marcador SVG local independente das imagens padrão do Leaflet',(
  assert.match(map,/markerIcon\.current/);
  assert.doesNotMatch(map,/marker-icon\.png/);
 });
+
+
+test('Três anúncios revisados manualmente entram no indicativo quando preço, área e finalidade estão confirmados',()=>{
+ const subject={property_type:'chacara',property_snapshot:{purpose:'sale'},land_area:700,
+   city:'Salto de Pirapora',state:'SP'};
+ const rows=[
+  sample('manual-a',280000,null,{property_type:'commercial',total_area:750,
+    listing_city:'Sorocaba',reviewed_by_broker:true,manual_selection:'include'}),
+  sample('manual-b',320000,null,{property_type:'farm',total_area:800,
+    listing_city:'Salto de Pirapora',reviewed_by_broker:true,manual_selection:'include'}),
+  sample('manual-c',350000,null,{property_type:'land',total_area:900,
+    listing_city:'Votorantim',reviewed_by_broker:true,manual_selection:'include'})
+ ];
+ const result=screenOffers(subject,rows);
+ assert.equal(result.counts.included,3);
+ assert.equal(result.ready,true);
+ assert.ok(result.value>0);
+ assert.ok(result.entries[0].warnings.some(w=>w.includes('Tipologia diferente')));
+ assert.ok(result.entries[0].warnings.some(w=>w.includes('Município/UF diferentes')));
+});
+
+test('Reaproveitamento não mascara falta de área nem mistura venda e locação',()=>{
+ const rows=[sample('manual-missing',300000,null,{manual_selection:'include',reviewed_by_broker:true}),
+  sample('manual-rent',350000,110,{manual_selection:'include',reviewed_by_broker:true,offer_purpose:'rent'})];
+ const result=screenOffers(ref,rows);
+ assert.equal(result.counts.included,0);
+ assert.equal(result.counts.pending,1);
+ assert.equal(result.counts.excluded,1);
+});
