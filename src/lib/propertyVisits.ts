@@ -61,6 +61,11 @@ export interface VisitUnavailability {
 export interface VisitWorkingHour { weekday: number; enabled: boolean; start_time: string; end_time: string; }
 export const loadPropertyVisitSlots = (propertyId: string, date: string, partnershipId?: string) =>
   rpc<VisitSlot[]>('get_property_visit_slots', { p_property_id: propertyId, p_date: date, p_partnership_id: partnershipId || null });
+export interface NextVisitSlot { date: string; slot: VisitSlot; }
+export const loadNextPropertyVisitSlot = (propertyId: string, date: string, partnershipId?: string) =>
+  rpc<NextVisitSlot|null>('get_next_property_visit_slot', { p_property_id: propertyId, p_from_date: date, p_partnership_id: partnershipId || null });
+export const loadVisitRescheduleSlots = (visitId: string, date: string) =>
+  rpc<VisitSlot[]>('get_property_visit_reschedule_slots', { p_visit_id: visitId, p_date: date });
 export const loadVisitUnavailability = () => rpc<VisitUnavailability[]>('get_my_visit_unavailability');
 export const saveVisitUnavailability = (value: Omit<VisitUnavailability,'id'> & { id?: string }) =>
   rpc<string>('save_my_visit_unavailability', { p_id:value.id||null,p_kind:value.kind,p_weekdays:value.weekdays,p_starts_on:value.starts_on,
@@ -70,6 +75,7 @@ export const loadVisitWorkingHours = () => rpc<VisitWorkingHour[]>('get_my_visit
 export const saveVisitWorkingHours = (hours: VisitWorkingHour[]) => rpc<boolean>('save_my_visit_working_hours', { p_hours:hours });
 export interface VisitNotice { id: string; title: string; message: string; created_at: string; visit_id: string; }
 export const loadVisitNotices = () => rpc<VisitNotice[]>('get_my_visit_notices');
+export const loadVisitNoticeCount = () => rpc<number>('get_my_visit_notice_count');
 export const markVisitNoticeRead = (id: string) => rpc<boolean>('mark_my_visit_notice_read', { p_id: id });
 export const resolveVisitDispute = (id: string, reason: string) => rpc<boolean>('resolve_property_visit_dispute', { p_dispute_id: id, p_reason: reason });
 export const loadVisitHistory = (id: string) => rpc<VisitHistory>('get_property_visit_history', { p_visit_id: id });

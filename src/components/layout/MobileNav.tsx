@@ -12,6 +12,7 @@ import {
   ShieldCheck
 } from 'lucide-react';
 import { useApp, AppView } from '../../context/AppContext';
+import { useVisitNotificationCount } from '../../hooks/useVisitNotificationCount';
 
 export const MobileNav: React.FC = () => {
   const { 
@@ -28,6 +29,7 @@ export const MobileNav: React.FC = () => {
   } = useApp();
 
   const totalUnread = (conversations || []).reduce((sum, c) => sum + (c.unreadCount || 0), 0);
+  const unreadVisits = useVisitNotificationCount(isAuthenticated && currentUser?.role !== 'admin');
 
   const isBroker = currentUser?.role === 'broker';
 
@@ -69,7 +71,9 @@ export const MobileNav: React.FC = () => {
       { 
         id: 'profile' as AppView, 
         label: 'Perfil', 
-        icon: User 
+        icon: User,
+        badge: unreadVisits,
+        badgeColor: 'bg-rose-600'
       }
     ] : [
       { 
@@ -89,7 +93,9 @@ export const MobileNav: React.FC = () => {
       { 
         id: 'profile' as AppView, 
         label: 'Perfil', 
-        icon: User 
+        icon: User,
+        badge: unreadVisits,
+        badgeColor: 'bg-rose-600'
       }
     ])
   ];

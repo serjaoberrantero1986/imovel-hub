@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { Badge } from '../ui/Badge';
+import { useVisitNotificationCount } from '../../hooks/useVisitNotificationCount';
 
 export const UserMenu: React.FC = () => {
   const { 
@@ -40,6 +41,7 @@ export const UserMenu: React.FC = () => {
   } = useApp();
 
   const [isOpen, setIsOpen] = useState(false);
+  const unreadVisits = useVisitNotificationCount(isAuthenticated && currentUser.role !== 'admin');
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -99,7 +101,7 @@ export const UserMenu: React.FC = () => {
         className="member-profile-menu border border-slate-200 dark:border-slate-700/80 hover:bg-slate-100 dark:hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-rose-500/20"
       >
         {isAuthenticated && (
-          <div className="member-profile-avatar shrink-0 flex items-center justify-center">
+          <div className="member-profile-avatar relative shrink-0 flex items-center justify-center">
             {currentUser.avatarUrl ? (
               <img
                 src={currentUser.avatarUrl}
@@ -116,6 +118,7 @@ export const UserMenu: React.FC = () => {
               <CheckCircle2 className="w-2.5 h-2.5 text-white" />
             </span>
             )}
+            {unreadVisits > 0 && <span aria-label={`${unreadVisits} atualizações de visitas`} className="absolute -top-2 -left-2 min-w-[18px] h-[18px] px-1 rounded-full bg-rose-600 text-white text-[10px] font-black flex items-center justify-center border-2 border-white dark:border-slate-900">{unreadVisits > 99 ? '99+' : unreadVisits}</span>}
           </div>
         )}
 
@@ -196,7 +199,7 @@ export const UserMenu: React.FC = () => {
               )}
             </button>
 
-            {currentUser.role !== 'admin' && <button onClick={() => handleNav('visits')} className="w-full text-left px-4 py-2 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 flex items-center gap-2.5"><CalendarCheck className="w-4 h-4 text-rose-500"/><span>Minhas visitas</span></button>}
+            {currentUser.role !== 'admin' && <button onClick={() => handleNav('visits')} className="w-full text-left px-4 py-2 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 flex items-center justify-between"><span className="flex items-center gap-2.5"><CalendarCheck className="w-4 h-4 text-rose-500"/><span>Minhas visitas</span></span>{unreadVisits>0&&<span className="text-[10px] px-1.5 py-0.5 rounded-full font-bold bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300">{unreadVisits>99?'99+':unreadVisits}</span>}</button>}
             {currentUser.role === 'admin' && (
               <>
                 <button onClick={() => handleNav('visits')} className="w-full text-left px-4 py-2 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 flex items-center gap-2.5"><CalendarCheck className="w-4 h-4 text-rose-500"/><span>Contestações de visitas</span></button>

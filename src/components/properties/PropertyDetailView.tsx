@@ -38,7 +38,7 @@ import { PropertyLeadContactForm } from './PropertyLeadContactForm';
 import { UserAvatar } from '../ui/UserAvatar';
 import { PartnerListingReportModal } from './PartnerListingReportModal';
 import { registerPublicPropertyView } from '../../lib/supabaseCrud';
-import { loadPropertyVisitSlots, schedulePropertyVisit, VisitSlot, visitLocalDate, visitError } from '../../lib/propertyVisits';
+import { loadNextPropertyVisitSlot, loadPropertyVisitSlots, schedulePropertyVisit, VisitSlot, visitLocalDate, visitError } from '../../lib/propertyVisits';
 
 const PENDING_PROPERTY_CONTACT_KEY = 'imovelhub_pending_property_contact';
 const PENDING_PROPERTY_CONTACT_MAX_AGE = 24 * 60 * 60 * 1000;
@@ -125,6 +125,7 @@ export const PropertyDetailView: React.FC = () => {
   const [visitTime, setVisitTime] = useState('');
   const [visitSlots, setVisitSlots] = useState<VisitSlot[]>([]);
   const [visitSlotsLoading, setVisitSlotsLoading] = useState(false);
+  const [visitDateTouched, setVisitDateTouched] = useState(false);
   const [visitBusy, setVisitBusy] = useState(false);
   const [visitErrorMessage, setVisitError] = useState('');
   const visitSaving = useRef(false);
@@ -133,11 +134,17 @@ export const PropertyDetailView: React.FC = () => {
   useEffect(() => {
     if (!scheduleModalOpen || !visitDate) return;
     let active=true; setVisitSlotsLoading(true); setVisitError('');
-    void loadPropertyVisitSlots(property.id,visitDate,property.partnership?.id).then(slots=>{
-      if(!active)return; setVisitSlots(slots); setVisitTime(current=>slots.some(slot=>slot.label===current)?current:(slots[0]?.label||''));
+    void loadPropertyVisitSlots(property.id,visitDate,property.partnership?.id).then(async slots=>{
+      if(!active)return;
+      if(slots.length===0&&!visitDateTouched){
+        const next=await loadNextPropertyVisitSlot(property.id,visitDate,property.partnership?.id);
+        if(!active)return;
+        if(next){setVisitDate(next.date);setVisitSlots([next.slot]);setVisitTime(next.slot.label);return;}
+      }
+      setVisitSlots(slots); setVisitTime(current=>slots.some(slot=>slot.label===current)?current:(slots[0]?.label||''));
     }).catch(error=>{if(active){setVisitSlots([]);setVisitTime('');setVisitError(visitError(error));}}).finally(()=>{if(active)setVisitSlotsLoading(false);});
     return()=>{active=false;};
-  },[scheduleModalOpen,visitDate,property.id,property.partnership?.id]);
+  },[scheduleModalOpen,visitDate,visitDateTouched,property.id,property.partnership?.id]);
 
   useEffect(() => {
     if (!property || property.status !== 'active' || currentUser?.id === property.userId) return;
@@ -628,6 +635,8 @@ export const PropertyDetailView: React.FC = () => {
               {/* Agendar Visita CTA */}
               <button
                 onClick={() => {
+                  setVisitDateTouched(false);
+                  setVisitDate(visitLocalDate());
                   setScheduleModalOpen(true);
                   if (!isAuthenticated || currentUser?.id === 'guest_buyer') {
                     openAuthModal('login');
@@ -756,7 +765,7 @@ export const PropertyDetailView: React.FC = () => {
                   type="date"
                   min={visitLocalDate()}
                   value={visitDate}
-                  onChange={(e) => setVisitDate(e.target.value)}
+                  onChange={(e) => { setVisitDateTouched(true); setVisitDate(e.target.value); }}
                   className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-900 dark:text-white"
                 />
               </div>
@@ -774,6 +783,7 @@ export const PropertyDetailView: React.FC = () => {
             </div>
 
             {visitErrorMessage && <p role="alert" className="text-sm text-rose-600">{visitErrorMessage}</p>}
+            {!visitSlotsLoading&&visitSlots.length===0&&visitDateTouched&&<button type="button" onClick={()=>setVisitDateTouched(false)} className="text-xs font-bold text-rose-600 hover:text-rose-700">Ver próximo horário disponível</button>}
             <div className="flex justify-end gap-2 pt-2">
               <button
                 onClick={() => setScheduleModalOpen(false)}
@@ -817,6 +827,8 @@ export const PropertyDetailView: React.FC = () => {
 
           <button
             onClick={() => {
+              setVisitDateTouched(false);
+              setVisitDate(visitLocalDate());
               setScheduleModalOpen(true);
               if (!isAuthenticated || currentUser?.id === 'guest_buyer') {
                 openAuthModal('login');

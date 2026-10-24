@@ -10,10 +10,11 @@ import { VisitLocationHistoryMap, VisitLocationPoint } from './VisitLocationHist
 import { PropertyVisit, VisitHistory, loadPropertyVisits, loadVisitHistory, schedulePropertyVisit, updatePropertyVisit,
   disputePropertyVisit, verifyVisitPresence, visitEmailService, captureVisitLocation, visitError, visitInterval,
   visitLocalDate, visitLocalTime, formatVisitDate, VISIT_STATUS, VisitNotice, loadVisitNotices, markVisitNoticeRead, resolveVisitDispute } from '../../lib/propertyVisits';
+import { VisitSlot, loadVisitRescheduleSlots } from '../../lib/propertyVisits';
 
 const eventLabels: Record<string,string> = { requested:'Solicitação / remarcação', confirmed:'Aceite do horário', otp_issued:'Envio de confirmação solicitado',
   otp_verified:'Presença confirmada pelo interessado', check_in:'Chegada registrada', manual_confirmed:'Chegada declarada manualmente',
-  completed:'Visita concluída', check_out:'Saída registrada', cancelled:'Cancelamento', no_show:'Ausência informada', disputed:'Contestação' };
+  completed:'Visita concluída', check_out:'Saída registrada', cancelled:'Cancelamento', no_show:'Ausência informada', disputed:'Contestação', duration_changed:'Duração alterada' };
 type Dialog = { action: string; visit?: PropertyVisit; disputeId?: string };
 const eventLocation=(event:VisitHistory['events'][number]):VisitLocationPoint|null=>{
   const lat=Number(event.evidence.lat),lng=Number(event.evidence.lng),accuracy=Number(event.evidence.accuracy);
@@ -39,6 +40,8 @@ export function PropertyVisitsPanel({ leadId }: { leadId?: string }) {
   const [date, setDate] = useState(visitLocalDate(Date.now()+86400000));
   const [time, setTime] = useState('10:00');
   const [duration, setDuration] = useState(60);
+  const [rescheduleSlots, setRescheduleSlots] = useState<VisitSlot[]>([]);
+  const [slotsLoading, setSlotsLoading] = useState(false);
   const [reason, setReason] = useState('');
   const [code, setCode] = useState('');
   const [propertyId, setPropertyId] = useState('');
@@ -68,12 +71,19 @@ export function PropertyVisitsPanel({ leadId }: { leadId?: string }) {
     window.addEventListener('property-visits-changed', refresh);
     return () => { active=false; ++loadGeneration.current; window.removeEventListener('focus', refresh); window.removeEventListener('property-visits-changed', refresh); };
   }, [load, isAuthenticated]);
+  useEffect(()=>{
+    if(dialog?.action!=='reschedule'||!dialog.visit||dialog.visit.is_professional||!date)return;
+    let active=true; setSlotsLoading(true); setFormError('');
+    void loadVisitRescheduleSlots(dialog.visit.id,date).then(slots=>{if(active){setRescheduleSlots(slots);setTime(current=>slots.some(s=>s.label===current)?current:(slots[0]?.label||''));}})
+      .catch(e=>{if(active){setRescheduleSlots([]);setTime('');setFormError(visitError(e));}}).finally(()=>{if(active)setSlotsLoading(false);});
+    return()=>{active=false;};
+  },[dialog?.action,dialog?.visit?.id,dialog?.visit?.is_professional,date]);
   const open = (next: Dialog) => {
     setDialog(next); setFormError(''); setReason(''); setCode(''); setAccepted(false); setHistory(null); setUseGps(next.action!=='complete');
     requestKey.current=crypto.randomUUID();
     if (next.visit?.scheduled_at) { setDate(visitLocalDate(next.visit.scheduled_at)); setTime(visitLocalTime(next.visit.scheduled_at));
       const end = next.visit.scheduled_end ? Date.parse(next.visit.scheduled_end) : Date.parse(next.visit.scheduled_at) + 3600000;
-      setDuration(Math.max(15, Math.round((end-Date.parse(next.visit.scheduled_at))/60000))); }
+      setDuration(next.action==='reschedule'&&!next.visit.is_professional?60:Math.max(15, Math.round((end-Date.parse(next.visit.scheduled_at))/60000))); }
     if (next.action==='history' && next.visit) void loadVisitHistory(next.visit.id).then(setHistory).catch(e => setFormError(visitError(e)));
   };
   const submit = async (e: React.FormEvent) => {
@@ -97,7 +107,8 @@ export function PropertyVisitsPanel({ leadId }: { leadId?: string }) {
         else if (dialog.action==='resolve' && dialog.disputeId) await resolveVisitDispute(dialog.disputeId,reason);
         else {
           let fields: Record<string,unknown> = { p_reason: reason || null };
-          if (dialog.action==='reschedule') { const interval=visitInterval(date,time,duration); fields={ ...fields,p_start:interval.start,p_end:interval.end }; }
+          if (dialog.action==='reschedule') { const interval=visitInterval(date,time,v.is_professional?duration:60); fields={ ...fields,p_start:interval.start,p_end:interval.end }; }
+          if (dialog.action==='adjust_duration') { const end=new Date(Date.parse(v.scheduled_at)+duration*60000).toISOString(); fields={...fields,p_end:end}; }
           if (dialog.action==='check_in' || dialog.action==='manual_check_in') {
             if (!accepted) { setFormError('Confirme que compreendeu como o registro será identificado.'); return; }
             if (useGps) fields={...fields,...await captureVisitLocation()};
@@ -117,12 +128,12 @@ export function PropertyVisitsPanel({ leadId }: { leadId?: string }) {
   };
   if (!isAuthenticated) return <section className="space-y-4 py-8"><h1 className="text-2xl font-extrabold text-slate-900 dark:text-white">Minhas visitas</h1><p className="text-sm text-slate-500">Entre na sua conta para consultar e confirmar suas visitas. O acesso é restrito aos participantes.</p><Button onClick={()=>openAuthModal('login')}>Entrar na minha conta</Button></section>;
   const visible=items.filter(v => (!leadId || v.lead_id===leadId) && (v.id===focusedId || filter==='all' || (filter==='active' ? ['requested','confirmed','checked_in'].includes(v.status) : v.status===filter)));
-  const actionTitles: Record<string,string> = { resolve:'Registrar resposta administrativa',create:'Propor visita',confirm:'Confirmar horário',reschedule:'Propor outro horário',cancel:'Cancelar visita',no_show:'Informar ausência',check_in:'Registrar chegada',manual_check_in:'Registrar chegada por declaração',complete:'Concluir visita',send:'Enviar código ao interessado',verify:'Confirmar minha presença',dispute:'Contestação / resposta',history:'Histórico e comprovante' };
+  const actionTitles: Record<string,string> = { resolve:'Registrar resposta administrativa',create:'Propor visita',confirm:'Confirmar horário',reschedule:'Propor outro horário',adjust_duration:'Ajustar duração',cancel:'Cancelar visita',no_show:'Informar ausência',check_in:'Registrar chegada',manual_check_in:'Registrar chegada por declaração',complete:'Concluir visita',send:'Enviar código ao interessado',verify:'Confirmar minha presença',dispute:'Contestação / resposta',history:'Histórico e comprovante' };
   const v=dialog?.visit;
   const requiresReason=dialog && (['reschedule','cancel','no_show','manual_check_in','dispute','resolve'].includes(dialog.action) || (dialog.action==='check_in' && !useGps));
   return <section className="space-y-5 text-slate-900 dark:text-slate-100">
     <div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-xs font-bold text-rose-600">AGENDAMENTO E VISITAÇÃO</p><h2 className="mt-1 text-2xl font-extrabold">Visitas aos imóveis</h2><p className="mt-2 text-sm text-slate-500">Horários de Brasília. Solicitação, aceite e presença são registros separados.</p></div><div className="flex gap-2"><Button variant="outline" size="sm" onClick={()=>void load()} isLoading={loading} leftIcon={<RefreshCw size={14}/>}>Atualizar</Button>{['broker','agency'].includes(currentUser.role)&&<Button size="sm" onClick={()=>open({action:'create'})}>Propor visita</Button>}</div></div>
-    {notices.filter(n=>!leadId||items.some(v=>v.id===n.visit_id&&v.lead_id===leadId)).map(n=><div key={n.id} className="rounded-xl border border-rose-200 dark:border-rose-900 p-3 text-sm"><p className="font-bold">{n.title}</p><p>{n.message}</p><Button size="sm" variant="ghost" onClick={()=>{void markVisitNoticeRead(n.id).then(ok=>{if(ok)setNotices(current=>current.filter(x=>x.id!==n.id));}).catch(e=>setError(visitError(e)));}}>Marcar como lido</Button></div>)}
+    {notices.filter(n=>!leadId||items.some(v=>v.id===n.visit_id&&v.lead_id===leadId)).map(n=><div key={n.id} className="rounded-xl border border-rose-200 dark:border-rose-900 p-3 text-sm"><p className="font-bold">{n.title}</p><p>{n.message}</p><Button size="sm" variant="ghost" onClick={()=>{void markVisitNoticeRead(n.id).then(ok=>{if(ok){setNotices(current=>current.filter(x=>x.id!==n.id));window.dispatchEvent(new Event('property-visits-changed'));}}).catch(e=>setError(visitError(e)));}}>Marcar como lido</Button></div>)}
     {error&&<p role="alert" className="text-sm text-rose-600">{error}</p>}
     {!loading&&focusedId&&!items.some(item=>item.id===focusedId)&&<p role="status" className="text-sm text-slate-500">A visita do link não está disponível para esta conta.</p>}
     <Select label="Exibir visitas" value={filter} onChange={e=>setFilter(e.target.value)} options={[{value:'active',label:'Em andamento e próximas'},{value:'all',label:'Todas'},{value:'completed',label:'Concluídas'},{value:'cancelled',label:'Canceladas'},{value:'no_show',label:'Ausências informadas'}]}/>
@@ -137,6 +148,7 @@ export function PropertyVisitsPanel({ leadId }: { leadId?: string }) {
         {!item.is_administrator&&['requested','confirmed'].includes(item.status)&&<>
           {!(item.is_professional?item.broker_confirmed_at:item.buyer_confirmed_at)&&<Button size="sm" onClick={()=>open({action:'confirm',visit:item})}>Confirmar horário</Button>}
           <Button size="sm" variant="outline" onClick={()=>open({action:'reschedule',visit:item})}>Remarcar</Button>
+          {item.is_professional&&<Button size="sm" variant="outline" onClick={()=>open({action:'adjust_duration',visit:item})}>Ajustar duração</Button>}
           <Button size="sm" variant="ghost" onClick={()=>open({action:'cancel',visit:item})}>Cancelar</Button>
           {item.status==='confirmed'&&!item.buyer_presence_at&&<>
             {item.is_professional&&<Button size="sm" variant="outline" disabled={!emailReady||!item.can_send_code} onClick={()=>open({action:'send',visit:item})}>Enviar código de presença</Button>}
@@ -165,7 +177,8 @@ export function PropertyVisitsPanel({ leadId }: { leadId?: string }) {
           <Select label="Atendimento vinculado ao imóvel" value={selectedLead} onChange={e=>setSelectedLead(e.target.value)} required><option value="">Selecione</option>{leads.filter(l=>!leadId||l.id===leadId).map(l=><option key={l.id} value={l.id}>{l.buyerName}</option>)}</Select>
           <p className="text-xs text-slate-500">A proposta aguarda o aceite do interessado. Para contatos sem conta, a presença poderá ser registrada apenas como declaração manual.</p>
         </>}
-        {['create','reschedule'].includes(dialog.action)&&<div className="grid grid-cols-2 gap-3"><Input label="Data (Brasília)" type="date" min={visitLocalDate()} value={date} onChange={e=>setDate(e.target.value)} required/><Input label="Horário (Brasília)" type="time" step={1800} value={time} onChange={e=>setTime(e.target.value)} required/><Input label="Duração em minutos" type="number" min={15} max={240} value={duration} onChange={e=>setDuration(Number(e.target.value))} required/></div>}
+        {['create','reschedule'].includes(dialog.action)&&<div className="grid grid-cols-2 gap-3"><Input label="Data (Brasília)" type="date" min={visitLocalDate()} value={date} onChange={e=>setDate(e.target.value)} required/>{dialog.action==='reschedule'&&!v?.is_professional?<Select label="Horário (Brasília)" value={time} onChange={e=>setTime(e.target.value)} disabled={slotsLoading||rescheduleSlots.length===0} required><option value="">{slotsLoading?'Consultando...':'Nenhum horário disponível'}</option>{rescheduleSlots.map(slot=><option key={slot.start} value={slot.label}>{slot.label}</option>)}</Select>:<Input label="Horário (Brasília)" type="time" step={1800} value={time} onChange={e=>setTime(e.target.value)} required/>}{(dialog.action==='create'||v?.is_professional)&&<Input label="Duração em minutos" type="number" min={15} max={240} value={duration} onChange={e=>setDuration(Number(e.target.value))} required/>}{dialog.action==='reschedule'&&!v?.is_professional&&<p className="col-span-2 text-xs text-slate-500">A visita terá duração padrão de 60 minutos.</p>}</div>}
+        {dialog.action==='adjust_duration'&&<><Input label="Duração em minutos" type="number" min={15} max={240} value={duration} onChange={e=>setDuration(Number(e.target.value))} required/><p className="text-xs text-slate-500">O início permanece em {formatVisitDate(v!.scheduled_at)}. O novo término respeitará sua jornada e os intervalos da agenda.</p></>}
         {dialog.action==='confirm'&&<p className="text-sm">Confirme que está de acordo com este horário. A presença será registrada no dia da visita.</p>}
         {dialog.action==='send'&&<p className="text-sm">O código será enviado exclusivamente ao e-mail verificado do interessado. Ele deverá informar o código na própria conta, nesta visita.</p>}
         {dialog.action==='verify'&&<><p className="text-sm">Use o código recebido no seu e-mail somente quando estiver no local da visita.</p><Input label="Código de seis dígitos" inputMode="numeric" pattern="[0-9]{6}" maxLength={6} value={code} onChange={e=>setCode(e.target.value.replace(/\D/g,''))} required/><p className="text-xs text-slate-500">{v?.declaration_text}</p><label className="flex gap-2 text-sm"><input type="checkbox" checked={accepted} onChange={e=>setAccepted(e.target.checked)}/>Declaro que estou presente para esta visita e li a declaração.</label></>}

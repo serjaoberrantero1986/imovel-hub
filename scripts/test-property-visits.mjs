@@ -199,7 +199,7 @@ test('agenda pública calcula meia hora, bloqueios privados e intervalo operacio
   try {
     const read=path=>readFile(new URL(path,import.meta.url),'utf8');
     await db.exec(await read('./fixtures/visits-schema.sql'));
-    for(const file of ['20261012000008_partnership_visits','20261012000009_partnership_visit_disputes','20261012000011_partnership_visit_otp_delivery','20261023180856_unified_property_visits','20261024140009_refine_visit_windows_and_reasons','20261024162000_visit_availability_calendar','20261024190000_visit_working_hours_and_evidence_map']) await db.exec(await read(`../supabase/migrations/${file}.sql`));
+    for(const file of ['20261012000008_partnership_visits','20261012000009_partnership_visit_disputes','20261012000011_partnership_visit_otp_delivery','20261023180856_unified_property_visits','20261024140009_refine_visit_windows_and_reasons','20261024162000_visit_availability_calendar','20261024190000_visit_working_hours_and_evidence_map','20261024222250_refine_visit_rescheduling_notifications','20261024222723_make_visit_notice_count_null_safe']) await db.exec(await read(`../supabase/migrations/${file}.sql`));
     const ids=Object.fromEntries(['broker','buyer','property'].map(key=>[key,crypto.randomUUID()]));
     await db.query(`insert into public.profiles(id,name,email,phone,role,available_weekend_visits) values ($1,'Profissional','broker@example.test','11999999999','broker',true),($2,'Comprador','buyer@example.test','11988888888','buyer',false)`,[ids.broker,ids.buyer]);
     await db.query(`insert into auth.users values ($1,'buyer@example.test',now())`,[ids.buyer]);
@@ -221,6 +221,8 @@ test('agenda pública calcula meia hora, bloqueios privados e intervalo operacio
     await assert.rejects(call(`select public.prepare_property_visit_code($1,$2,'aal2',$3)`,[visit,ids.buyer,hash]),/VISIT_ACCESS/);
     const buyerView=(await call(`select public.get_my_property_visits() visits`)).visits.find(v=>v.id===visit);
     assert.equal(buyerView.can_send_code,false);
+    assert.ok((await call(`select public.get_my_visit_notice_count() n`)).n>0);
+    await assert.rejects(call(`select public.update_property_visit($1,2,'reschedule',$2,$3,'Novo horário')`,[visit,iso('14:00'),iso('15:30')]),/VISIT_TIME/);
     await identity(ids.broker,'aal2');
     slots=(await call(`select public.get_property_visit_slots($1,$2,null) slots`,[ids.property,date])).slots;
     assert.ok(!slots.some(slot=>['09:00','09:30','10:00','10:30','11:00','11:30'].includes(slot.label))); assert.ok(slots.some(slot=>slot.label==='12:00'));
@@ -229,6 +231,8 @@ test('agenda pública calcula meia hora, bloqueios privados e intervalo operacio
     assert.ok(!slots.some(slot=>['11:30','12:00','12:30','13:00','13:30'].includes(slot.label))); assert.ok(slots.some(slot=>slot.label==='14:00'));
     await call(`select public.save_my_visit_unavailability(null,'period',null,$1,$1,null,null,true,'Férias')`,[nextDate]);
     assert.deepEqual((await call(`select public.get_property_visit_slots($1,$2,null) slots`,[ids.property,nextDate])).slots,[]);
+    const nextSlot=(await call(`select public.get_next_property_visit_slot($1,$2,null) slot`,[ids.property,nextDate])).slot;
+    assert.ok(nextSlot.date>nextDate); assert.match(nextSlot.slot.label,/^\d{2}:(00|30)$/);
     assert.equal((await call(`select jsonb_array_length(public.get_my_visit_unavailability()) n`)).n,2);
     await call(`select public.delete_my_visit_unavailability($1)`,[recurring]);
     assert.equal((await call(`select jsonb_array_length(public.get_my_visit_unavailability()) n`)).n,1);
