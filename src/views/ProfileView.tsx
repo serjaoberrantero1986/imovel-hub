@@ -802,24 +802,6 @@ export const ProfileView: React.FC = () => {
                 </div>
               </div>
 
-              {/* Toggle de Disponibilidade em Fins de Semana */}
-              <label className="flex items-center gap-3 pt-2 p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700 cursor-pointer">
-                <input
-                  id="checkbox-weekend-visits"
-                  type="checkbox"
-                  checked={formData.availableWeekendVisits ?? true}
-                  onChange={e => setFormData(prev => ({ ...prev, availableWeekendVisits: e.target.checked }))}
-                  className="rounded text-rose-600 focus:ring-rose-500"
-                />
-                <div>
-                  <span className="text-xs font-bold text-slate-900 dark:text-white block">
-                    Disponível para agendamento de visitas aos sábados e domingos
-                  </span>
-                  <span className="text-[11px] text-slate-500 dark:text-slate-400">
-                    Exibe a tag de "Atendimento aos Finais de Semana" em seus anúncios para aumentar contatos.
-                  </span>
-                </div>
-              </label>
             </div>
 
             <VisitAvailabilitySettings addToast={addToast} />

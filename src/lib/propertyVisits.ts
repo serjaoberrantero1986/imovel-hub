@@ -22,9 +22,10 @@ const errors: Record<string, string> = {
   VISIT_EMAIL_UNAVAILABLE: 'O envio por e-mail está indisponível. Nenhuma confirmação de presença foi registrada. Tente novamente mais tarde.',
   VISIT_AUTH: 'Entre na sua conta para continuar.', VISIT_ACCESS: 'Esta visita não está disponível para sua conta.',
   VISIT_MFA: 'Confirme a autenticação em duas etapas para continuar.',
-  VISIT_TIME: 'Escolha um horário futuro e uma duração entre 15 minutos e 4 horas.',
+  VISIT_TIME: 'Escolha um horário da jornada, em intervalos de 30 minutos e com pelo menos 1h30 de antecedência.',
   VISIT_UNAVAILABLE: 'Este horário não está disponível na agenda do profissional. Escolha outra opção.',
   VISIT_AVAILABILITY: 'Confira os dias, datas e horários informados para a indisponibilidade.',
+  VISIT_WORKING_HOURS: 'Confira os dias e horários da jornada de visitas.',
   VISIT_CONFLICT: 'O profissional ou interessado já tem uma visita confirmada nesse horário. Escolha outro horário.',
   VISIT_STALE: 'Esta visita mudou. Atualize a lista e confira os dados antes de tentar novamente.',
   VISIT_STATE: 'Esta ação não está disponível na situação ou no horário atual da visita.',
@@ -57,6 +58,7 @@ export interface VisitUnavailability {
   id: string; kind: 'recurring'|'period'; weekdays: number[]|null; starts_on: string|null; ends_on: string|null;
   start_time: string|null; end_time: string|null; all_day: boolean; private_label: string|null;
 }
+export interface VisitWorkingHour { weekday: number; enabled: boolean; start_time: string; end_time: string; }
 export const loadPropertyVisitSlots = (propertyId: string, date: string, partnershipId?: string) =>
   rpc<VisitSlot[]>('get_property_visit_slots', { p_property_id: propertyId, p_date: date, p_partnership_id: partnershipId || null });
 export const loadVisitUnavailability = () => rpc<VisitUnavailability[]>('get_my_visit_unavailability');
@@ -64,6 +66,8 @@ export const saveVisitUnavailability = (value: Omit<VisitUnavailability,'id'> & 
   rpc<string>('save_my_visit_unavailability', { p_id:value.id||null,p_kind:value.kind,p_weekdays:value.weekdays,p_starts_on:value.starts_on,
     p_ends_on:value.ends_on,p_start_time:value.start_time,p_end_time:value.end_time,p_all_day:value.all_day,p_private_label:value.private_label });
 export const deleteVisitUnavailability = (id: string) => rpc<boolean>('delete_my_visit_unavailability', { p_id:id });
+export const loadVisitWorkingHours = () => rpc<VisitWorkingHour[]>('get_my_visit_working_hours');
+export const saveVisitWorkingHours = (hours: VisitWorkingHour[]) => rpc<boolean>('save_my_visit_working_hours', { p_hours:hours });
 export interface VisitNotice { id: string; title: string; message: string; created_at: string; visit_id: string; }
 export const loadVisitNotices = () => rpc<VisitNotice[]>('get_my_visit_notices');
 export const markVisitNoticeRead = (id: string) => rpc<boolean>('mark_my_visit_notice_read', { p_id: id });

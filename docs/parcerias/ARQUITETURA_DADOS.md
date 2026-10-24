@@ -151,7 +151,9 @@ As janelas operacionais são calculadas pelo banco e retornadas com cada visita,
 
 `property_visit_unavailability` guarda indisponibilidades privadas do profissional. Registros recorrentes combinam dias da semana e faixa horária; períodos por data podem bloquear horas específicas ou dias inteiros. A tabela não possui leitura direta por clientes: RPCs restritas administram os registros do titular e a RPC pública devolve somente slots livres.
 
-`get_property_visit_slots` gera inícios a cada 30 minutos, das 09:00 às 17:00 para visitas padrão de uma hora. A validação autoritativa permanece em `visit_private.validate_schedule`, que também aplica horário futuro, preferência de fim de semana, bloqueios privados e uma hora de intervalo em torno das visitas aceitas pelo profissional. Solicitações ainda não aceitas não reservam a agenda; a confirmação do profissional repete a validação sob bloqueio transacional.
+`get_property_visit_slots` gera inícios a cada 30 minutos dentro da jornada semanal do profissional para visitas padrão de uma hora. A validação autoritativa permanece em `visit_private.validate_schedule`, que também aplica antecedência mínima, bloqueios privados e uma hora de intervalo em torno das visitas aceitas pelo profissional. Solicitações ainda não aceitas não reservam a agenda; a confirmação do profissional repete a validação sob bloqueio transacional.
+
+`property_visit_working_hours` substitui a agenda semanal fixa e o antigo indicador genérico de fim de semana. Cada profissional define os dias ativos e a faixa de atendimento de cada dia; a configuração anterior é migrada sem perda. Solicitações e remarcações exigem 90 minutos de antecedência, enquanto uma solicitação criada validamente continua confirmável pelo profissional. O código de presença só pode ser emitido pelo profissional com MFA; o interessado apenas verifica o código na própria conta. Coordenadas pontuais já preservadas nos eventos podem ser exibidas em mapa somente aos participantes autorizados.
 
 ## 8. Integrações externas
 

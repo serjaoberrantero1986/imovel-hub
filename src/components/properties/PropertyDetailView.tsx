@@ -746,7 +746,7 @@ export const PropertyDetailView: React.FC = () => {
             </div>
 
             <p className="text-xs text-slate-500 dark:text-slate-400">
-              Escolha a data e o horário de sua preferência para visitar {property.title}. Horário de Brasília, duração inicial de uma hora. O profissional confirmará pelo portal. Os horários são sugestões, sujeitos à disponibilidade.
+              Escolha a data e o horário de sua preferência para visitar {property.title}. Horário de Brasília, duração inicial de uma hora e antecedência mínima de 1h30. O profissional confirmará pelo portal.
             </p>
 
             <div className="grid grid-cols-2 gap-3">

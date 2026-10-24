@@ -6,6 +6,7 @@ import { Input } from '../ui/Input';
 import { Select } from '../ui/Select';
 import { Textarea } from '../ui/Textarea';
 import { Modal } from '../ui/Modal';
+import { VisitLocationHistoryMap, VisitLocationPoint } from './VisitLocationHistoryMap';
 import { PropertyVisit, VisitHistory, loadPropertyVisits, loadVisitHistory, schedulePropertyVisit, updatePropertyVisit,
   disputePropertyVisit, verifyVisitPresence, visitEmailService, captureVisitLocation, visitError, visitInterval,
   visitLocalDate, visitLocalTime, formatVisitDate, VISIT_STATUS, VisitNotice, loadVisitNotices, markVisitNoticeRead, resolveVisitDispute } from '../../lib/propertyVisits';
@@ -14,6 +15,14 @@ const eventLabels: Record<string,string> = { requested:'Solicitação / remarca�
   otp_verified:'Presença confirmada pelo interessado', check_in:'Chegada registrada', manual_confirmed:'Chegada declarada manualmente',
   completed:'Visita concluída', check_out:'Saída registrada', cancelled:'Cancelamento', no_show:'Ausência informada', disputed:'Contestação' };
 type Dialog = { action: string; visit?: PropertyVisit; disputeId?: string };
+const eventLocation=(event:VisitHistory['events'][number]):VisitLocationPoint|null=>{
+  const lat=Number(event.evidence.lat),lng=Number(event.evidence.lng),accuracy=Number(event.evidence.accuracy);
+  if(!Number.isFinite(lat)||!Number.isFinite(lng))return null;
+  const reference=event.evidence.reference&&typeof event.evidence.reference==='object'?event.evidence.reference as Record<string,unknown>:null;
+  return {lat,lng,accuracy:Number.isFinite(accuracy)?accuracy:undefined,label:event.event==='completed'?'Localização registrada na saída':'Localização registrada na chegada',
+    detail:`${formatVisitDate(event.created_at)} · ${event.actor_snapshot.name||'Participante'}${event.event==='manual_confirmed'?' · declaração manual':' · GPS pontual'}`,
+    referenceLat:reference?Number(reference.lat):undefined,referenceLng:reference?Number(reference.lng):undefined};
+};
 
 export function PropertyVisitsPanel({ leadId }: { leadId?: string }) {
   const { currentUser, isAuthenticated, openAuthModal, addToast, properties, leads } = useApp();
@@ -130,7 +139,7 @@ export function PropertyVisitsPanel({ leadId }: { leadId?: string }) {
           <Button size="sm" variant="outline" onClick={()=>open({action:'reschedule',visit:item})}>Remarcar</Button>
           <Button size="sm" variant="ghost" onClick={()=>open({action:'cancel',visit:item})}>Cancelar</Button>
           {item.status==='confirmed'&&!item.buyer_presence_at&&<>
-            <Button size="sm" variant="outline" disabled={!emailReady||!item.can_send_code} onClick={()=>open({action:'send',visit:item})}>Enviar código de presença</Button>
+            {item.is_professional&&<Button size="sm" variant="outline" disabled={!emailReady||!item.can_send_code} onClick={()=>open({action:'send',visit:item})}>Enviar código de presença</Button>}
             {!item.is_professional&&<Button size="sm" disabled={!item.can_send_code} onClick={()=>open({action:'verify',visit:item})}>Confirmar minha presença</Button>}
           </>}
           {item.is_professional&&<>
@@ -146,7 +155,7 @@ export function PropertyVisitsPanel({ leadId }: { leadId?: string }) {
       </div>
       {item.is_professional&&['requested','confirmed'].includes(item.status)&&<p className="text-xs text-slate-500">Chegada disponível de {formatVisitDate(item.check_in_available_at)} até {formatVisitDate(item.check_in_expires_at)}. Ausência disponível de {formatVisitDate(item.no_show_available_at)} até {formatVisitDate(item.no_show_expires_at)}.</p>}
       {!item.is_professional&&item.status==='confirmed'&&!item.buyer_presence_at&&<p className="text-xs text-slate-500">Evite atrasos. Após 15 minutos, o profissional poderá registrar sua ausência. Se não puder comparecer, remarque sua visita.</p>}
-      {!emailReady&&item.status==='confirmed'&&!item.buyer_presence_at&&<p className="text-xs text-slate-500">O canal de confirmação por e-mail está indisponível. Nenhum envio foi realizado. O registro manual permanece identificado como declaração.</p>}
+      {item.is_professional&&!emailReady&&item.status==='confirmed'&&!item.buyer_presence_at&&<p className="text-xs text-slate-500">O canal de confirmação por e-mail está indisponível. Nenhum envio foi realizado. O registro manual permanece identificado como declaração.</p>}
     </article>)}
     <Modal isOpen={!!dialog} onClose={()=>{if(!lock.current)setDialog(null);}} title={dialog?actionTitles[dialog.action]:''} size="lg" closeOnBackdropClick={!busy}>
       {dialog&&<form onSubmit={submit} className="space-y-4">
@@ -170,7 +179,7 @@ export function PropertyVisitsPanel({ leadId }: { leadId?: string }) {
         {dialog.action==='complete'&&<><p className="text-sm">A conclusão preserva o histórico e gera um comprovante. Não é necessário capturar uma nova localização.</p><label className="flex gap-2 text-sm"><input type="checkbox" checked={useGps} onChange={e=>setUseGps(e.target.checked)}/>Incluir minha localização pontual de saída (opcional)</label></>}
         {dialog.action==='history'&&<>
           {!history&&!formError&&<p role="status">Carregando histórico...</p>}
-          {history?.events.map(event=><div key={event.id} className="border-b border-slate-200 dark:border-slate-800 pb-3 text-sm"><p className="font-bold">{eventLabels[event.event]||'Registro de visita'}</p><p className="text-xs text-slate-500">{formatVisitDate(event.created_at)} · {event.actor_snapshot.name||'Participante'}</p>{typeof event.evidence.reason==='string'&&<p>{event.evidence.reason}</p>}{typeof event.evidence.start==='string'&&<p>Novo horário: {formatVisitDate(event.evidence.start)}</p>}{typeof event.evidence.distance_m==='number'&&<p>Distância estimada ao ponto do imóvel: {Math.round(event.evidence.distance_m)} m. Precisão informada: {String(event.evidence.accuracy)} m.</p>}</div>)}
+          {history?.events.map(event=>{const point=eventLocation(event);return <div key={event.id} className="border-b border-slate-200 dark:border-slate-800 pb-3 text-sm space-y-2"><div><p className="font-bold">{eventLabels[event.event]||'Registro de visita'}</p><p className="text-xs text-slate-500">{formatVisitDate(event.created_at)} · {event.actor_snapshot.name||'Participante'}</p></div>{typeof event.evidence.reason==='string'&&<p>{event.evidence.reason}</p>}{typeof event.evidence.start==='string'&&<p>Novo horário: {formatVisitDate(event.evidence.start)}</p>}{typeof event.evidence.distance_m==='number'&&<p>Distância estimada ao ponto do imóvel: {Math.round(event.evidence.distance_m)} m. Precisão informada: {String(event.evidence.accuracy)} m.</p>}{point&&<VisitLocationHistoryMap point={point}/>}</div>})}
           {v?.receipt_snapshot&&<><p className="text-xs text-slate-500">Comprovante preservado na conclusão. O identificador de integridade não comprova, por si só, presença ou direito à comissão.</p><Button type="button" variant="outline" onClick={()=>{ const blob=new Blob([JSON.stringify({comprovante:v.receipt_snapshot,integridade:v.receipt_hash},null,2)],{type:'application/json'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=`visita-${v.id}.json`; a.click(); setTimeout(()=>URL.revokeObjectURL(url),1000); }}>Baixar comprovante</Button></>}
           {history?.disputes.map(d=><div key={d.id} className="rounded-xl border border-slate-200 dark:border-slate-700 p-3 space-y-2"><p className="font-bold text-sm">Contestação · {formatVisitDate(d.opened_at)}</p><p className="whitespace-pre-wrap text-sm">{d.statement}</p>{d.resolution_reason&&<p className="text-sm">Resposta administrativa: {d.resolution_reason}</p>}{d.responses.map(r=><p key={r.id} className="whitespace-pre-wrap border-l-2 border-slate-300 pl-3 text-sm">Resposta: {r.statement}</p>)}{['open','responded'].includes(d.status)&&<Button type="button" size="sm" variant="outline" onClick={()=>open({action:v?.is_administrator?'resolve':'dispute',visit:v,disputeId:d.id})}>{v?.is_administrator?'Encerrar com justificativa':'Acrescentar resposta'}</Button>}</div>)}
         </>}
