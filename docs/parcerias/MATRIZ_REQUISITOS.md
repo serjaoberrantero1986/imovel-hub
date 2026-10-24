@@ -67,6 +67,7 @@ Nenhuma entrega pode alterar um estado para `implementado_local` sem listar os a
 - O comprovante preserva o snapshot da conclusão e seu hash. Contestação, resposta e decisão administrativa são anexadas sem alterar o estado operacional nem o comprovante original.
 - `scripts/test-property-visits.mjs` cobre 15 cenários isolados em PostgreSQL, incluindo autorização negativa, concorrência, conflitos de agenda, limite e uso único do código, GPS inválido, alternativa manual, imutabilidade e administração.
 - O estado permanece `migration_aplicada` até a publicação da interface e um piloto real autenticado com profissional e interessado. Nenhuma visita fictícia foi criada em produção.
+- Ajuste operacional de 24/10/2026: código disponível de duas horas antes até quatro horas após o término; chegada de uma hora antes até quatro horas após o término; ausência de trinta minutos após o início até vinte e quatro horas após o término. O servidor devolve essas janelas à interface, e motivos operacionais aceitam de 3 a 1.000 caracteres. Contestações continuam exigindo 20 caracteres.
 
 ## Ampliação aprovada: oportunidades e contratos de carteira
 

@@ -181,6 +181,17 @@
   padding-bottom: max(0.5rem, env(safe-area-inset-bottom, 0px));
 }
 
+.mobile-chat-viewport {
+  height: calc(100dvh - 150px - env(safe-area-inset-bottom, 0px));
+  min-height: 22rem;
+}
+
+@media (min-width: 640px) {
+  .mobile-chat-viewport {
+    height: calc(100vh - 140px);
+  }
+}
+
 /* Smooth snap carousel for mobile galleries */
 .snap-x-mandatory {
   scroll-snap-type: x mandatory;

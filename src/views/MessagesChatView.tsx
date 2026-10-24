@@ -153,7 +153,7 @@ export const MessagesChatView: React.FC = () => {
 
   return (
     <div className="min-h-[calc(100vh-80px)] bg-slate-50 dark:bg-slate-950 py-2 sm:py-6 transition-colors">
-      <div className="max-w-7xl mx-auto px-2 sm:px-6 lg:px-8 h-[calc(100dvh-130px)] sm:h-[calc(100vh-140px)]">
+      <div className="mobile-chat-viewport max-w-7xl mx-auto px-2 sm:px-6 lg:px-8">
         
         <div className="h-full bg-white dark:bg-slate-900 rounded-2xl sm:rounded-3xl border border-slate-200 dark:border-slate-800 shadow-xl overflow-hidden grid grid-cols-1 md:grid-cols-12">
           

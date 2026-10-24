@@ -147,6 +147,8 @@ As mutações são feitas por RPCs transacionais. O cliente não recebe o códig
 
 A coordenada exata do imóvel é copiada para um snapshot privado apenas quando a qualidade cadastral permite comparação. O navegador usa `getCurrentPosition` depois do clique e envia precisão declarada pelo dispositivo. Ausência de GPS não bloqueia a visita: o profissional pode registrar uma declaração manual identificada, e a conclusão também funciona sem nova localização.
 
+As janelas operacionais são calculadas pelo banco e retornadas com cada visita, evitando regras divergentes no navegador: código de presença entre duas horas antes e quatro horas depois do término; chegada entre uma hora antes e quatro horas depois do término; ausência entre trinta minutos após o início e vinte e quatro horas após o término. A alternativa manual não ignora a janela temporal.
+
 ## 8. Integrações externas
 
 Nenhuma integração deve ser simulada. Até existir integração oficial comprovada:

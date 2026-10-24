@@ -22,7 +22,7 @@ test('agenda, permissões e presença executam as migrations em PostgreSQL isola
   try {
     const read=path=>readFile(new URL(path,import.meta.url),'utf8');
     await db.exec(await read('./fixtures/visits-schema.sql'));
-    for(const file of ['20261012000008_partnership_visits','20261012000009_partnership_visit_disputes','20261012000011_partnership_visit_otp_delivery','20261023180856_unified_property_visits']) {
+    for(const file of ['20261012000008_partnership_visits','20261012000009_partnership_visit_disputes','20261012000011_partnership_visit_otp_delivery','20261023180856_unified_property_visits','20261024140009_refine_visit_windows_and_reasons']) {
       await db.exec(await read(`../supabase/migrations/${file}.sql`));
     }
     const ids=Object.fromEntries(['broker','buyer','other','property','property2','lead'].map(key=>[key,crypto.randomUUID()]));
@@ -58,6 +58,8 @@ test('agenda, permissões e presença executam as migrations em PostgreSQL isola
       await identity(ids.broker,'aal2'); await update(visit,1,'confirm');
       assert.equal((await call(`select status from public.partnership_visits where id=$1`,[visit])).status,'confirmed');
       await assert.rejects(update(visit,1,'confirm'),/VISIT_STALE/);
+      const windows=(await call(`select public.get_my_property_visits() visits`)).visits.find(v=>v.id===visit);
+      assert.equal(windows.can_send_code,true); assert.equal(windows.can_check_in,true); assert.equal(windows.can_mark_no_show,false);
     });
     await t.test('conflito e vínculo do mesmo lead com dois imóveis',async()=>{
       await identity(ids.buyer);
@@ -68,6 +70,18 @@ test('agenda, permissões e presença executam as migrations em PostgreSQL isola
       await identity(ids.broker,'aal2');
       await update(second,1,'confirm');
       assert.equal((await call(`select count(*)::int n from public.partnership_visits`)).n,2);
+    });
+    await t.test('janelas vêm do servidor e bloqueiam chegada antecipada',async()=>{
+      await identity(ids.buyer);
+      const id=await schedule(ids.property,'8 hours');
+      await identity(ids.broker,'aal2'); await update(id,1,'confirm');
+      const before=(await call(`select public.get_my_property_visits() visits`)).visits.find(v=>v.id===id);
+      assert.equal(before.can_send_code,false); assert.equal(before.can_check_in,false); assert.equal(before.can_mark_no_show,false);
+      await assert.rejects(update(id,2,'manual_check_in','Fim'),/VISIT_STATE/);
+      await db.query(`update public.partnership_visits set scheduled_at=now()+interval '1 hour',scheduled_end=now()+interval '2 hours' where id=$1`,[id]);
+      const inside=(await call(`select public.get_my_property_visits() visits`)).visits.find(v=>v.id===id);
+      assert.equal(inside.can_send_code,true); assert.equal(inside.can_check_in,true);
+      await update(id,2,'manual_check_in','Fim'); await update(id,3,'complete');
     });
     await t.test('corretor não obtém código nem fabrica confirmação do interessado',async()=>{
       await db.exec('set role authenticated');
@@ -125,7 +139,7 @@ test('agenda, permissões e presença executam as migrations em PostgreSQL isola
       const row=await call(`select * from public.partnership_visits where id=$1`,[id]);
       assert.equal(row.status,'requested'); assert.equal(row.otp_hash,null); assert.equal(row.buyer_confirmed_at,null);
       await identity(ids.buyer); await update(id,3,'confirm');
-      await update(id,4,'cancel','Cancelamento solicitado pelo interessado');
+      await update(id,4,'cancel','Fim');
       assert.equal((await call(`select status from public.partnership_visits where id=$1`,[id])).status,'cancelled');
       assert.equal((await call(`select count(*)::int n from public.partnership_visit_events where visit_id=$1`,[id])).n,6);
     });
@@ -156,7 +170,7 @@ test('agenda, permissões e presença executam as migrations em PostgreSQL isola
       await identity(ids.broker,'aal2');
       const id=(await call(`select public.schedule_property_visit($1,now()+interval '1 hour',now()+interval '2 hours',$2,$3) id`,[ids.property,crypto.randomUUID(),lead])).id;
       assert.equal((await call(`select attendee_profile_id from public.partnership_visits where id=$1`,[id])).attendee_profile_id,null);
-      await update(id,1,'manual_check_in','Interessado sem conta; presença declarada pelo profissional');
+      await update(id,1,'manual_check_in','Fim');
       await update(id,2,'complete');
     });
     await t.test('anon não acessa dados e administração não muda atos dos participantes',async()=>{

@@ -130,13 +130,13 @@ export function PropertyVisitsPanel({ leadId }: { leadId?: string }) {
           <Button size="sm" variant="outline" onClick={()=>open({action:'reschedule',visit:item})}>Remarcar</Button>
           <Button size="sm" variant="ghost" onClick={()=>open({action:'cancel',visit:item})}>Cancelar</Button>
           {item.status==='confirmed'&&!item.buyer_presence_at&&<>
-            <Button size="sm" variant="outline" disabled={!emailReady} onClick={()=>open({action:'send',visit:item})}>Enviar código de presença</Button>
-            {!item.is_professional&&<Button size="sm" onClick={()=>open({action:'verify',visit:item})}>Confirmar minha presença</Button>}
+            <Button size="sm" variant="outline" disabled={!emailReady||!item.can_send_code} onClick={()=>open({action:'send',visit:item})}>Enviar código de presença</Button>
+            {!item.is_professional&&<Button size="sm" disabled={!item.can_send_code} onClick={()=>open({action:'verify',visit:item})}>Confirmar minha presença</Button>}
           </>}
           {item.is_professional&&<>
-            {item.buyer_presence_at&&<Button size="sm" onClick={()=>open({action:'check_in',visit:item})}>Registrar chegada</Button>}
-            <Button size="sm" variant="outline" onClick={()=>open({action:'manual_check_in',visit:item})}>Registro manual</Button>
-            {item.status==='confirmed'&&item.scheduled_end&&Date.now()>Date.parse(item.scheduled_end)&&<Button size="sm" variant="ghost" onClick={()=>open({action:'no_show',visit:item})}>Informar ausência</Button>}
+            {item.buyer_presence_at&&<Button size="sm" disabled={!item.can_check_in} onClick={()=>open({action:'check_in',visit:item})}>Registrar chegada</Button>}
+            <Button size="sm" variant="outline" disabled={!item.can_check_in} onClick={()=>open({action:'manual_check_in',visit:item})}>Registro manual</Button>
+            {item.status==='confirmed'&&<Button size="sm" variant="ghost" disabled={!item.can_mark_no_show} onClick={()=>open({action:'no_show',visit:item})}>Informar ausência</Button>}
           </>}
         </>}
         {item.is_professional&&item.status==='checked_in'&&<Button size="sm" onClick={()=>open({action:'complete',visit:item})}>Concluir visita</Button>}
@@ -144,6 +144,8 @@ export function PropertyVisitsPanel({ leadId }: { leadId?: string }) {
         {!item.is_administrator&&<Button size="sm" variant="ghost" onClick={()=>open({action:'dispute',visit:item})}>Contestar</Button>}
         <Button size="sm" variant="ghost" onClick={()=>{ const url=new URL(item.source_origin||window.location.origin); url.search=''; url.searchParams.set('visit',item.id); void navigator.clipboard.writeText(url.toString()).then(()=>addToast({type:'success',title:'Link copiado',message:'O link exige acesso à conta de um participante.'})).catch(()=>addToast({type:'error',title:'Não foi possível copiar o link'})); }}>Copiar link</Button>
       </div>
+      {item.is_professional&&['requested','confirmed'].includes(item.status)&&<p className="text-xs text-slate-500">Chegada disponível de {formatVisitDate(item.check_in_available_at)} até {formatVisitDate(item.check_in_expires_at)}. Ausência disponível de {formatVisitDate(item.no_show_available_at)} até {formatVisitDate(item.no_show_expires_at)}.</p>}
+      {!item.is_professional&&item.status==='confirmed'&&!item.buyer_presence_at&&<p className="text-xs text-slate-500">Confirmação de presença disponível de {formatVisitDate(item.code_available_at)} até {formatVisitDate(item.code_expires_at)}.</p>}
       {!emailReady&&item.status==='confirmed'&&!item.buyer_presence_at&&<p className="text-xs text-slate-500">O canal de confirmação por e-mail está indisponível. Nenhum envio foi realizado. O registro manual permanece identificado como declaração.</p>}
     </article>)}
     <Modal isOpen={!!dialog} onClose={()=>{if(!lock.current)setDialog(null);}} title={dialog?actionTitles[dialog.action]:''} size="lg" closeOnBackdropClick={!busy}>
@@ -164,7 +166,7 @@ export function PropertyVisitsPanel({ leadId }: { leadId?: string }) {
           <p className="text-xs text-slate-500">A localização e sua precisão integram o histórico restrito aos participantes. Não há rastreamento contínuo. Se o GPS falhar, desmarque a opção e informe o motivo.</p>
           <label className="flex gap-2 text-sm"><input type="checkbox" checked={accepted} onChange={e=>setAccepted(e.target.checked)}/>Compreendi e autorizo este registro.</label>
         </>}
-        {requiresReason&&<Textarea label={dialog.action==='dispute'?'Relato':'Motivo'} value={reason} onChange={e=>setReason(e.target.value)} minLength={['dispute','resolve'].includes(dialog.action)?20:10} maxLength={dialog.action==='dispute'?4000:dialog.action==='resolve'?2000:1000} required showCount/>}
+        {requiresReason&&<Textarea label={dialog.action==='dispute'?'Relato':'Motivo'} value={reason} onChange={e=>setReason(e.target.value)} minLength={['dispute','resolve'].includes(dialog.action)?20:3} maxLength={dialog.action==='dispute'?4000:dialog.action==='resolve'?2000:1000} required showCount/>}
         {dialog.action==='complete'&&<><p className="text-sm">A conclusão preserva o histórico e gera um comprovante. Não é necessário capturar uma nova localização.</p><label className="flex gap-2 text-sm"><input type="checkbox" checked={useGps} onChange={e=>setUseGps(e.target.checked)}/>Incluir minha localização pontual de saída (opcional)</label></>}
         {dialog.action==='history'&&<>
           {!history&&!formError&&<p role="status">Carregando histórico...</p>}

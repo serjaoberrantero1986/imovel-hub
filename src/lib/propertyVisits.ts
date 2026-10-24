@@ -8,6 +8,9 @@ export interface PropertyVisit {
   broker_confirmed_at: string | null; buyer_confirmed_at: string | null; buyer_presence_at: string | null;
   check_in_at: string | null; check_out_at: string | null; manual_confirmation_reason: string | null; attendance_method: string | null;
   declaration_text: string | null; receipt_snapshot: Record<string, unknown> | null; receipt_hash: string | null; dispute_count: number;
+  can_send_code: boolean; code_available_at: string; code_expires_at: string;
+  can_check_in: boolean; check_in_available_at: string; check_in_expires_at: string;
+  can_mark_no_show: boolean; no_show_available_at: string; no_show_expires_at: string;
 }
 export interface VisitHistory {
   events: { id: string; event: string; created_at: string; actor_snapshot: { name?: string }; evidence: Record<string, unknown> }[];
@@ -23,7 +26,7 @@ const errors: Record<string, string> = {
   VISIT_CONFLICT: 'O profissional ou interessado já tem uma visita confirmada nesse horário. Escolha outro horário.',
   VISIT_STALE: 'Esta visita mudou. Atualize a lista e confira os dados antes de tentar novamente.',
   VISIT_STATE: 'Esta ação não está disponível na situação ou no horário atual da visita.',
-  VISIT_REASON: 'Informe um motivo com 10 a 1.000 caracteres.',
+  VISIT_REASON: 'Informe um motivo com 3 a 1.000 caracteres.',
   VISIT_STATEMENT: 'Descreva a contestação ou resposta com 20 a 4.000 caracteres.',
   VISIT_CODE: 'Código inválido, expirado ou sem tentativas disponíveis. Solicite outro código.',
   VISIT_RATE: 'Aguarde 60 segundos entre envios. O limite é de cinco códigos por visita em uma hora.',

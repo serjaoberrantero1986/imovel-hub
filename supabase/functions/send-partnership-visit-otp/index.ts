@@ -20,7 +20,10 @@ Deno.serve(async request => {
     if(userError||claimError||!userData.user||claimData?.claims?.sub!==userData.user.id)return reply({error:'VISIT_AUTH'},401);
     const body=await request.json();
     const resendKey=Deno.env.get('RESEND_API_KEY'),from=Deno.env.get('PARTNERSHIP_OTP_FROM_EMAIL');
-    if(body.action==='status')return reply({configured:Boolean(resendKey&&from)});
+    if(body.action==='status'){
+      if(!resendKey||!from)console.warn('visit_email_configuration_incomplete',{resend:Boolean(resendKey),sender:Boolean(from)});
+      return reply({configured:Boolean(resendKey&&from)});
+    }
     if(!resendKey||!from)return reply({error:'VISIT_EMAIL_UNAVAILABLE'},503);
     visitId=body.visitId;
     if(typeof visitId!=='string'||!uuid.test(visitId))return reply({error:'VISIT_ACCESS'},400);
