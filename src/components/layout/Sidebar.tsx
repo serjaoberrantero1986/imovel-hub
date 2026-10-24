@@ -119,7 +119,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       </div>
 
       {/* Action CTA: Anunciar Imóvel */}
-      {currentUser.role !== 'admin' && <div className="p-3">
+      {currentUser.role !== 'admin' && (!isAuthenticated || currentUser.role !== 'buyer') && <div className="p-3">
         <Button
           variant="primary"
           size={isCollapsed ? 'sm' : 'md'}

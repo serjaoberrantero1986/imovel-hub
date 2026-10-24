@@ -147,7 +147,11 @@ As mutações são feitas por RPCs transacionais. O cliente não recebe o códig
 
 A coordenada exata do imóvel é copiada para um snapshot privado apenas quando a qualidade cadastral permite comparação. O navegador usa `getCurrentPosition` depois do clique e envia precisão declarada pelo dispositivo. Ausência de GPS não bloqueia a visita: o profissional pode registrar uma declaração manual identificada, e a conclusão também funciona sem nova localização.
 
-As janelas operacionais são calculadas pelo banco e retornadas com cada visita, evitando regras divergentes no navegador: código de presença entre duas horas antes e quatro horas depois do término; chegada entre uma hora antes e quatro horas depois do término; ausência entre trinta minutos após o início e vinte e quatro horas após o término. A alternativa manual não ignora a janela temporal.
+As janelas operacionais são calculadas pelo banco e retornadas com cada visita, evitando regras divergentes no navegador: código de presença entre duas horas antes e quatro horas depois do término; chegada entre uma hora antes e quatro horas depois do término; ausência entre quinze minutos após o início e vinte e quatro horas após o término. A alternativa manual não ignora a janela temporal.
+
+`property_visit_unavailability` guarda indisponibilidades privadas do profissional. Registros recorrentes combinam dias da semana e faixa horária; períodos por data podem bloquear horas específicas ou dias inteiros. A tabela não possui leitura direta por clientes: RPCs restritas administram os registros do titular e a RPC pública devolve somente slots livres.
+
+`get_property_visit_slots` gera inícios a cada 30 minutos, das 09:00 às 17:00 para visitas padrão de uma hora. A validação autoritativa permanece em `visit_private.validate_schedule`, que também aplica horário futuro, preferência de fim de semana, bloqueios privados e uma hora de intervalo em torno das visitas aceitas pelo profissional. Solicitações ainda não aceitas não reservam a agenda; a confirmação do profissional repete a validação sob bloqueio transacional.
 
 ## 8. Integrações externas
 

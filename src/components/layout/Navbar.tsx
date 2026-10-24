@@ -242,7 +242,7 @@ export const Navbar: React.FC = () => {
             )}
 
             {/* Anunciar CTA */}
-            {currentUser.role !== 'admin' && <Button
+            {currentUser.role !== 'admin' && (!isAuthenticated || currentUser.role !== 'buyer') && <Button
               id="cta-anunciar-imovel"
               variant="primary"
               size="sm"

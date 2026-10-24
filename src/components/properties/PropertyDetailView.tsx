@@ -38,7 +38,7 @@ import { PropertyLeadContactForm } from './PropertyLeadContactForm';
 import { UserAvatar } from '../ui/UserAvatar';
 import { PartnerListingReportModal } from './PartnerListingReportModal';
 import { registerPublicPropertyView } from '../../lib/supabaseCrud';
-import { schedulePropertyVisit, visitInterval, visitLocalDate, visitError } from '../../lib/propertyVisits';
+import { loadPropertyVisitSlots, schedulePropertyVisit, VisitSlot, visitLocalDate, visitError } from '../../lib/propertyVisits';
 
 const PENDING_PROPERTY_CONTACT_KEY = 'imovelhub_pending_property_contact';
 const PENDING_PROPERTY_CONTACT_MAX_AGE = 24 * 60 * 60 * 1000;
@@ -121,16 +121,23 @@ export const PropertyDetailView: React.FC = () => {
 
   // Visit Scheduling state
   const [scheduleModalOpen, setScheduleModalOpen] = useState(false);
-  const [visitDate, setVisitDate] = useState(() => {
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    return visitLocalDate(tomorrow);
-  });
-  const [visitTime, setVisitTime] = useState('09:00');
+  const [visitDate, setVisitDate] = useState(() => visitLocalDate());
+  const [visitTime, setVisitTime] = useState('');
+  const [visitSlots, setVisitSlots] = useState<VisitSlot[]>([]);
+  const [visitSlotsLoading, setVisitSlotsLoading] = useState(false);
   const [visitBusy, setVisitBusy] = useState(false);
   const [visitErrorMessage, setVisitError] = useState('');
   const visitSaving = useRef(false);
   const visitRequestKey = useRef(crypto.randomUUID());
+
+  useEffect(() => {
+    if (!scheduleModalOpen || !visitDate) return;
+    let active=true; setVisitSlotsLoading(true); setVisitError('');
+    void loadPropertyVisitSlots(property.id,visitDate,property.partnership?.id).then(slots=>{
+      if(!active)return; setVisitSlots(slots); setVisitTime(current=>slots.some(slot=>slot.label===current)?current:(slots[0]?.label||''));
+    }).catch(error=>{if(active){setVisitSlots([]);setVisitTime('');setVisitError(visitError(error));}}).finally(()=>{if(active)setVisitSlotsLoading(false);});
+    return()=>{active=false;};
+  },[scheduleModalOpen,visitDate,property.id,property.partnership?.id]);
 
   useEffect(() => {
     if (!property || property.status !== 'active' || currentUser?.id === property.userId) return;
@@ -273,8 +280,9 @@ export const PropertyDetailView: React.FC = () => {
     setVisitBusy(true);
     setVisitError('');
     try {
-      const interval = visitInterval(visitDate, visitTime, 60);
-      await schedulePropertyVisit(property.id, interval.start, interval.end, visitRequestKey.current, undefined, property.partnership?.id);
+      const slot=visitSlots.find(item=>item.label===visitTime);
+      if(!slot) throw new Error('VISIT_UNAVAILABLE');
+      await schedulePropertyVisit(property.id, slot.start, slot.end, visitRequestKey.current, undefined, property.partnership?.id);
       setScheduleModalOpen(false);
       visitRequestKey.current = crypto.randomUUID();
       window.dispatchEvent(new Event('property-visits-changed'));
@@ -746,6 +754,7 @@ export const PropertyDetailView: React.FC = () => {
                 <label className="text-xs font-bold text-slate-500 mb-1 block">Data da Visita</label>
                 <input
                   type="date"
+                  min={visitLocalDate()}
                   value={visitDate}
                   onChange={(e) => setVisitDate(e.target.value)}
                   className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-900 dark:text-white"
@@ -756,13 +765,10 @@ export const PropertyDetailView: React.FC = () => {
                 <select
                   value={visitTime}
                   onChange={(e) => setVisitTime(e.target.value)}
+                  disabled={visitSlotsLoading||visitSlots.length===0}
                   className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-900 dark:text-white"
                 >
-                  <option value="09:00">09:00</option>
-                  <option value="10:30">10:30</option>
-                  <option value="14:00">14:00</option>
-                  <option value="15:30">15:30</option>
-                  <option value="17:00">17:00</option>
+                  {visitSlotsLoading?<option value="">Consultando...</option>:visitSlots.length===0?<option value="">Nenhum horário disponível</option>:visitSlots.map(slot=><option key={slot.start} value={slot.label}>{slot.label}</option>)}
                 </select>
               </div>
             </div>
@@ -776,7 +782,7 @@ export const PropertyDetailView: React.FC = () => {
                 Cancelar
               </button>
               <button
-                disabled={visitBusy}
+                disabled={visitBusy||visitSlotsLoading||!visitTime}
                 onClick={handleScheduleVisitSubmit}
                 className="px-5 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold shadow-md"
               >

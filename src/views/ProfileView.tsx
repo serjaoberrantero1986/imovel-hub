@@ -53,6 +53,7 @@ import { PortalAddressFields, PortalAddressCheck } from '../components/profile/P
 import { getMyPortalAddress, PortalAddress } from '../lib/portalAddress';
 import { useTenant } from '../context/TenantContext';
 import { PartnershipNetworkPanel } from '../components/profile/PartnershipNetworkPanel';
+import { VisitAvailabilitySettings } from '../components/profile/VisitAvailabilitySettings';
 
 export const ProfileView: React.FC = () => {
   const { refreshTenant } = useTenant();
@@ -821,6 +822,7 @@ export const ProfileView: React.FC = () => {
               </label>
             </div>
 
+            <VisitAvailabilitySettings addToast={addToast} />
             <PartnershipNetworkPanel />
           </div>
         )}

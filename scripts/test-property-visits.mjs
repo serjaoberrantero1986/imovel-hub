@@ -189,3 +189,44 @@ test('agenda, permissões e presença executam as migrations em PostgreSQL isola
     });
   } finally { await db.close(); }
 });
+
+test('agenda pública calcula meia hora, bloqueios privados e intervalo operacional', async t => {
+  const root=process.env.VISITS_PGLITE_ROOT;
+  if(!root) return t.skip('Defina VISITS_PGLITE_ROOT após instalar @electric-sql/pglite@0.5.11 no diretório temporário.');
+  const { PGlite }=await import(pathToFileURL(`${root}/dist/index.js`).href);
+  const { pgcrypto }=await import(pathToFileURL(`${root}/dist/contrib/pgcrypto.js`).href);
+  const db=new PGlite({extensions:{pgcrypto}});
+  try {
+    const read=path=>readFile(new URL(path,import.meta.url),'utf8');
+    await db.exec(await read('./fixtures/visits-schema.sql'));
+    for(const file of ['20261012000008_partnership_visits','20261012000009_partnership_visit_disputes','20261012000011_partnership_visit_otp_delivery','20261023180856_unified_property_visits','20261024140009_refine_visit_windows_and_reasons','20261024162000_visit_availability_calendar']) await db.exec(await read(`../supabase/migrations/${file}.sql`));
+    const ids=Object.fromEntries(['broker','buyer','property'].map(key=>[key,crypto.randomUUID()]));
+    await db.query(`insert into public.profiles(id,name,email,phone,role,available_weekend_visits) values ($1,'Profissional','broker@example.test','11999999999','broker',true),($2,'Comprador','buyer@example.test','11988888888','buyer',false)`,[ids.broker,ids.buyer]);
+    await db.query(`insert into auth.users values ($1,'buyer@example.test',now())`,[ids.buyer]);
+    await db.query(`insert into public.properties(id,user_id,title,status) values ($1,$2,'Imóvel agenda','active')`,[ids.property,ids.broker]);
+    const identity=async(id,aal='aal1')=>db.query(`select set_config('request.jwt.claims',$1,false)`,[JSON.stringify({sub:id,aal})]);
+    const call=async(sql,params=[])=>(await db.query(sql,params)).rows[0];
+    const cursor=new Date(); cursor.setUTCDate(cursor.getUTCDate()+((8-cursor.getUTCDay())%7||7));
+    const date=cursor.toISOString().slice(0,10); const next=new Date(cursor); next.setUTCDate(next.getUTCDate()+1); const nextDate=next.toISOString().slice(0,10);
+    const iso=time=>`${date}T${time}:00-03:00`;
+    await identity(ids.buyer);
+    let slots=(await call(`select public.get_property_visit_slots($1,$2,null) slots`,[ids.property,date])).slots;
+    assert.equal(slots[0].label,'09:00'); assert.equal(slots[1].label,'09:30'); assert.equal(slots.at(-1).label,'17:00');
+    const visit=(await call(`select public.schedule_property_visit($1,$2,$3,$4) id`,[ids.property,iso('10:00'),iso('11:00'),crypto.randomUUID()])).id;
+    slots=(await call(`select public.get_property_visit_slots($1,$2,null) slots`,[ids.property,date])).slots;
+    assert.ok(slots.some(slot=>slot.label==='10:00'),'pedido ainda não aceito não bloqueia a agenda');
+    await identity(ids.broker,'aal2'); await call(`select public.update_property_visit($1,1,'confirm')`,[visit]);
+    slots=(await call(`select public.get_property_visit_slots($1,$2,null) slots`,[ids.property,date])).slots;
+    assert.ok(!slots.some(slot=>['09:00','09:30','10:00','10:30','11:00','11:30'].includes(slot.label))); assert.ok(slots.some(slot=>slot.label==='12:00'));
+    const recurring=(await call(`select public.save_my_visit_unavailability(null,'recurring',array[1]::smallint[],null,null,'12:00','14:00',false,'Almoço') id`)).id;
+    slots=(await call(`select public.get_property_visit_slots($1,$2,null) slots`,[ids.property,date])).slots;
+    assert.ok(!slots.some(slot=>['11:30','12:00','12:30','13:00','13:30'].includes(slot.label))); assert.ok(slots.some(slot=>slot.label==='14:00'));
+    await call(`select public.save_my_visit_unavailability(null,'period',null,$1,$1,null,null,true,'Férias')`,[nextDate]);
+    assert.deepEqual((await call(`select public.get_property_visit_slots($1,$2,null) slots`,[ids.property,nextDate])).slots,[]);
+    assert.equal((await call(`select jsonb_array_length(public.get_my_visit_unavailability()) n`)).n,2);
+    await call(`select public.delete_my_visit_unavailability($1)`,[recurring]);
+    assert.equal((await call(`select jsonb_array_length(public.get_my_visit_unavailability()) n`)).n,1);
+    await identity(ids.buyer);
+    await assert.rejects(call(`select public.schedule_property_visit($1,$2,$3,$4)`,[ids.property,`${date}T10:15:00-03:00`,`${date}T11:15:00-03:00`,crypto.randomUUID()]),/VISIT_TIME/);
+  } finally { await db.close(); }
+});
