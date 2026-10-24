@@ -6,6 +6,13 @@ on:
   pull_request:
     paths:
       - 'src/components/properties/**'
+      - 'src/components/crm/**Visit*'
+      - 'src/lib/propertyVisits.ts'
+      - 'src/lib/visitSchedule.mjs'
+      - 'supabase/functions/send-partnership-visit-otp/**'
+      - 'supabase/migrations/*visit*'
+      - 'scripts/test-property-visits.mjs'
+      - 'scripts/fixtures/visits-schema.sql'
       - 'src/lib/valuation/**'
       - 'lib/geckoContracts.mjs'
       - 'api/valuation-search.js'
@@ -34,5 +41,9 @@ jobs:
         run: node --test scripts/test-valuation-engine.mjs scripts/test-valuation-workspace.mjs scripts/test-valuation-wizard.mjs scripts/test-valuation-guided.mjs scripts/test-valuation-subject-safety.mjs scripts/test-valuation-review-feedback.mjs
       - name: TypeScript
         run: bun run lint
+      - name: Regras de agendamento e presença em PostgreSQL isolado
+        run: |
+          npm install --prefix "$RUNNER_TEMP/visit-db" --no-save @electric-sql/pglite@0.5.11
+          VISITS_PGLITE_ROOT="$RUNNER_TEMP/visit-db/node_modules/@electric-sql/pglite" node --test scripts/test-property-visits.mjs
       - name: Build
         run: bun run build

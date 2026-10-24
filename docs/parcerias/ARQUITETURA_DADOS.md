@@ -139,6 +139,14 @@ Arquivos são acessados por URL assinada curta, com verificação de participaç
 - assinatura desenhada pode ser anexada apenas como manifestação visual, nunca analisada biometricamente; a primeira versão deve preferir OTP e declaração versionada;
 - comprovantes e localização seguem retenção aprovada e acesso restrito.
 
+### Implementação unificada em 24/10/2026
+
+`partnership_visits` passou a representar visitas de imóveis próprios e em parceria sem apagar os registros anteriores. `responsible_id`, `source_origin`, o snapshot do imóvel/portal e a chave idempotente definem o contexto da solicitação; horários, confirmações, presença, chegada e conclusão permanecem campos distintos.
+
+As mutações são feitas por RPCs transacionais. O cliente não recebe o código de presença: a Edge Function autenticada gera o código, envia ao e-mail verificado e persiste somente o hash por uma RPC exclusiva de `service_role`. O interessado confirma na própria sessão. Eventos, comprovante, contestações e respostas são anexados; remarcação incrementa a revisão e conserva os valores anteriores no histórico.
+
+A coordenada exata do imóvel é copiada para um snapshot privado apenas quando a qualidade cadastral permite comparação. O navegador usa `getCurrentPosition` depois do clique e envia precisão declarada pelo dispositivo. Ausência de GPS não bloqueia a visita: o profissional pode registrar uma declaração manual identificada, e a conclusão também funciona sem nova localização.
+
 ## 8. Integrações externas
 
 Nenhuma integração deve ser simulada. Até existir integração oficial comprovada:

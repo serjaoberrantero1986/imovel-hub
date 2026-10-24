@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   ArrowLeft, 
   Heart, 
@@ -38,6 +38,7 @@ import { PropertyLeadContactForm } from './PropertyLeadContactForm';
 import { UserAvatar } from '../ui/UserAvatar';
 import { PartnerListingReportModal } from './PartnerListingReportModal';
 import { registerPublicPropertyView } from '../../lib/supabaseCrud';
+import { schedulePropertyVisit, visitInterval, visitLocalDate, visitError } from '../../lib/propertyVisits';
 
 const PENDING_PROPERTY_CONTACT_KEY = 'imovelhub_pending_property_contact';
 const PENDING_PROPERTY_CONTACT_MAX_AGE = 24 * 60 * 60 * 1000;
@@ -123,9 +124,13 @@ export const PropertyDetailView: React.FC = () => {
   const [visitDate, setVisitDate] = useState(() => {
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
-    return tomorrow.toISOString().slice(0, 10);
+    return visitLocalDate(tomorrow);
   });
-  const [visitTime, setVisitTime] = useState('10:00');
+  const [visitTime, setVisitTime] = useState('09:00');
+  const [visitBusy, setVisitBusy] = useState(false);
+  const [visitErrorMessage, setVisitError] = useState('');
+  const visitSaving = useRef(false);
+  const visitRequestKey = useRef(crypto.randomUUID());
 
   useEffect(() => {
     if (!property || property.status !== 'active' || currentUser?.id === property.userId) return;
@@ -259,52 +264,28 @@ export const PropertyDetailView: React.FC = () => {
   };
 
   const handleScheduleVisitSubmit = async () => {
+    if (visitSaving.current) return;
     if (!isAuthenticated || currentUser?.id === 'guest_buyer') {
-      setScheduleModalOpen(false);
       openAuthModal('login');
       return;
     }
-
-    const cleanPhone = leadPhone.replace(/\D/g, '');
-    const hasValidPhone = cleanPhone.length >= 10;
-    const isEmailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(leadEmail.trim());
-
-    if (!leadName.trim()) {
-      addToast({ 
-        type: 'warning', 
-        title: 'Nome Obrigatório', 
-        message: 'Por favor, informe seu nome completo para agendar a visita.' 
-      });
-      return;
-    }
-
-    if (!hasValidPhone && !isEmailValid) {
-      addToast({ 
-        type: 'warning', 
-        title: 'Canal de Contato Obrigatório', 
-        message: 'Para agendar a visita, informe pelo menos o seu WhatsApp (com DDD) ou seu E-mail, ou faça login no portal.' 
-      });
-      return;
-    }
-
-    const res = await addLead({
-      propertyId: property.id,
-      propertyTitle: property.title,
-      propertyCode: property.code,
-      propertyPrice: property.price,
-      propertyImage: property.media[0]?.thumbnailUrl || property.media[0]?.url,
-      advertiserId: property.userId,
-      partnershipId: property.partnership?.id,
-      buyerName: sanitizeHtml(leadName),
-      buyerEmail: isEmailValid ? sanitizeHtml(leadEmail) : (currentUser?.email || 'contato.portal@cliente.com.br'),
-      buyerPhone: hasValidPhone ? sanitizeHtml(leadPhone) : (currentUser?.phone || leadPhone || 'Não informado'),
-      message: `Solicitação de visita presencial para o dia ${visitDate} às ${visitTime}.`,
-      origin: 'schedule_visit',
-      status: 'visit_scheduled',
-      scheduledVisitDate: `${visitDate}T${visitTime}:00`
-    });
-    if (res?.success) {
+    visitSaving.current = true;
+    setVisitBusy(true);
+    setVisitError('');
+    try {
+      const interval = visitInterval(visitDate, visitTime, 60);
+      await schedulePropertyVisit(property.id, interval.start, interval.end, visitRequestKey.current, undefined, property.partnership?.id);
       setScheduleModalOpen(false);
+      visitRequestKey.current = crypto.randomUUID();
+      window.dispatchEvent(new Event('property-visits-changed'));
+      addToast({ type: 'success', title: 'Visita solicitada', message: 'Aguarde o aceite do profissional. Acompanhe em Minhas visitas, no menu da sua conta.' });
+    } catch (error) {
+      const message = error instanceof Error && /horário|data|duração/.test(error.message) ? error.message : visitError(error);
+      setVisitError(message);
+      addToast({ type: 'error', title: 'Solicitação não concluída', message });
+    } finally {
+      visitSaving.current = false;
+      setVisitBusy(false);
     }
   };
 
@@ -639,16 +620,16 @@ export const PropertyDetailView: React.FC = () => {
               {/* Agendar Visita CTA */}
               <button
                 onClick={() => {
+                  setScheduleModalOpen(true);
                   if (!isAuthenticated || currentUser?.id === 'guest_buyer') {
                     openAuthModal('login');
                     return;
                   }
-                  setScheduleModalOpen(true);
                 }}
                 className="w-full py-3 px-4 rounded-2xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-100 font-bold text-xs flex items-center justify-center gap-2 transition-all"
               >
                 <Calendar className="w-4 h-4 text-rose-500" />
-                <span>Agendar Visita Presencial</span>
+                <span>Solicitar Visita Presencial</span>
               </button>
 
               {/* Contact Lead Form */}
@@ -749,7 +730,7 @@ export const PropertyDetailView: React.FC = () => {
             <div className="flex items-center justify-between">
               <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
                 <Calendar className="w-5 h-5 text-rose-500" />
-                <span>Agendar Visita com o Corretor</span>
+                <span>Solicitar visita ao imóvel</span>
               </h3>
               <button onClick={() => setScheduleModalOpen(false)} className="p-1 text-slate-400 hover:text-slate-600">
                 <X className="w-5 h-5" />
@@ -757,7 +738,7 @@ export const PropertyDetailView: React.FC = () => {
             </div>
 
             <p className="text-xs text-slate-500 dark:text-slate-400">
-              Escolha a data e horário de sua preferência para visitar {property.title}. O corretor confirmará pelo WhatsApp.
+              Escolha a data e o horário de sua preferência para visitar {property.title}. Horário de Brasília, duração inicial de uma hora. O profissional confirmará pelo portal. Os horários são sugestões, sujeitos à disponibilidade.
             </p>
 
             <div className="grid grid-cols-2 gap-3">
@@ -786,6 +767,7 @@ export const PropertyDetailView: React.FC = () => {
               </div>
             </div>
 
+            {visitErrorMessage && <p role="alert" className="text-sm text-rose-600">{visitErrorMessage}</p>}
             <div className="flex justify-end gap-2 pt-2">
               <button
                 onClick={() => setScheduleModalOpen(false)}
@@ -794,10 +776,11 @@ export const PropertyDetailView: React.FC = () => {
                 Cancelar
               </button>
               <button
+                disabled={visitBusy}
                 onClick={handleScheduleVisitSubmit}
                 className="px-5 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold shadow-md"
               >
-                Confirmar Agendamento
+                {visitBusy ? 'Enviando solicitação...' : 'Solicitar visita'}
               </button>
             </div>
           </div>
@@ -828,16 +811,16 @@ export const PropertyDetailView: React.FC = () => {
 
           <button
             onClick={() => {
+              setScheduleModalOpen(true);
               if (!isAuthenticated || currentUser?.id === 'guest_buyer') {
                 openAuthModal('login');
                 return;
               }
-              setScheduleModalOpen(true);
             }}
             className="min-h-[44px] px-4 py-2 rounded-2xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold flex items-center gap-1.5 shadow-md shadow-rose-600/30 active:scale-95 transition-all"
           >
             <Calendar className="w-4 h-4" />
-            <span>Agendar Visita</span>
+            <span>Solicitar Visita</span>
           </button>
         </div>
       </div>

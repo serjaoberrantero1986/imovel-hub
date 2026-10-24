@@ -187,6 +187,8 @@ Proibições iniciais:
 
 - agenda, confirmação, geolocalização pontual, comprovante e contestação.
 
+Estado em 24/10/2026: a implementação técnica está concluída e a migration unificada foi aplicada. A agenda atende imóveis próprios e em parceria, separa aceite de horário e presença, permite localização pontual ou declaração manual, gera comprovante imutável e preserva contestações. Faltam a publicação desta versão da interface e o piloto autenticado em produção para considerar a fase validada.
+
 ### Fase 7 — propostas e fechamento
 
 - propostas, tarefas, documentos, resultado e prestação de contas documental, sem movimentação financeira.
@@ -198,6 +200,8 @@ Proibições iniciais:
 ### Fase 9 — landing page SaaS
 
 - divulgar apenas capacidades que estiverem implementadas e validadas.
+
+Estado em 24/10/2026: permanece em espera por decisão do produto. O inventário promocional só será retomado depois do piloto do módulo de visitas e não faz parte desta entrega.
 
 ## 11. Critério de conclusão de cada fase
 

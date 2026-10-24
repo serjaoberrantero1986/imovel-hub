@@ -30,6 +30,7 @@ import { KANBAN_STAGES } from './CrmKanbanBoard';
 import { CrmLeadMatchingTab } from './CrmLeadMatchingTab';
 import { CrmLeadHistoryTab } from './CrmLeadHistoryTab';
 import { CrmLeadTasksTab } from './CrmLeadTasksTab';
+import { PropertyVisitsPanel } from './PropertyVisitsPanel';
 import { useApp } from '../../context/AppContext';
 
 interface CrmLeadDetailModalProps {
@@ -437,13 +438,14 @@ export const CrmLeadDetailModal: React.FC<CrmLeadDetailModalProps> = ({
           )}
 
           {/* TAB 4: TAREFAS & AGENDA */}
-          {activeTab === 'tasks' && (
+          {activeTab === 'tasks' && (<div className="space-y-8"><PropertyVisitsPanel leadId={lead.id}/>
             <CrmLeadTasksTab
               lead={lead}
               onAddTask={onAddTask}
               onToggleTask={onToggleTask}
               onDeleteTask={onDeleteTask}
             />
+            </div>
           )}
 
           {/* TAB 5: NOTAS & CONFIDENCIAL */}

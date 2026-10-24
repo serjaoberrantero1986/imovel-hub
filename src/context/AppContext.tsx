@@ -94,7 +94,7 @@ const AppCompositeProvider: React.FC<{
   };
 
   // Navigation
-  const [currentView, setCurrentView] = useState<AppView>('portal');
+  const [currentView, setCurrentView] = useState<AppView>(() => new URLSearchParams(window.location.search).has('visit') ? 'visits' : 'portal');
   const [selectedPropertyId, setSelectedPropertyId] = useState<string | null>('prop-1');
   const [activeLegalTab, setActiveLegalTab] = useState<LegalTab>('terms');
 

@@ -7,6 +7,7 @@ export type AppView =
   | 'dashboard' 
   | 'my_properties' 
   | 'crm_leads' 
+  | 'visits'
   | 'messages' 
   | 'favorites' 
   | 'saved_searches'

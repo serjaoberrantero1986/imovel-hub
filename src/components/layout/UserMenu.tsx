@@ -15,7 +15,8 @@ import {
   ChevronDown,
   KeyRound,
   Moon,
-  Sun
+  Sun,
+  CalendarCheck
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { Badge } from '../ui/Badge';
@@ -195,8 +196,10 @@ export const UserMenu: React.FC = () => {
               )}
             </button>
 
+            {currentUser.role !== 'admin' && <button onClick={() => handleNav('visits')} className="w-full text-left px-4 py-2 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 flex items-center gap-2.5"><CalendarCheck className="w-4 h-4 text-rose-500"/><span>Minhas visitas</span></button>}
             {currentUser.role === 'admin' && (
               <>
+                <button onClick={() => handleNav('visits')} className="w-full text-left px-4 py-2 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 flex items-center gap-2.5"><CalendarCheck className="w-4 h-4 text-rose-500"/><span>Contestações de visitas</span></button>
                 <button onClick={() => handleNav('admin_creci')} className="w-full text-left px-4 py-2 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 flex items-center gap-2.5"><ShieldCheck className="w-4 h-4 text-indigo-500" /><span>Análises de CRECI</span></button>
                 <button onClick={() => handleNav('admin_portals')} className="w-full text-left px-4 py-2 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 flex items-center gap-2.5"><Globe2 className="w-4 h-4 text-rose-500" /><span>Portais Profissionais</span></button>
               </>

@@ -17,6 +17,7 @@ import { PropertyDetailView } from './components/properties/PropertyDetailView';
 import { BrokerDashboardView } from './views/BrokerDashboardView';
 import { MyPropertiesView } from './views/MyPropertiesView';
 import { CrmLeadsView } from './views/CrmLeadsView';
+import { PropertyVisitsPanel } from './components/crm/PropertyVisitsPanel';
 import { MessagesChatView } from './views/MessagesChatView';
 import { ComparatorView } from './views/ComparatorView';
 import { FavoritesView } from './views/FavoritesView';
@@ -31,9 +32,9 @@ const MainContent: React.FC = () => {
   const { currentView, activeLegalTab, currentUser, isAuthenticated, setCurrentView } = useApp();
   const { portal, loading, error, canonicalRootUrl } = useTenant();
   const isAdmin = isAuthenticated && currentUser.role === 'admin';
-  const renderedView = isAdmin && !['admin_portals','admin_creci','profile'].includes(currentView) ? 'admin_portals' : currentView;
+  const renderedView = isAdmin && !['admin_portals','admin_creci','profile','visits'].includes(currentView) ? 'admin_portals' : currentView;
   React.useEffect(()=>{
-    if(isAdmin && !['admin_portals','admin_creci','profile'].includes(currentView)) setCurrentView('admin_portals');
+    if(isAdmin && !['admin_portals','admin_creci','profile','visits'].includes(currentView)) setCurrentView('admin_portals');
   },[isAdmin,currentView,setCurrentView]);
 
   if (loading) {
@@ -58,6 +59,7 @@ const MainContent: React.FC = () => {
         {renderedView === 'dashboard' && <BrokerDashboardView />}
         {renderedView === 'my_properties' && <MyPropertiesView />}
         {renderedView === 'crm_leads' && <CrmLeadsView />}
+        {renderedView === 'visits' && <div className="max-w-6xl mx-auto px-4 py-8"><PropertyVisitsPanel /></div>}
         {renderedView === 'messages' && <MessagesChatView />}
         {renderedView === 'comparator' && <ComparatorView />}
         {renderedView === 'favorites' && <FavoritesView />}

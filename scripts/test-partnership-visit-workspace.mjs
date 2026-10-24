@@ -1,4 +1,9 @@
-import fs from 'node:fs';
-const m=fs.readFileSync('supabase/migrations/20261012000013_partnership_visit_workspace.sql','utf8');const ui=fs.readFileSync('src/components/crm/PartnershipVisitPanel.tsx','utf8');
-const c=[['lista protegida por participante',/get_my_partnership_visits[\s\S]*pp\.captor_id=v_uid or pp\.partner_id=v_uid/.test(m)],['sem PII de lead',!/email|phone|message|contact_key/i.test(m)],['OTP no CRM',/issuePartnershipVisitOtp/.test(ui)],['check-in pontual',/checkInPartnershipVisit/.test(ui)],['check-out disponível',/checkOutPartnershipVisit/.test(ui)],['contestação acessível',/openPartnershipVisitDispute/.test(ui)],['sem navegação para dados externos',!/window\.location|href=/.test(ui)]];
-for(const [n,ok] of c){if(!ok){console.error(`✗ ${n}`);process.exitCode=1}else console.log(`✓ ${n}`)}if(!process.exitCode)console.log(`\n${c.length} verificações do workspace de visitas passaram.`);
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+const ui=readFileSync('src/components/crm/PropertyVisitsPanel.tsx','utf8');
+assert.ok(!ui.includes('window.prompt'));
+assert.ok(ui.includes('verifyVisitPresence'));
+assert.ok(ui.includes('captureVisitLocation'));
+assert.ok(ui.includes('disputePropertyVisit'));
+assert.ok(ui.includes('resolveVisitDispute'));
+console.log('Workspace: verificações estruturais passaram. Comportamento coberto por test-property-visits.mjs.');

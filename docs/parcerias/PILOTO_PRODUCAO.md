@@ -20,7 +20,7 @@ Não usar contas falsas, dados fictícios ou atalhos de demonstração.
 6. A conta B abre o subdomínio e confirma que o imóvel aparece com o selo “Parceria”, captador e CRECI-SP.
 7. Um usuário autenticado envia um contato pelo portal B. A conta B recebe o lead completo; a conta A recebe somente o resumo protegido.
 8. A conta A solicita campos específicos com finalidade. A conta B aprova ou rejeita com justificativa e MFA.
-9. As partes criam uma visita. O OTP é emitido, o check-in solicita localização apenas no momento do ato e o check-out registra evento separado.
+9. As partes criam uma visita. Profissional e interessado confirmam o horário separadamente. O código é enviado ao e-mail verificado e confirmado pelo interessado em sua própria conta. O check-in solicita localização apenas no momento do ato, ou registra a alternativa manual justificada, e o check-out registra evento separado.
 10. Uma das partes abre uma contestação. A outra responde. Nenhum evento ou evidência original pode ser alterado.
 11. A conta administradora consulta o painel e confirma subdomínios, imóveis, leads e visitas agregados sem PII.
 12. O imóvel é pausado ou a parceria é encerrada. O imóvel desaparece do portal parceiro, mas os leads e a auditoria permanecem.
@@ -37,3 +37,7 @@ Não usar contas falsas, dados fictícios ou atalhos de demonstração.
 ## Critério de aprovação
 
 O piloto só é aprovado se todos os passos forem reproduzidos com as duas contas reais, sem acesso indevido a PII, sem duplicação do imóvel canônico e sem alteração de eventos imutáveis. Falha em qualquer etapa interrompe a abertura da rede.
+
+## Situação em 24/10/2026
+
+A migration unificada e a Edge Function de e-mail estão ativas em produção, e os testes isolados cobrem as transições e recusas relevantes. O banco permanece com zero visitas após a implantação. Este roteiro ainda não foi executado com contas reais e, por isso, o módulo não deve ser descrito como validado de ponta a ponta.

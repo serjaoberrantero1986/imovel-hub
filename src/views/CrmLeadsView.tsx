@@ -329,8 +329,8 @@ export const CrmLeadsView: React.FC = () => {
           <CrmDashboardMetrics
             leads={displayedLeads}
             properties={properties}
-            onSelectStageFilter={() => {
-              setActiveTab('table');
+            onSelectStageFilter={(stage) => {
+              setActiveTab(stage === 'visit_scheduled' ? 'tasks' : 'table');
             }}
             onOpenLead={handleOpenLead}
           />
@@ -348,6 +348,7 @@ export const CrmLeadsView: React.FC = () => {
         )}
 
         {activeTab === 'tasks' && (
+          <div className="space-y-8"><PartnershipVisitPanel />
           <CrmTasksCalendar
             leads={displayedLeads}
             onToggleTask={toggleLeadTask}
@@ -355,11 +356,12 @@ export const CrmLeadsView: React.FC = () => {
             onAddTask={addLeadTask}
             onOpenLead={handleOpenLead}
           />
+          </div>
         )}
 
         {activeTab === 'opportunities' && <PartnershipOpportunitiesPanel />}
 
-        {activeTab === 'partnership' && <div className="space-y-8"><PartnershipLeadPanel /><PartnershipVisitPanel /></div>}
+        {activeTab === 'partnership' && <PartnershipLeadPanel />}
 
         {/* Lead Dossier 360 Modal */}
         <CrmLeadDetailModal

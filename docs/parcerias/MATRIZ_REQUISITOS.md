@@ -39,24 +39,34 @@ Estados: `pendente`, `em_execucao`, `implementado_local`, `migration_aplicada`, 
 | LED-003 | Liberação progressiva de dados | 5 | estados, RLS e log de acesso | implementado_local |
 | LED-004 | Tratamento de duplicidade | 5 | eventos e contestação, sem adjudicação automática | em_execucao |
 | LED-005 | Exportação em massa bloqueada | 5 | ausência de privilégio/RPC e teste | implementado_local |
-| VIS-001 | Agendamento e confirmação do interessado | 6 | fluxo com OTP e estados | pendente |
-| VIS-002 | Check-in geolocalizado pontual | 6 | permissão explícita, coordenada, precisão e hora do servidor | pendente |
-| VIS-003 | Check-out opcional e pontual | 6 | evento separado | pendente |
-| VIS-004 | Sem rastreamento contínuo | 6 | revisão de código e teste de permissão | pendente |
-| VIS-005 | Alternativa sem geolocalização | 6 | confirmação manual justificada | pendente |
-| VIS-006 | Comprovante com hash e versão da declaração | 6 | documento reproduzível e auditável | pendente |
-| VIS-007 | Contestação preserva registro original | 6 | tabela/eventos imutáveis | pendente |
-| VIS-008 | Nenhuma biometria na primeira versão | 6 | revisão de dependências, schema e UI | pendente |
+| VIS-001 | Agendamento e confirmação do interessado | 6 | fluxo com código por e-mail e estados | migration_aplicada |
+| VIS-002 | Check-in geolocalizado pontual | 6 | permissão explícita, coordenada, precisão e hora do servidor | migration_aplicada |
+| VIS-003 | Check-out opcional e pontual | 6 | evento separado | migration_aplicada |
+| VIS-004 | Sem rastreamento contínuo | 6 | revisão de código e teste de permissão | migration_aplicada |
+| VIS-005 | Alternativa sem geolocalização | 6 | confirmação manual justificada | migration_aplicada |
+| VIS-006 | Comprovante com hash e versão da declaração | 6 | documento reproduzível e auditável | migration_aplicada |
+| VIS-007 | Contestação preserva registro original | 6 | tabela/eventos imutáveis | migration_aplicada |
+| VIS-008 | Nenhuma biometria na primeira versão | 6 | revisão de dependências, schema e UI | migration_aplicada |
 | NEG-001 | Proposta ligada a lead, parceria e contrato vigente | 7 | schema, RPC e testes | pendente |
 | NEG-002 | Registro do resultado sem custodiar valores | 7 | interface documental e ausência de pagamento | pendente |
 | ADM-001 | Painel de supervisão | 8 | interface administrativa no padrão aprovado | implementado_local |
-| ADM-002 | Decisão com justificativa e notificação persistente | 8 | transação, auditoria e teste | pendente |
+| ADM-002 | Decisão com justificativa e notificação persistente | 8 | transação, auditoria e teste | migration_aplicada |
 | ADM-003 | Piloto controlado | 8 | participantes autorizados e relatório | pendente |
 | MKT-001 | Landing divulga somente recursos validados | 9 | inventário de afirmações e teste de links | pendente |
 
 ## Regra de atualização
 
 Nenhuma entrega pode alterar um estado para `implementado_local` sem listar os arquivos e testes que comprovam o requisito. `validado_producao` exige evidência observável no ambiente real; build local ou migration escrita não bastam.
+
+## Evidências da Fase 6 — atualização de 24/10/2026
+
+- `20261023180856_unified_property_visits.sql` foi aplicada ao projeto `web-imovel` sem remover visitas históricas. As tabelas permanecem sem leitura direta e o acesso ocorre por RPCs com participantes, função profissional, AAL2 e revisão concorrente.
+- `PropertyVisitsPanel.tsx`, `PropertyDetailView.tsx` e `propertyVisits.ts` formam uma agenda única para imóveis próprios e em parceria, com solicitação, aceite separado, remarcação, cancelamento, chegada, conclusão, ausência, histórico e contestação.
+- `send-partnership-visit-otp` está ativa com JWT obrigatório. O código de seis dígitos é gerado com fonte criptográfica, armazenado somente como hash, expira em dez minutos, tem tentativas e reenvios limitados e é verificado apenas na conta do interessado.
+- A geolocalização é solicitada somente em ação explícita. A alternativa manual exige declaração e permanece identificada no histórico; não há `watchPosition`, biometria nem rastreamento contínuo.
+- O comprovante preserva o snapshot da conclusão e seu hash. Contestação, resposta e decisão administrativa são anexadas sem alterar o estado operacional nem o comprovante original.
+- `scripts/test-property-visits.mjs` cobre 15 cenários isolados em PostgreSQL, incluindo autorização negativa, concorrência, conflitos de agenda, limite e uso único do código, GPS inválido, alternativa manual, imutabilidade e administração.
+- O estado permanece `migration_aplicada` até a publicação da interface e um piloto real autenticado com profissional e interessado. Nenhuma visita fictícia foi criada em produção.
 
 ## Ampliação aprovada: oportunidades e contratos de carteira
 

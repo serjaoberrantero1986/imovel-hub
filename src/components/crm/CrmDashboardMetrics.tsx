@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { loadPropertyVisits } from '../../lib/propertyVisits';
 import { 
   Users, 
   TrendingUp, 
@@ -40,7 +41,15 @@ export const CrmDashboardMetrics: React.FC<CrmDashboardMetricsProps> = ({
   const totalLeads = leads.length;
   const newLeads = leads.filter(l => l.status === 'new').length;
   const activeLeads = leads.filter(l => !['closed_won', 'lost'].includes(l.status)).length;
-  const scheduledVisits = leads.filter(l => l.status === 'visit_scheduled' || Boolean(l.scheduledVisitDate)).length;
+  const [scheduledVisits, setScheduledVisits] = useState<number | null>(null);
+  useEffect(() => {
+    let active = true;
+    const load = () => { void loadPropertyVisits().then(visits => {
+      if (active) setScheduledVisits(visits.filter(v => v.is_professional && ['confirmed','checked_in'].includes(v.status)).length);
+    }).catch(() => { if (active) setScheduledVisits(null); }); };
+    load(); window.addEventListener('property-visits-changed', load);
+    return () => { active=false; window.removeEventListener('property-visits-changed', load); };
+  }, []);
   const inProposalOrNegotiation = leads.filter(l => ['proposal', 'negotiation'].includes(l.status)).length;
   const closedWonLeads = leads.filter(l => l.status === 'closed_won');
   const closedDealsCount = closedWonLeads.length;
@@ -193,10 +202,10 @@ export const CrmDashboardMetrics: React.FC<CrmDashboardMetricsProps> = ({
             </span>
           </div>
           <div className="text-2xl font-black text-slate-900 dark:text-white font-['Outfit']">
-            {scheduledVisits}
+            {scheduledVisits ?? '—'}
           </div>
           <div className="text-xs font-semibold text-slate-500 mt-0.5">
-            Visitas Agendadas
+            Visitas confirmadas / em curso
           </div>
         </div>
 

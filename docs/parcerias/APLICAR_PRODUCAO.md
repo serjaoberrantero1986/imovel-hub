@@ -35,3 +35,10 @@ where status = 'active' and notify_opportunities = true;
 ```
 
 O portal só deve ser testado depois de confirmar que as três consultas executaram sem erro. A carga de bairros deve retornar registros; nenhum bairro é criado pelo usuário na interface.
+
+## Visitas unificadas — aplicado em 24/10/2026
+
+- Migration: `20261023180856_unified_property_visits.sql`.
+- Edge Function: `send-partnership-visit-otp`, ativa com verificação JWT.
+- Validação feita: funções seguras presentes, função de preparação restrita ao `service_role`, funções legadas sem execução por `authenticated`, nenhum código incluído em notificações e zero visitas alteradas durante a implantação.
+- Pendente: confirmar a configuração operacional do remetente de e-mail e executar o roteiro autenticado de `PILOTO_PRODUCAO.md` com participantes reais.
