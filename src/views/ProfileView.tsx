@@ -82,6 +82,7 @@ export const ProfileView: React.FC = () => {
   const [portalAddress, setPortalAddress] = useState<PortalAddress>({ title: '', slug: '' });
   const [savedPortalAddress, setSavedPortalAddress] = useState<PortalAddress>({ title: '', slug: '' });
   const [portalAddressStatus, setPortalAddressStatus] = useState<PortalAddressCheck>('idle');
+  const [partnershipNetworkDirty, setPartnershipNetworkDirty] = useState(false);
 
   // Delete account confirmation state
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -252,10 +253,16 @@ export const ProfileView: React.FC = () => {
         await refreshTenant();
       }
       addToast({ 
-        type: 'success', 
-        title: 'Perfil Atualizado!', 
-        message: 'Todas as alterações foram salvas com sucesso.' 
+        type: partnershipNetworkDirty ? 'warning' : 'success',
+        title: partnershipNetworkDirty ? 'Dados gerais salvos' : 'Perfil atualizado!',
+        message: partnershipNetworkDirty
+          ? 'Os dados gerais foram salvos. Finalize as alterações pendentes na Rede de Parcerias.'
+          : 'Os dados gerais do perfil foram salvos com sucesso.'
       });
+      if (partnershipNetworkDirty) {
+        setActiveTab('role_specific');
+        window.setTimeout(() => document.getElementById('partnership-network')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
+      }
     } catch (err: any) {
       addToast({ 
         type: 'error', 
@@ -805,7 +812,7 @@ export const ProfileView: React.FC = () => {
             </div>
 
             <VisitAvailabilitySettings addToast={addToast} />
-            <PartnershipNetworkPanel />
+            <PartnershipNetworkPanel onDirtyChange={setPartnershipNetworkDirty} />
           </div>
         )}
 
@@ -1190,7 +1197,9 @@ export const ProfileView: React.FC = () => {
         {/* Floating / Bottom Sticky Action Bar */}
         <div className="sticky bottom-6 z-30 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md rounded-3xl p-4 border border-slate-200 dark:border-slate-800 shadow-xl flex items-center justify-between gap-4">
           <div className="text-xs text-slate-500 dark:text-slate-400 hidden sm:block">
-            {isAdmin ? 'Salve as alterações para atualizar seus dados administrativos.' : 'Lembre-se de salvar suas alterações para atualizar seus anúncios e dados de contato.'}
+            {partnershipNetworkDirty
+              ? 'A Rede de Parcerias possui alterações pendentes no botão da própria seção.'
+              : isAdmin ? 'Salve as alterações para atualizar seus dados administrativos.' : 'Salve os dados gerais para atualizar seus anúncios e contatos.'}
           </div>
 
           <div className="flex items-center gap-2.5 w-full sm:w-auto justify-end">
@@ -1215,7 +1224,7 @@ export const ProfileView: React.FC = () => {
               ) : (
                 <Save className="w-4 h-4" />
               )}
-              <span>{isSaving ? 'Salvando...' : 'Salvar Alterações'}</span>
+              <span>{isSaving ? 'Salvando...' : 'Salvar dados gerais'}</span>
             </button>
           </div>
         </div>

@@ -26,7 +26,34 @@ import { OfficialRegionSelect } from './OfficialRegionSelect';
 
 const EMPTY_STATE: PartnershipNetworkState = { eligible: false, member: null, regions: [], connections: [] };
 
+interface PartnershipNetworkPanelProps {
+  onDirtyChange?: (dirty: boolean) => void;
+}
+
 const normalizeArea = (value: string) => value.trim().replace(/\s+/g, ' ');
+const membershipSnapshot = (input: {
+  enabled: boolean;
+  notifyOpportunities: boolean;
+  acceptsSale: boolean;
+  acceptsRent: boolean;
+  acceptsLaunch: boolean;
+  specialties: PartnershipSpecialty[];
+  introduction: string;
+  regions: Array<Pick<PartnershipRegion, 'city' | 'neighborhood'>>;
+}) => JSON.stringify({
+  enabled: input.enabled,
+  notifyOpportunities: input.notifyOpportunities,
+  acceptsSale: input.acceptsSale,
+  acceptsRent: input.acceptsRent,
+  acceptsLaunch: input.acceptsLaunch,
+  specialties: [...input.specialties].sort(),
+  introduction: input.introduction.trim(),
+  regions: input.enabled ? input.regions.map(region => ({
+    state: 'SP',
+    city: normalizeArea(region.city),
+    neighborhood: normalizeArea(region.neighborhood || '') || null,
+  })).sort((left, right) => `${left.city}\u0000${left.neighborhood || ''}`.localeCompare(`${right.city}\u0000${right.neighborhood || ''}`, 'pt-BR')) : [],
+});
 const SPECIALTIES: Array<{ value: PartnershipSpecialty; label: string }> = [
   { value: 'capture', label: 'Captação' },
   { value: 'marketing', label: 'Marketing' },
@@ -43,7 +70,7 @@ const REPORT_CATEGORIES: Array<{ value: PartnershipReportCategory; label: string
   { value: 'other', label: 'Outro motivo' },
 ];
 
-export const PartnershipNetworkPanel: React.FC = () => {
+export const PartnershipNetworkPanel: React.FC<PartnershipNetworkPanelProps> = ({ onDirtyChange }) => {
   const { addToast } = useApp();
   const [network, setNetwork] = useState<PartnershipNetworkState>(EMPTY_STATE);
   const [enabled, setEnabled] = useState(false);
@@ -72,6 +99,7 @@ export const PartnershipNetworkPanel: React.FC = () => {
   const [reportDetails, setReportDetails] = useState('');
   const [blockAfterReport, setBlockAfterReport] = useState(true);
   const [reporting, setReporting] = useState(false);
+  const [savedSnapshot, setSavedSnapshot] = useState<string | null>(null);
 
   const hydrate = (state: PartnershipNetworkState) => {
     setNetwork(state);
@@ -83,7 +111,34 @@ export const PartnershipNetworkPanel: React.FC = () => {
     setSpecialties(state.member?.specialties || []);
     setIntroduction(state.member?.introduction || '');
     setRegions(state.regions || []);
+    setSavedSnapshot(membershipSnapshot({
+      enabled: state.member?.status === 'active',
+      notifyOpportunities: state.member?.notify_opportunities ?? false,
+      acceptsSale: state.member?.accepts_sale ?? true,
+      acceptsRent: state.member?.accepts_rent ?? true,
+      acceptsLaunch: state.member?.accepts_launch ?? false,
+      specialties: state.member?.specialties || [],
+      introduction: state.member?.introduction || '',
+      regions: state.regions || [],
+    }));
   };
+
+  const draftSnapshot = useMemo(() => membershipSnapshot({
+    enabled,
+    notifyOpportunities,
+    acceptsSale,
+    acceptsRent,
+    acceptsLaunch,
+    specialties,
+    introduction,
+    regions,
+  }), [enabled, notifyOpportunities, acceptsSale, acceptsRent, acceptsLaunch, specialties, introduction, regions]);
+  const isDirty = savedSnapshot !== null && draftSnapshot !== savedSnapshot;
+
+  useEffect(() => {
+    onDirtyChange?.(isDirty);
+    return () => onDirtyChange?.(false);
+  }, [isDirty, onDirtyChange]);
 
   const load = async () => {
     setLoading(true);
@@ -154,6 +209,17 @@ export const PartnershipNetworkPanel: React.FC = () => {
     setSaving(true);
     try {
       const state = await saveMyPartnershipMembership({ enabled, acceptsSale, acceptsRent, acceptsLaunch, specialties, introduction, regions, notifyOpportunities });
+      const persistedSnapshot = membershipSnapshot({
+        enabled: state.member?.status === 'active',
+        notifyOpportunities: state.member?.notify_opportunities ?? false,
+        acceptsSale: state.member?.accepts_sale ?? true,
+        acceptsRent: state.member?.accepts_rent ?? true,
+        acceptsLaunch: state.member?.accepts_launch ?? false,
+        specialties: state.member?.specialties || [],
+        introduction: state.member?.introduction || '',
+        regions: state.regions || [],
+      });
+      if (persistedSnapshot !== draftSnapshot) throw new Error('Partnership preferences were not persisted');
       hydrate(state);
       addToast({ type: 'success', title: enabled ? 'Participação atualizada' : 'Participação desativada', message: enabled ? 'Suas preferências e regiões foram salvas.' : 'Seu perfil deixou de aparecer para novas conexões.' });
     } catch (error) {
@@ -206,10 +272,10 @@ export const PartnershipNetworkPanel: React.FC = () => {
   );
 
   return (
-    <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200 dark:border-slate-800 shadow-sm space-y-6">
+    <div id="partnership-network" className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200 dark:border-slate-800 shadow-sm space-y-6 scroll-mt-28">
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
         <div>
-          <h3 className="text-base font-extrabold text-slate-900 dark:text-white flex items-center gap-2"><Handshake className="w-5 h-5 text-indigo-500" /> Rede de Parcerias</h3>
+          <h3 className="text-base font-extrabold text-slate-900 dark:text-white flex flex-wrap items-center gap-2"><Handshake className="w-5 h-5 text-indigo-500" /> Rede de Parcerias {isDirty && <span className="rounded-full bg-amber-100 px-2.5 py-1 text-[10px] font-bold text-amber-800 dark:bg-amber-950 dark:text-amber-300">Alterações não salvas</span>}</h3>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Conecte-se com profissionais de CRECI-SP aprovado. Entrar na rede não compartilha seus imóveis automaticamente.</p>
         </div>
 
@@ -264,7 +330,7 @@ export const PartnershipNetworkPanel: React.FC = () => {
       </fieldset>
 
       <div className="flex justify-end">
-        <button type="button" disabled={saving || (!network.eligible && enabled)} onClick={saveMembership} className="px-5 py-2.5 rounded-2xl bg-gradient-to-r from-rose-600 to-orange-500 text-white text-xs font-bold shadow-md disabled:opacity-50 flex items-center gap-2">{saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4" />} Salvar participação</button>
+        <button type="button" disabled={saving || !isDirty || (!network.eligible && enabled)} onClick={saveMembership} className="px-5 py-2.5 rounded-2xl bg-gradient-to-r from-rose-600 to-orange-500 text-white text-xs font-bold shadow-md disabled:opacity-50 flex items-center gap-2">{saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4" />} Salvar participação</button>
       </div>
 
       {enabled && network.member?.status === 'active' && <>

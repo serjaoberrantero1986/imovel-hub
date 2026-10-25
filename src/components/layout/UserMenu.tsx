@@ -90,7 +90,7 @@ export const UserMenu: React.FC = () => {
   }
 
   return (
-    <div ref={menuRef} className="relative inline-block text-left shrink-0">
+    <div ref={menuRef} className="relative inline-block text-left shrink-0 overflow-visible">
       <button
         id="user-profile-menu-btn"
         type="button"
@@ -118,7 +118,6 @@ export const UserMenu: React.FC = () => {
               <CheckCircle2 className="w-2.5 h-2.5 text-white" />
             </span>
             )}
-            {unreadVisits > 0 && <span aria-label={`${unreadVisits} atualizações de visitas`} className="absolute -top-2 -left-2 min-w-[18px] h-[18px] px-1 rounded-full bg-rose-600 text-white text-[10px] font-black flex items-center justify-center border-2 border-white dark:border-slate-900">{unreadVisits > 99 ? '99+' : unreadVisits}</span>}
           </div>
         )}
 
@@ -135,6 +134,7 @@ export const UserMenu: React.FC = () => {
 
         <ChevronDown className={`member-profile-chevron w-3.5 h-3.5 text-slate-400 ${isOpen ? 'rotate-180' : ''}`} />
       </button>
+      {unreadVisits > 0 && <span aria-label={`${unreadVisits} atualizações de visitas`} className="pointer-events-none absolute -top-1 left-8 z-20 min-w-[18px] h-[18px] px-1 rounded-full bg-rose-600 text-white text-[10px] font-black flex items-center justify-center border-2 border-white dark:border-slate-900">{unreadVisits > 99 ? '99+' : unreadVisits}</span>}
 
       {isOpen && (
         <div className="absolute right-0 mt-2 w-72 rounded-2xl bg-white dark:bg-slate-900 shadow-2xl border border-slate-200 dark:border-slate-800 py-2 z-50 animate-in fade-in zoom-in-95 duration-150">

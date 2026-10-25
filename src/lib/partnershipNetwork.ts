@@ -156,5 +156,6 @@ export function partnershipErrorMessage(error: unknown): string {
   if (/Connection already exists/i.test(message)) return 'Já existe um convite ou uma conexão com este profissional.';
   if (/Active partnership membership required/i.test(message)) return 'Ative sua participação na rede antes de continuar.';
   if (/Invalid report details/i.test(message)) return 'Descreva o ocorrido usando entre 20 e 2.000 caracteres.';
+  if (/not unique|preferences were not persisted/i.test(message)) return 'As preferências não foram confirmadas pelo portal. Atualize a página e tente novamente.';
   return 'Não foi possível concluir a operação. Tente novamente em instantes.';
 }
