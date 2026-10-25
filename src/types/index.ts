@@ -103,8 +103,8 @@ export interface Property {
   partnership?: {
     id: string;
     contractVersionId: string;
-    captor: { profileId: string; name: string; creci: string; creciUf: 'SP' };
-    partner: { profileId: string; name: string; creci: string; creciUf: 'SP' };
+    captor: { profileId: string; name: string; creci: string; creciUf: 'SP'; avatarUrl?: string; agencyName?: string; verified?: boolean };
+    partner: { profileId: string; name: string; creci: string; creciUf: 'SP'; avatarUrl?: string; agencyName?: string; verified?: boolean };
     propertyUpdatedAt: string;
     notice: string;
   };

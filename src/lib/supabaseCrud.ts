@@ -49,28 +49,34 @@ export function mapDbPropertyToApp(
       };
     });
 
-  const advertiser: UserProfile = advertiserProfile
+  const visibleProfessional = partnershipData?.partner || advertiserProfile;
+  const advertiser: UserProfile = visibleProfessional
     ? {
-        id: advertiserProfile.id,
-        name: advertiserProfile.name,
-        email: advertiserProfile.email,
-        phone: advertiserProfile.phone || undefined,
-        whatsapp: advertiserProfile.whatsapp || undefined,
-        avatarUrl: advertiserProfile.avatar_url || undefined,
-        role: advertiserProfile.role as any,
-        creci: advertiserProfile.creci || undefined,
-        agencyName: advertiserProfile.agency_name || undefined,
-        agencyLogo: advertiserProfile.agency_logo || undefined,
-        verified: advertiserProfile.verified,
-        rating: advertiserProfile.rating || 5.0,
-        totalDeals: advertiserProfile.total_deals || 0
+        id: visibleProfessional.profile_id || visibleProfessional.id,
+        name: visibleProfessional.name,
+        email: '',
+        avatarUrl: visibleProfessional.avatar_url || undefined,
+        role: (visibleProfessional.role || 'broker') as any,
+        creci: visibleProfessional.creci || undefined,
+        creciUf: visibleProfessional.creci_uf || undefined,
+        agencyName: visibleProfessional.agency_name || undefined,
+        agencyLogo: visibleProfessional.agency_logo || undefined,
+        verified: Boolean(visibleProfessional.verified),
+        rating: visibleProfessional.rating || 5.0,
+        totalDeals: visibleProfessional.total_deals || 0,
+        bio: visibleProfessional.bio || undefined,
+        city: visibleProfessional.city || undefined,
+        state: visibleProfessional.state || undefined,
+        website: visibleProfessional.website || undefined,
+        instagram: visibleProfessional.instagram || undefined,
+        linkedin: visibleProfessional.linkedin || undefined,
       }
     : {
         id: dbProp.user_id,
-        name: 'Corretor Responsável',
-        email: 'contato@imovelhub.com.br',
+        name: 'Informações do profissional indisponíveis',
+        email: '',
         role: 'broker',
-        verified: true
+        verified: false
       };
 
   // Location resolution
@@ -106,8 +112,8 @@ export function mapDbPropertyToApp(
     partnership: partnershipData ? {
       id: partnershipData.id,
       contractVersionId: partnershipData.contract_version_id,
-      captor: { profileId: partnershipData.captor.profile_id, name: partnershipData.captor.name, creci: partnershipData.captor.creci, creciUf: partnershipData.captor.creci_uf },
-      partner: { profileId: partnershipData.partner.profile_id, name: partnershipData.partner.name, creci: partnershipData.partner.creci, creciUf: partnershipData.partner.creci_uf },
+      captor: { profileId: partnershipData.captor.profile_id, name: partnershipData.captor.name, creci: partnershipData.captor.creci, creciUf: partnershipData.captor.creci_uf, avatarUrl: partnershipData.captor.avatar_url || undefined, agencyName: partnershipData.captor.agency_name || undefined, verified: Boolean(partnershipData.captor.verified) },
+      partner: { profileId: partnershipData.partner.profile_id, name: partnershipData.partner.name, creci: partnershipData.partner.creci, creciUf: partnershipData.partner.creci_uf, avatarUrl: partnershipData.partner.avatar_url || undefined, agencyName: partnershipData.partner.agency_name || undefined, verified: Boolean(partnershipData.partner.verified) },
       propertyUpdatedAt: partnershipData.property_updated_at,
       notice: partnershipData.notice,
     } : undefined,
@@ -201,10 +207,8 @@ export async function fetchPropertiesFromSupabase(ownerProfileId?: string): Prom
     const profilesMap: Record<string, any> = {};
     if (userIds.length > 0) {
       try {
-        const { data: profiles } = await supabase
-          .from('public_profile_cards')
-          .select('*')
-          .in('id', userIds);
+        const { data: profiles, error: profilesError } = await supabase.rpc('get_public_professional_cards', { p_profile_ids: userIds });
+        if (profilesError) throw profilesError;
 
         (profiles || []).forEach((prof: any) => {
           profilesMap[prof.id] = prof;

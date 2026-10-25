@@ -39,6 +39,7 @@ import { UserAvatar } from '../ui/UserAvatar';
 import { PartnerListingReportModal } from './PartnerListingReportModal';
 import { registerPublicPropertyView } from '../../lib/supabaseCrud';
 import { loadNextPropertyVisitSlot, loadPropertyVisitSlots, schedulePropertyVisit, VisitSlot, visitLocalDate, visitError } from '../../lib/propertyVisits';
+import type { Property } from '../../types';
 
 const PENDING_PROPERTY_CONTACT_KEY = 'imovelhub_pending_property_contact';
 const PENDING_PROPERTY_CONTACT_MAX_AGE = 24 * 60 * 60 * 1000;
@@ -51,6 +52,20 @@ interface PendingPropertyContact {
   message: string;
   createdAt: number;
 }
+
+const PartnershipProfessionalIdentity: React.FC<{
+  label: string;
+  professional: NonNullable<Property['partnership']>['captor'];
+}> = ({ label, professional }) => (
+  <div className="flex items-center gap-2.5 rounded-xl border border-violet-100 bg-white/70 p-2.5 dark:border-violet-900 dark:bg-slate-900/60">
+    <UserAvatar name={professional.name} src={professional.avatarUrl} className="h-10 w-10 shrink-0 rounded-xl" />
+    <div className="min-w-0">
+      <p className="text-[10px] font-bold uppercase tracking-wide text-violet-600 dark:text-violet-300">{label}</p>
+      <p className="flex items-center gap-1 truncate font-bold text-slate-900 dark:text-white">{professional.name}{professional.verified && <ShieldCheck aria-label="Profissional verificado" className="h-3.5 w-3.5 shrink-0 text-emerald-500" />}</p>
+      <p className="truncate text-[11px] text-slate-500">{professional.agencyName || 'Corretor de imóveis'} · CRECI {professional.creci}/{professional.creciUf}</p>
+    </div>
+  </div>
+);
 
 export const PropertyDetailView: React.FC = () => {
   const { amenities } = useCatalog();
@@ -391,7 +406,7 @@ export const PropertyDetailView: React.FC = () => {
             <MapPin className="w-4 h-4 text-rose-500 shrink-0" />
             <span>{locationLabel}</span>
           </div>
-          {property.partnership && <div className="rounded-2xl border border-violet-200 dark:border-violet-900 bg-violet-50/70 dark:bg-violet-950/20 p-4 text-xs text-slate-700 dark:text-slate-300"><strong className="flex items-center gap-2 text-violet-800 dark:text-violet-200 mb-2"><Handshake className="w-4 h-4" /> Imóvel divulgado em parceria</strong><p>Captador responsável pelas informações: <b>{property.partnership.captor.name}</b>, CRECI {property.partnership.captor.creci}/SP.</p><p>Atendimento neste portal: <b>{property.partnership.partner.name}</b>, CRECI {property.partnership.partner.creci}/SP.</p><p className="mt-1 text-[11px] text-slate-500">{property.partnership.notice} Atualizado em {new Date(property.partnership.propertyUpdatedAt).toLocaleString('pt-BR')}.</p><button type="button" onClick={()=>{if(!isAuthenticated||currentUser?.id==='guest_buyer'){openAuthModal('login');return;}setPartnerReportOpen(true);}} className="mt-2 text-[11px] font-bold text-violet-700 dark:text-violet-300 underline underline-offset-2">Comunicar informação desatualizada</button></div>}
+          {property.partnership && <div className="rounded-2xl border border-violet-200 dark:border-violet-900 bg-violet-50/70 dark:bg-violet-950/20 p-4 text-xs text-slate-700 dark:text-slate-300"><strong className="flex items-center gap-2 text-violet-800 dark:text-violet-200 mb-3"><Handshake className="w-4 h-4" /> Imóvel divulgado em parceria</strong><div className="grid gap-3 sm:grid-cols-2"><PartnershipProfessionalIdentity label="Captador do imóvel" professional={property.partnership.captor} /><PartnershipProfessionalIdentity label="Atendimento neste portal" professional={property.partnership.partner} /></div><p className="mt-3 text-[11px] text-slate-500">{property.partnership.notice} Atualizado em {new Date(property.partnership.propertyUpdatedAt).toLocaleString('pt-BR')}.</p><button type="button" onClick={()=>{if(!isAuthenticated||currentUser?.id==='guest_buyer'){openAuthModal('login');return;}setPartnerReportOpen(true);}} className="mt-2 text-[11px] font-bold text-violet-700 dark:text-violet-300 underline underline-offset-2">Comunicar informação desatualizada</button></div>}
         </div>
 
         {/* Touch & Desktop Swipeable Photo Gallery */}
@@ -610,8 +625,9 @@ export const PropertyDetailView: React.FC = () => {
                     <h4 className="text-sm font-bold text-slate-900 dark:text-white truncate">
                       {property.advertiser.name}
                     </h4>
-                    <ShieldCheck className="w-4 h-4 text-emerald-500 shrink-0" />
+                    {property.advertiser.verified && <ShieldCheck aria-label="Profissional verificado" className="w-4 h-4 text-emerald-500 shrink-0" />}
                   </div>
+                  {property.partnership && <p className="text-[10px] font-bold uppercase tracking-wide text-violet-600 dark:text-violet-300">Atendimento neste portal</p>}
                   <p className="text-xs text-slate-500 dark:text-slate-400 font-medium truncate">
                     {property.advertiser.agencyName || 'Consultor Imobiliário'}
                   </p>
