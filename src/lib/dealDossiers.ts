@@ -134,12 +134,12 @@ export async function addDealParticipant(dossierId: string, actorId: string, inp
 
 export async function moveDealDossierStage(dossierId:string,direction:'previous'|'next'):Promise<DealStage>{if(!supabase)throw new Error('Serviço indisponível.');const{data,error}=await supabase.rpc('move_deal_dossier_stage',{p_dossier_id:dossierId,p_direction:direction});if(error)throw error;return String(data) as DealStage;}
 
-export async function loadDealDocumentCatalog(role: string, legalRegime: DealDossier['propertyLegalRegime'] = 'unknown'): Promise<DealDocumentCatalogItem[]> {
+export async function loadDealDocumentCatalog(legalRegime: DealDossier['propertyLegalRegime'] = 'unknown'): Promise<DealDocumentCatalogItem[]> {
   if (!supabase) throw new Error('Serviço indisponível.');
   const { data, error } = await supabase.from('deal_document_catalog').select('*').eq('active', true).order('sort_order');
   if (error) throw error;
   const possessoryKeys=new Set(['possession_chain','possession_declaration','survey_plan','master_registration','access_easement']);
-  return (data || []).filter((row: any) => row.accepted_roles?.includes(role)&&(legalRegime==='possessory_rights'||!possessoryKeys.has(row.key))).map((row: any) => ({
+  return (data || []).filter((row: any) => legalRegime==='possessory_rights'||!possessoryKeys.has(row.key)).map((row: any) => ({
     key: row.key, label: row.label, description: row.description, category: row.category,
     acceptedRoles: row.accepted_roles || [], allowsMultiple: Boolean(row.allows_multiple)
   }));
