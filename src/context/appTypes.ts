@@ -18,6 +18,7 @@ export type AppView =
   | 'admin_creci'
   | 'admin_portals'
   | 'admin_mortgage_rates'
+  | 'admin_certificate_sources'
   | 'legal';
 
 export type LegalTab = 'terms' | 'privacy' | 'consumer' | 'security' | 'cookies';

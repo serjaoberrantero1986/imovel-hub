@@ -22,7 +22,8 @@ import {
   Send,
   UserCheck,
   AlertCircle,
-  FolderLock
+  FolderLock,
+  Landmark
 } from 'lucide-react';
 import { Lead, LeadStatus, LeadInteraction, LeadTask, Property } from '../../types';
 import { formatCurrency, formatDateTime, formatLeadOrigin } from '../../lib/utils';
@@ -34,6 +35,7 @@ import { CrmLeadTasksTab } from './CrmLeadTasksTab';
 import { PropertyVisitsPanel } from './PropertyVisitsPanel';
 import { useApp } from '../../context/AppContext';
 import { DealDossierPanel } from './DealDossierPanel';
+import { DealOfficialSourcesTab } from './DealOfficialSourcesTab';
 
 interface CrmLeadDetailModalProps {
   lead: Lead | null;
@@ -53,7 +55,7 @@ interface CrmLeadDetailModalProps {
   onOpenProperty: (propertyId: string) => void;
 }
 
-type TabType = 'overview' | 'matching' | 'history' | 'tasks' | 'documents' | 'notes' | 'preferences';
+type TabType = 'overview' | 'matching' | 'history' | 'tasks' | 'documents' | 'sources' | 'notes' | 'preferences';
 
 export const CrmLeadDetailModal: React.FC<CrmLeadDetailModalProps> = ({
   lead,
@@ -220,7 +222,7 @@ export const CrmLeadDetailModal: React.FC<CrmLeadDetailModalProps> = ({
         </div>
 
         {/* TAB NAVIGATION */}
-        <div className="px-3 sm:px-6 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-7 gap-x-1 text-xs font-bold shrink-0">
+        <div className="px-3 sm:px-6 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-8 gap-x-1 text-xs font-bold shrink-0">
           <button
             onClick={() => setActiveTab('overview')}
             className={`min-w-0 py-3 px-2 border-b-2 transition-colors flex items-center justify-center gap-1.5 text-center ${
@@ -292,6 +294,8 @@ export const CrmLeadDetailModal: React.FC<CrmLeadDetailModalProps> = ({
             <FolderLock className="w-4 h-4" />
             <span>Negociação & Documentos</span>
           </button>
+
+          <button onClick={() => setActiveTab('sources')} className={`min-w-0 py-3 px-2 border-b-2 transition-colors flex items-center justify-center gap-1.5 text-center ${activeTab === 'sources' ? 'border-rose-600 text-rose-600 dark:text-rose-400' : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'}`}><Landmark className="w-4 h-4"/><span>Fontes oficiais</span></button>
 
           <button
             onClick={() => setActiveTab('preferences')}
@@ -468,6 +472,8 @@ export const CrmLeadDetailModal: React.FC<CrmLeadDetailModalProps> = ({
           )}
 
           {/* TAB 6: NOTAS & CONFIDENCIAL */}
+          {activeTab === 'sources' && <DealOfficialSourcesTab leadId={lead.id} addToast={addToast} />}
+
           {activeTab === 'notes' && (
             <div className="space-y-6">
               

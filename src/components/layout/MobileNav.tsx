@@ -46,6 +46,7 @@ export const MobileNav: React.FC = () => {
     {id:'admin_portals',label:'Portais',icon:Globe2},
     {id:'admin_creci',label:'CRECI',icon:ShieldCheck},
     {id:'admin_mortgage_rates',label:'Taxas',icon:Landmark},
+    {id:'admin_certificate_sources',label:'Fontes',icon:Landmark},
     {id:'profile',label:'Perfil',icon:User}
   ] : [
     { id: 'portal', label: 'Início', icon: Home },

@@ -29,6 +29,7 @@ import { AdminCreciReviewView } from './views/AdminCreciReviewView';
 import { AdminPortalsView } from './views/AdminPortalsView';
 import { BuyingPowerView } from './views/BuyingPowerView';
 import { AdminMortgageRatesView } from './views/AdminMortgageRatesView';
+import { AdminCertificateSourcesView } from './views/AdminCertificateSourcesView';
 import { PublicDocumentRequestView } from './views/PublicDocumentRequestView';
 import { PublicContractReviewView } from './views/PublicContractReviewView';
 import { PublicNegotiationReviewView } from './views/PublicNegotiationReviewView';
@@ -37,9 +38,9 @@ const MainContent: React.FC = () => {
   const { currentView, activeLegalTab, currentUser, isAuthenticated, setCurrentView } = useApp();
   const { portal, loading, error, canonicalRootUrl } = useTenant();
   const isAdmin = isAuthenticated && currentUser.role === 'admin';
-  const renderedView = isAdmin && !['admin_portals','admin_creci','admin_mortgage_rates','profile','visits'].includes(currentView) ? 'admin_portals' : currentView;
+  const renderedView = isAdmin && !['admin_portals','admin_creci','admin_mortgage_rates','admin_certificate_sources','profile','visits'].includes(currentView) ? 'admin_portals' : currentView;
   React.useEffect(()=>{
-    if(isAdmin && !['admin_portals','admin_creci','admin_mortgage_rates','profile','visits'].includes(currentView)) setCurrentView('admin_portals');
+    if(isAdmin && !['admin_portals','admin_creci','admin_mortgage_rates','admin_certificate_sources','profile','visits'].includes(currentView)) setCurrentView('admin_portals');
   },[isAdmin,currentView,setCurrentView]);
 
   if (loading) {
@@ -75,6 +76,7 @@ const MainContent: React.FC = () => {
         {renderedView === 'admin_creci' && <AdminCreciReviewView />}
         {renderedView === 'admin_portals' && <AdminPortalsView />}
         {renderedView === 'admin_mortgage_rates' && <AdminMortgageRatesView />}
+        {renderedView === 'admin_certificate_sources' && <AdminCertificateSourcesView />}
         {renderedView === 'legal' && <InstitutionalLegalView initialTab={activeLegalTab} />}
       </main>
 
