@@ -16,11 +16,14 @@ import {
   KeyRound,
   Moon,
   Sun,
-  CalendarCheck
+  CalendarCheck,
+  Calculator,
+  Landmark
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { Badge } from '../ui/Badge';
 import { useVisitNotificationCount } from '../../hooks/useVisitNotificationCount';
+import { useDealNotificationCount } from '../../hooks/useDealNotificationCount';
 
 export const UserMenu: React.FC = () => {
   const { 
@@ -42,6 +45,8 @@ export const UserMenu: React.FC = () => {
 
   const [isOpen, setIsOpen] = useState(false);
   const unreadVisits = useVisitNotificationCount(isAuthenticated && currentUser.role !== 'admin');
+  const unreadDeals = useDealNotificationCount(isAuthenticated && currentUser.role === 'broker');
+  const profileNotices = unreadVisits + unreadDeals;
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -134,7 +139,7 @@ export const UserMenu: React.FC = () => {
 
         <ChevronDown className={`member-profile-chevron w-3.5 h-3.5 text-slate-400 ${isOpen ? 'rotate-180' : ''}`} />
       </button>
-      {unreadVisits > 0 && <span aria-label={`${unreadVisits} atualizações de visitas`} className="pointer-events-none absolute -top-1 left-8 z-20 min-w-[18px] h-[18px] px-1 rounded-full bg-rose-600 text-white text-[10px] font-black flex items-center justify-center border-2 border-white dark:border-slate-900">{unreadVisits > 99 ? '99+' : unreadVisits}</span>}
+      {profileNotices > 0 && <span aria-label={`${profileNotices} atualizações pendentes`} className="pointer-events-none absolute -top-1 left-8 z-20 min-w-[18px] h-[18px] px-1 rounded-full bg-rose-600 text-white text-[10px] font-black flex items-center justify-center border-2 border-white dark:border-slate-900">{profileNotices > 99 ? '99+' : profileNotices}</span>}
 
       {isOpen && (
         <div className="absolute right-0 mt-2 w-72 rounded-2xl bg-white dark:bg-slate-900 shadow-2xl border border-slate-200 dark:border-slate-800 py-2 z-50 animate-in fade-in zoom-in-95 duration-150">
@@ -200,11 +205,13 @@ export const UserMenu: React.FC = () => {
             </button>
 
             {currentUser.role !== 'admin' && <button onClick={() => handleNav('visits')} className="w-full text-left px-4 py-2 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 flex items-center justify-between"><span className="flex items-center gap-2.5"><CalendarCheck className="w-4 h-4 text-rose-500"/><span>Minhas visitas</span></span>{unreadVisits>0&&<span className="text-[10px] px-1.5 py-0.5 rounded-full font-bold bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300">{unreadVisits>99?'99+':unreadVisits}</span>}</button>}
+            {currentUser.role !== 'admin' && <button onClick={() => handleNav('buying_power')} className="w-full text-left px-4 py-2 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 flex items-center gap-2.5"><Calculator className="w-4 h-4 text-rose-500"/><span>Poder de compra</span></button>}
             {currentUser.role === 'admin' && (
               <>
                 <button onClick={() => handleNav('visits')} className="w-full text-left px-4 py-2 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 flex items-center gap-2.5"><CalendarCheck className="w-4 h-4 text-rose-500"/><span>Contestações de visitas</span></button>
                 <button onClick={() => handleNav('admin_creci')} className="w-full text-left px-4 py-2 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 flex items-center gap-2.5"><ShieldCheck className="w-4 h-4 text-indigo-500" /><span>Análises de CRECI</span></button>
                 <button onClick={() => handleNav('admin_portals')} className="w-full text-left px-4 py-2 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 flex items-center gap-2.5"><Globe2 className="w-4 h-4 text-rose-500" /><span>Portais Profissionais</span></button>
+                <button onClick={() => handleNav('admin_mortgage_rates')} className="w-full text-left px-4 py-2 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 flex items-center gap-2.5"><Landmark className="w-4 h-4 text-rose-500" /><span>Taxas de financiamento</span></button>
               </>
             )}
 
@@ -238,9 +245,9 @@ export const UserMenu: React.FC = () => {
                     <Users className="w-4 h-4 text-emerald-500" />
                     <span>CRM & Gestão de Leads</span>
                   </div>
-                  {unreadLeadsCount > 0 && (
+                  {unreadLeadsCount + unreadDeals > 0 && (
                     <span className="text-[10px] px-1.5 py-0.5 rounded-full font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
-                      {unreadLeadsCount}
+                      {unreadLeadsCount + unreadDeals > 99 ? '99+' : unreadLeadsCount + unreadDeals}
                     </span>
                   )}
                 </button>

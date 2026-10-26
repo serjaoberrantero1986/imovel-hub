@@ -88,10 +88,10 @@ export function cleanRichText(html: string): string {
   return Array.from(doc.body.childNodes).map(clean).join('');
 }
 export const TEMPLATE_ORDERS: Record<string, string[]> = {
-  essencial: ['featured_properties','neighborhoods','map','info_cards','banners'],
-  signature: ['info_cards','featured_properties','banners','neighborhoods','map'],
-  urbano: ['featured_properties','map','neighborhoods','info_cards','banners'],
-  casa_familia: ['info_cards','neighborhoods','featured_properties','banners','map'],
-  prime: ['featured_properties','banners','info_cards','map','neighborhoods']
+  essencial: ['featured_properties','neighborhoods','map','buying_power','info_cards','banners'],
+  signature: ['info_cards','featured_properties','banners','neighborhoods','map','buying_power'],
+  urbano: ['featured_properties','map','buying_power','neighborhoods','info_cards','banners'],
+  casa_familia: ['info_cards','neighborhoods','featured_properties','banners','map','buying_power'],
+  prime: ['featured_properties','banners','info_cards','map','buying_power','neighborhoods']
 };
 

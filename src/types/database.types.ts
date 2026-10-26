@@ -54,6 +54,7 @@ export type LeadStatus =
   | 'visit_scheduled'
   | 'proposal_sent'
   | 'proposal_made'
+  | 'documentation'
   | 'closed_won'
   | 'lost'
   | 'archived';

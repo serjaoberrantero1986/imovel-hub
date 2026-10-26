@@ -96,6 +96,15 @@ export const KANBAN_STAGES: {
     dotColor: 'bg-violet-500', 
     borderHover: 'hover:border-violet-400' 
   },
+  {
+    id: 'documentation',
+    title: 'FECHAMENTO E DOCUMENTAL',
+    subtitle: 'Dossiê, minuta e assinaturas',
+    badgeBg: 'bg-cyan-50 dark:bg-cyan-950/60',
+    badgeText: 'text-cyan-700 dark:text-cyan-300',
+    dotColor: 'bg-cyan-500',
+    borderHover: 'hover:border-cyan-400'
+  },
   { 
     id: 'closed_won', 
     title: 'FECHADO', 

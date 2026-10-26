@@ -217,6 +217,7 @@ export const CrmProvider: React.FC<{
       visit_scheduled: 'VISITA AGENDADA',
       proposal: 'PROPOSTA',
       negotiation: 'NEGOCIAÇÃO',
+      documentation: 'FECHAMENTO E DOCUMENTAL',
       closed_won: 'FECHADO',
       lost: 'PERDIDO'
     };

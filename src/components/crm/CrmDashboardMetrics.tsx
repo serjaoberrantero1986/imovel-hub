@@ -95,6 +95,7 @@ export const CrmDashboardMetrics: React.FC<CrmDashboardMetricsProps> = ({
     { key: 'visit_scheduled', title: 'Visitas', count: leads.filter(l => l.status === 'visit_scheduled').length, color: 'bg-indigo-500' },
     { key: 'proposal', title: 'Proposta', count: leads.filter(l => l.status === 'proposal').length, color: 'bg-purple-500' },
     { key: 'negotiation', title: 'Negociação', count: leads.filter(l => l.status === 'negotiation').length, color: 'bg-violet-500' },
+    { key: 'documentation', title: 'Documental', count: leads.filter(l => l.status === 'documentation').length, color: 'bg-cyan-500' },
     { key: 'closed_won', title: 'Fechados', count: closedDealsCount, color: 'bg-emerald-500' },
   ];
 

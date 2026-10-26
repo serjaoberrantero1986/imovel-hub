@@ -16,7 +16,8 @@ import {
   ArrowRight,
   RefreshCw,
   ShieldCheck,
-  Handshake
+  Handshake,
+  Calculator
 } from 'lucide-react';
 import { useApp, useCatalog } from '../../context/AppContext';
 import { EditableImage } from '../visual-editor/PortalCanvas';
@@ -145,6 +146,7 @@ export const Navbar: React.FC = () => {
                 <MapPin className="w-4 h-4 text-rose-500" />
                 <span>Mapa</span>
               </button>
+              <button id="nav-poder-compra-btn" onClick={() => handleNavigate('buying_power')} className={`px-3.5 py-2 text-sm font-semibold rounded-xl transition-colors flex items-center gap-1.5 cursor-pointer ${currentView==='buying_power'?'text-rose-600 bg-rose-50/70 dark:bg-rose-950/40':'text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white hover:bg-slate-100/60 dark:hover:bg-slate-800/60'}`}><Calculator className="w-4 h-4 text-rose-500"/><span>Poder de compra</span></button>
             </nav>}
           </div>
 
@@ -296,6 +298,8 @@ export const Navbar: React.FC = () => {
               <span>Mapa</span>
             </button>
           </div>
+
+          <button id="mobile-poder-compra" onClick={() => handleNavigate('buying_power')} className="w-full min-h-[44px] py-2.5 rounded-xl bg-rose-50 dark:bg-rose-950/40 text-sm font-bold text-rose-600 dark:text-rose-400 flex items-center justify-center gap-2"><Calculator className="w-4 h-4"/>Calcular poder de compra</button>
 
           {(currentUser?.role === 'broker' || currentUser?.role === 'agency') && <button
             id="mobile-partnership-opportunities"

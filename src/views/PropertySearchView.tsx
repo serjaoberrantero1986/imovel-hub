@@ -27,6 +27,7 @@ export const PropertySearchView: React.FC = () => {
   const [hoveredPropertyId, setHoveredPropertyId] = useState<string | null>(null);
   const [isFilterDrawerOpen, setIsFilterDrawerOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const buyingPower = useMemo(() => { try { return JSON.parse(sessionStorage.getItem('webimoveis_buying_power') || 'null') as {budget:number;institution:string}|null; } catch { return null; } }, [filters.maxPrice]);
 
   // Set default view mode based on screen width
   useEffect(() => {
@@ -67,6 +68,7 @@ export const PropertySearchView: React.FC = () => {
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 py-4 sm:py-6 transition-colors safe-bottom-padding">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-4 sm:space-y-6">
+        {buyingPower&&filters.purpose==='sale'&&filters.maxPrice===buyingPower.budget&&<div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm dark:border-rose-900 dark:bg-rose-950/30"><div><p className="font-black text-rose-700 dark:text-rose-300">Poder de compra aplicado · até {new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL',maximumFractionDigits:0}).format(buyingPower.budget)}</p><p className="text-xs text-slate-500">Estimativa baseada na referência {buyingPower.institution}.</p></div><button onClick={()=>{sessionStorage.removeItem('webimoveis_buying_power');setFilters(current=>({...current,maxPrice:undefined}));}} className="rounded-xl bg-white px-3 py-2 text-xs font-black text-rose-600 shadow-sm dark:bg-slate-900">Remover limite</button></div>}
         
         {/* Top Filters Bar (Desktop & Tablet) */}
         <PropertyFilterBar />

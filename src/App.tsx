@@ -27,14 +27,19 @@ import { InstitutionalLegalView } from './views/InstitutionalLegalView';
 import { SavedSearchesView } from './views/SavedSearchesView';
 import { AdminCreciReviewView } from './views/AdminCreciReviewView';
 import { AdminPortalsView } from './views/AdminPortalsView';
+import { BuyingPowerView } from './views/BuyingPowerView';
+import { AdminMortgageRatesView } from './views/AdminMortgageRatesView';
+import { PublicDocumentRequestView } from './views/PublicDocumentRequestView';
+import { PublicContractReviewView } from './views/PublicContractReviewView';
+import { PublicNegotiationReviewView } from './views/PublicNegotiationReviewView';
 
 const MainContent: React.FC = () => {
   const { currentView, activeLegalTab, currentUser, isAuthenticated, setCurrentView } = useApp();
   const { portal, loading, error, canonicalRootUrl } = useTenant();
   const isAdmin = isAuthenticated && currentUser.role === 'admin';
-  const renderedView = isAdmin && !['admin_portals','admin_creci','profile','visits'].includes(currentView) ? 'admin_portals' : currentView;
+  const renderedView = isAdmin && !['admin_portals','admin_creci','admin_mortgage_rates','profile','visits'].includes(currentView) ? 'admin_portals' : currentView;
   React.useEffect(()=>{
-    if(isAdmin && !['admin_portals','admin_creci','profile','visits'].includes(currentView)) setCurrentView('admin_portals');
+    if(isAdmin && !['admin_portals','admin_creci','admin_mortgage_rates','profile','visits'].includes(currentView)) setCurrentView('admin_portals');
   },[isAdmin,currentView,setCurrentView]);
 
   if (loading) {
@@ -55,6 +60,7 @@ const MainContent: React.FC = () => {
       <main className="flex-1">
         {renderedView === 'portal' && <PortalHomeView />}
         {renderedView === 'search' && <PropertySearchView />}
+        {renderedView === 'buying_power' && <BuyingPowerView />}
         {renderedView === 'property_detail' && <PropertyDetailView />}
         {renderedView === 'dashboard' && <BrokerDashboardView />}
         {renderedView === 'my_properties' && <MyPropertiesView />}
@@ -68,6 +74,7 @@ const MainContent: React.FC = () => {
         {renderedView === 'profile' && <ProfileView />}
         {renderedView === 'admin_creci' && <AdminCreciReviewView />}
         {renderedView === 'admin_portals' && <AdminPortalsView />}
+        {renderedView === 'admin_mortgage_rates' && <AdminMortgageRatesView />}
         {renderedView === 'legal' && <InstitutionalLegalView initialTab={activeLegalTab} />}
       </main>
 
@@ -81,6 +88,13 @@ const MainContent: React.FC = () => {
 };
 
 export default function App() {
+  const publicParams = new URLSearchParams(window.location.hash.slice(1));
+  const negotiationReviewToken = publicParams.get('negotiation_review');
+  if (negotiationReviewToken) return <PublicNegotiationReviewView token={negotiationReviewToken} />;
+  const contractReviewToken = publicParams.get('contract_review');
+  if (contractReviewToken) return <PublicContractReviewView token={contractReviewToken} />;
+  const documentRequestToken = publicParams.get('document_request');
+  if (documentRequestToken) return <PublicDocumentRequestView token={documentRequestToken} />;
   return (
     <TenantProvider>
       <AppProvider>

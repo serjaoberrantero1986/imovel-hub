@@ -3,6 +3,7 @@ import { FilterState } from '../types';
 export type AppView = 
   | 'portal' 
   | 'search' 
+  | 'buying_power'
   | 'property_detail' 
   | 'dashboard' 
   | 'my_properties' 
@@ -16,6 +17,7 @@ export type AppView =
   | 'profile'
   | 'admin_creci'
   | 'admin_portals'
+  | 'admin_mortgage_rates'
   | 'legal';
 
 export type LegalTab = 'terms' | 'privacy' | 'consumer' | 'security' | 'cookies';

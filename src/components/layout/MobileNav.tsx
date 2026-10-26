@@ -9,10 +9,12 @@ import {
   MessageSquare,
   User,
   Globe2,
-  ShieldCheck
+  ShieldCheck,
+  Landmark
 } from 'lucide-react';
 import { useApp, AppView } from '../../context/AppContext';
 import { useVisitNotificationCount } from '../../hooks/useVisitNotificationCount';
+import { useDealNotificationCount } from '../../hooks/useDealNotificationCount';
 
 export const MobileNav: React.FC = () => {
   const { 
@@ -30,6 +32,7 @@ export const MobileNav: React.FC = () => {
 
   const totalUnread = (conversations || []).reduce((sum, c) => sum + (c.unreadCount || 0), 0);
   const unreadVisits = useVisitNotificationCount(isAuthenticated && currentUser?.role !== 'admin');
+  const unreadDeals = useDealNotificationCount(isAuthenticated && currentUser?.role === 'broker');
 
   const isBroker = currentUser?.role === 'broker';
 
@@ -42,6 +45,7 @@ export const MobileNav: React.FC = () => {
   }[] = currentUser?.role === 'admin' ? [
     {id:'admin_portals',label:'Portais',icon:Globe2},
     {id:'admin_creci',label:'CRECI',icon:ShieldCheck},
+    {id:'admin_mortgage_rates',label:'Taxas',icon:Landmark},
     {id:'profile',label:'Perfil',icon:User}
   ] : [
     { id: 'portal', label: 'Início', icon: Home },
@@ -58,7 +62,7 @@ export const MobileNav: React.FC = () => {
         id: 'crm_leads' as AppView, 
         label: 'Leads', 
         icon: Users, 
-        badge: unreadLeadsCount,
+        badge: unreadLeadsCount + unreadDeals,
         badgeColor: 'bg-indigo-600'
       },
       { 
@@ -72,7 +76,7 @@ export const MobileNav: React.FC = () => {
         id: 'profile' as AppView, 
         label: 'Perfil', 
         icon: User,
-        badge: unreadVisits,
+        badge: unreadVisits + unreadDeals,
         badgeColor: 'bg-rose-600'
       }
     ] : [

@@ -26,6 +26,7 @@ import { HeroLuxurySection } from '../components/home/HeroLuxurySection';
 import { PropertyMap } from '../components/properties/PropertyMap';
 import { PropertyCardSkeleton } from '../components/ui/Skeleton';
 import { filterProperties, hasActiveFilters } from '../lib/propertyFilters';
+import { BuyingPowerCalculator } from '../components/home/BuyingPowerCalculator';
 
 
 export const PortalHomeView: React.FC = () => {
@@ -370,6 +371,8 @@ export const PortalHomeView: React.FC = () => {
             />
           </div>
         </section></EditableBox></CanvasSection>}
+
+        {isVisible('buying_power') && <CanvasSection sectionId="buying_power"><EditableBox id="section.buying_power" label="Poder de compra"><section id="poder-de-compra" className="scroll-mt-24"><BuyingPowerCalculator compact /></section></EditableBox></CanvasSection>}
 
         {isVisible('info_cards') && infoCards.length>0&&<CanvasSection sectionId="info_cards"><EditableBox id="section.info" label="Cards informativos"><section className="grid grid-cols-1 md:grid-cols-3 gap-6">{infoCards.map(card=>{const Icon=homeIcons[card.icon]||Sparkles;return <div key={card.id} onClick={()=>!isVisualEditorOpen&&card.action==='security'&&openLegalPage('security')} className={`p-6 rounded-3xl border border-slate-200 dark:border-slate-800 space-y-3 shadow-sm transition-all group ${card.action!=='none'?'cursor-pointer hover:border-rose-400':''}`} style={{backgroundColor:card.backgroundColor,color:card.textColor}}><div className="flex items-center justify-between"><div className="w-12 h-12 rounded-2xl flex items-center justify-center transition-transform group-hover:scale-110" style={{color:card.iconColor,backgroundColor:`${card.iconColor}18`}}><Icon className="w-6 h-6"/></div>{card.linkLabel&&<span className="text-[11px] font-bold flex items-center gap-1" style={{color:card.iconColor}}><EditableText id={`card.${card.id}.link`} label="Texto do link">{card.linkLabel}</EditableText><ChevronRight className="w-3.5 h-3.5"/></span>}</div><h3 className="text-base font-bold font-['Outfit']"><EditableText id={`card.${card.id}.title`} label="Título do card">{card.title}</EditableText></h3><p className="text-xs leading-relaxed opacity-70"><EditableText id={`card.${card.id}.description`} label="Descrição do card">{card.description}</EditableText></p></div>;})}</section></EditableBox></CanvasSection>}
 

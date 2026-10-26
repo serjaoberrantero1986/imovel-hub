@@ -1,0 +1,3 @@
+import React from 'react';
+import {BuyingPowerCalculator} from '../components/home/BuyingPowerCalculator';
+export function BuyingPowerView(){return <div className="mx-auto max-w-6xl px-4 py-8 sm:py-12"><header className="mb-7"><p className="text-xs font-black uppercase tracking-wider text-rose-600">Planejamento imobiliário</p><h1 className="mt-1 font-['Outfit'] text-3xl font-black text-slate-950 dark:text-white">Calculadora de poder de compra</h1><p className="mt-2 max-w-3xl text-sm leading-relaxed text-slate-500">Compare estimativas de financiamento e encontre imóveis à venda dentro da sua faixa, sem login e sem fornecer seus dados ao portal.</p></header><BuyingPowerCalculator/></div>}

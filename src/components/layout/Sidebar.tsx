@@ -16,12 +16,14 @@ import {
   Moon,
   Sparkles,
   ShieldCheck,
+  Calculator,
 } from 'lucide-react';
 import { useApp, AppView } from '../../context/AppContext';
 import { Button } from '../ui/Button';
 import { Badge } from '../ui/Badge';
 import { cn } from '../../lib/utils';
 import { UserAvatar } from '../ui/UserAvatar';
+import { useDealNotificationCount } from '../../hooks/useDealNotificationCount';
 
 export interface SidebarProps {
   collapsed?: boolean;
@@ -61,10 +63,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
   };
 
   const totalUnread = conversations.reduce((sum, c) => sum + c.unreadCount, 0);
+  const unreadDeals = useDealNotificationCount(isAuthenticated && currentUser.role === 'broker');
 
   const mainNavItems = [
     { id: 'portal' as AppView, label: 'Portal Inicial', icon: Home },
     { id: 'search' as AppView, label: 'Buscar Imóveis', icon: Search },
+    { id: 'buying_power' as AppView, label: 'Poder de Compra', icon: Calculator },
     { id: 'favorites' as AppView, label: 'Favoritos', icon: Heart, badge: favoriteIds.length },
     { id: 'comparator' as AppView, label: 'Comparador', icon: Scale, badge: comparisonIds.length },
     { id: 'saved_searches' as AppView, label: 'Buscas Salvas', icon: BookmarkCheck, badge: savedSearches.length },
@@ -74,7 +78,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const brokerNavItems = [
     { id: 'dashboard' as AppView, label: 'Dashboard & Métricas', icon: LayoutDashboard },
     { id: 'my_properties' as AppView, label: 'Meus Anúncios', icon: Building2 },
-    { id: 'crm_leads' as AppView, label: 'CRM & Leads', icon: Users, badge: unreadLeadsCount, badgeColor: 'bg-emerald-600 text-white' },
+    { id: 'crm_leads' as AppView, label: 'CRM & Leads', icon: Users, badge: unreadLeadsCount + unreadDeals, badgeColor: 'bg-emerald-600 text-white' },
   ];
 
   return (

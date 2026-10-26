@@ -4,7 +4,7 @@ import { supabase } from './supabaseClient';
 export type PortalTemplateId = 'essencial' | 'signature' | 'urbano' | 'casa_familia' | 'prime';
 export type HeroBackgroundMode = 'image' | 'solid' | 'gradient';
 export type HeroPropertySceneStyle = 'route' | 'cards' | 'spotlight';
-export type EditableSectionId = 'hero' | 'featured_properties' | 'neighborhoods' | 'map' | 'info_cards' | 'banners';
+export type EditableSectionId = 'hero' | 'featured_properties' | 'neighborhoods' | 'map' | 'buying_power' | 'info_cards' | 'banners';
 
 export interface EditableSection {
   id: EditableSectionId;
@@ -67,6 +67,7 @@ const baseSections = (): EditableSection[] => [
   { id: 'featured_properties', label: 'Imóveis em destaque', isVisible: true },
   { id: 'neighborhoods', label: 'Bairros', isVisible: true },
   { id: 'map', label: 'Busca no mapa', isVisible: true },
+  { id: 'buying_power', label: 'Poder de compra', isVisible: true },
   { id: 'info_cards', label: 'Diferenciais', isVisible: true },
   { id: 'banners', label: 'Banners de chamada', isVisible: true }
 ];
@@ -121,11 +122,19 @@ export const normaliseVisualConfiguration = (value: Partial<VisualPortalConfigur
   const elements = {...value?.elements};
   const legacy = elements['hero.background'];
   const gallery = Array.isArray(value?.hero?.backgroundImages) ? [...value.hero.backgroundImages] : [];
+  const savedOrder = value?.sectionOrder?.length
+    ? value.sectionOrder
+    : ['featured_properties', 'neighborhoods', 'map', 'buying_power', 'info_cards', 'banners'];
+  const sectionOrder = [...savedOrder]
+    .filter(sectionId => sectionId !== 'buying_power');
+  const mapIndex = sectionOrder.indexOf('map');
+  sectionOrder.splice(mapIndex >= 0 ? mapIndex + 1 : sectionOrder.length, 0, 'buying_power');
   if (legacy?.imageUrl && !gallery.some(image => image.url === legacy.imageUrl)) gallery.unshift({id:'legacy-background',url:legacy.imageUrl,path:legacy.imagePath || ''});
   if(legacy) elements['hero.background'] = {...legacy,imageUrl:undefined,imagePath:undefined};
   return ({
   ...DEFAULT_VISUAL_PORTAL_CONFIGURATION,
   ...value,
+  sectionOrder,
   elements,
   hero: {
     ...DEFAULT_VISUAL_PORTAL_CONFIGURATION.hero,

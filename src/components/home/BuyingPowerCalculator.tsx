@@ -1,0 +1,56 @@
+import React,{useEffect,useMemo,useState} from 'react';
+import {ArrowRight,BadgeDollarSign,Building2,Calculator,ExternalLink,Info,Loader2,ShieldCheck} from 'lucide-react';
+import {useApp} from '../../context/AppContext';
+import {calculateBuyingPower,calculateRequiredIncome,BuyingPowerResult,MortgageRate} from '../../lib/mortgageCalculator';
+import {loadMortgageRates} from '../../lib/mortgageRates';
+
+const money=(value:number)=>new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL',maximumFractionDigits:0}).format(Number.isFinite(value)?value:0);
+const numberValue=(value:string)=>Math.max(0,Number(value.replace(/\D/g,''))||0);
+const fieldClass='w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-900 outline-none transition focus:border-rose-400 focus:ring-4 focus:ring-rose-500/10 dark:border-slate-700 dark:bg-slate-950 dark:text-white';
+
+export function BuyingPowerCalculator({compact=false}:{compact?:boolean}){
+  const {setFilters,setCurrentView,addToast}=useApp();
+  const [mode,setMode]=useState<'buying_power'|'required_income'>('buying_power');
+  const [income,setIncome]=useState(10000),[propertyValue,setPropertyValue]=useState(400000),[cash,setCash]=useState(80000),[fgts,setFgts]=useState(0),[months,setMonths]=useState(360);
+  const [rates,setRates]=useState<MortgageRate[]>([]),[selected,setSelected]=useState('all'),[loading,setLoading]=useState(true),[error,setError]=useState('');
+  useEffect(()=>{let active=true;loadMortgageRates().then(data=>{if(active)setRates(data);}).catch(()=>{if(active)setError('As taxas de referência estão temporariamente indisponíveis.');}).finally(()=>{if(active)setLoading(false);});return()=>{active=false};},[]);
+  const comparable=useMemo(()=>{
+    const preferred=new Map<string,MortgageRate>();
+    for(const item of rates.filter(r=>r.indexer==='TR')){
+      const key=item.institutionId,current=preferred.get(key);
+      if(!current||item.rateKind==='market_average'&&current.rateKind!=='market_average'||item.rateKind===current.rateKind&&item.annualRate<current.annualRate)preferred.set(key,item);
+    }
+    return [...preferred.values()];
+  },[rates]);
+  const results=useMemo(()=>comparable.filter(r=>selected==='all'||r.productId===selected).map(rate=>mode==='buying_power'?calculateBuyingPower(rate,income,cash,fgts,months):calculateRequiredIncome(rate,propertyValue,cash,fgts,months)).sort((a,b)=>mode==='buying_power'?b.buyingPower-a.buyingPower:a.minimumIncome-b.minimumIncome),[comparable,selected,mode,income,propertyValue,cash,fgts,months]);
+  const best=results[0];
+  const applyBudget=(result:BuyingPowerResult,comfortable=false)=>{
+    const budget=Math.floor(result.buyingPower*(comfortable?.9:1));
+    if(budget<=0){addToast({type:'warning',title:'Entrada insuficiente',message:'Informe uma entrada compatível para gerar uma faixa de imóveis financiável.'});return;}
+    sessionStorage.setItem('webimoveis_buying_power',JSON.stringify({budget,calculatedAt:new Date().toISOString(),institution:result.rate.institution}));
+    setFilters(current=>({...current,purpose:'sale',maxPrice:budget}));setCurrentView('search');window.scrollTo({top:0,behavior:'smooth'});
+    addToast({type:'success',title:'Faixa de compra aplicada',message:`Exibindo imóveis à venda de até ${money(budget)}.`});
+  };
+  return <div className={`rounded-3xl border border-slate-200 bg-white shadow-xl shadow-slate-900/5 dark:border-slate-800 dark:bg-slate-900 ${compact?'p-5 sm:p-7':'p-5 sm:p-8'}`}>
+    <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between"><div className="max-w-2xl"><span className="inline-flex items-center gap-2 text-xs font-black uppercase tracking-wider text-rose-600"><BadgeDollarSign className="h-4 w-4"/>Planeje sua compra</span><h2 className="mt-2 font-['Outfit'] text-2xl font-black text-slate-950 dark:text-white sm:text-3xl">Descubra seu poder de compra</h2><p className="mt-2 text-sm leading-relaxed text-slate-500">Simulação privada, sem cadastro e sem envio dos valores ao portal. Compare referências bancárias e encontre imóveis dentro da sua faixa.</p></div><div className="flex rounded-2xl bg-slate-100 p-1 dark:bg-slate-800"><button onClick={()=>setMode('buying_power')} className={`rounded-xl px-3 py-2 text-xs font-bold ${mode==='buying_power'?'bg-white text-rose-600 shadow-sm dark:bg-slate-950':'text-slate-500'}`}>Quanto posso comprar?</button><button onClick={()=>setMode('required_income')} className={`rounded-xl px-3 py-2 text-xs font-bold ${mode==='required_income'?'bg-white text-rose-600 shadow-sm dark:bg-slate-950':'text-slate-500'}`}>Qual renda preciso?</button></div></div>
+    <div className={`mt-6 grid gap-5 ${compact?'lg:grid-cols-[1fr_.9fr]':'xl:grid-cols-[1fr_.95fr]'}`}><div className="grid content-start gap-4 sm:grid-cols-2">
+      {mode==='buying_power'?<label className="text-xs font-bold text-slate-700 dark:text-slate-300">Renda familiar mensal<input className={`${fieldClass} mt-1.5`} inputMode="numeric" value={income||''} onChange={e=>setIncome(numberValue(e.target.value))}/></label>:<label className="text-xs font-bold text-slate-700 dark:text-slate-300">Valor do imóvel desejado<input className={`${fieldClass} mt-1.5`} inputMode="numeric" value={propertyValue||''} onChange={e=>setPropertyValue(numberValue(e.target.value))}/></label>}
+      <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Entrada disponível<input className={`${fieldClass} mt-1.5`} inputMode="numeric" value={cash||''} onChange={e=>setCash(numberValue(e.target.value))}/></label>
+      <label className="text-xs font-bold text-slate-700 dark:text-slate-300">FGTS disponível<input className={`${fieldClass} mt-1.5`} inputMode="numeric" value={fgts||''} onChange={e=>setFgts(numberValue(e.target.value))}/></label>
+      <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Prazo<select className={`${fieldClass} mt-1.5`} value={months} onChange={e=>setMonths(Number(e.target.value))}>{[120,180,240,300,360,420].map(value=><option key={value} value={value}>{value/12} anos</option>)}</select></label>
+      <label className="text-xs font-bold text-slate-700 dark:text-slate-300 sm:col-span-2">Instituição<select className={`${fieldClass} mt-1.5`} value={selected} onChange={e=>setSelected(e.target.value)}><option value="all">Comparar todas</option>{comparable.map(rate=><option key={rate.productId} value={rate.productId}>{rate.institution} · {rate.product}</option>)}</select></label>
+      <p className="flex gap-2 text-[11px] leading-relaxed text-slate-500 sm:col-span-2"><ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500"/>Os valores permanecem somente nesta sessão do navegador e não criam cadastro ou lead.</p>
+    </div><div className="rounded-3xl bg-slate-950 p-5 text-white sm:p-6">
+      {loading?<div className="flex min-h-56 items-center justify-center gap-2 text-sm text-slate-300"><Loader2 className="h-5 w-5 animate-spin"/>Consultando taxas...</div>:error||!best?<div className="flex min-h-56 flex-col items-center justify-center text-center"><Info className="h-8 w-8 text-amber-400"/><p className="mt-3 text-sm font-bold">{error||'Nenhuma taxa publicada no momento.'}</p></div>:<>
+        <p className="text-[10px] font-black uppercase tracking-wider text-rose-400">{mode==='buying_power'?'Faixa financiável estimada':'Renda mínima estimada'}</p><p className="mt-2 font-['Outfit'] text-3xl font-black sm:text-4xl">{money(mode==='buying_power'?best.buyingPower:best.minimumIncome)}</p><p className="mt-2 text-xs text-slate-400">Melhor resultado entre {results.length} {results.length===1?'referência comparada':'referências comparadas'} · {best.rate.institution}</p>
+        <div className="mt-5 grid grid-cols-2 gap-3">{mode==='buying_power'?<><Result label="Capacidade pela renda" value={money(best.buyingPowerByIncome)}/><Result label="Valor financiado" value={money(best.financedAmount)}/><Result label="Parcela Price" value={money(best.pricePayment)}/><Result label="Primeira SAC" value={money(best.firstSacPayment)}/></>:<><Result label="Valor financiado" value={money(Math.max(0,propertyValue-cash-fgts))}/><Result label="Renda confortável" value={money(best.comfortableIncome)}/><Result label="Parcela Price" value={money(best.pricePayment)}/><Result label="Primeira SAC" value={money(best.firstSacPayment)}/></>}</div>
+        {mode==='buying_power'&&best.minimumDownPayment>0&&<p className="mt-4 rounded-2xl border border-amber-400/30 bg-amber-400/10 p-3 text-xs text-amber-100">Sua renda comportaria uma faixa maior, mas seriam necessários mais {money(best.minimumDownPayment)} de entrada para respeitar o limite financiável.</p>}
+        {mode==='buying_power'&&<div className="mt-5 grid gap-2 sm:grid-cols-2"><button onClick={()=>applyBudget(best,true)} className="rounded-2xl bg-white px-4 py-3 text-xs font-black text-slate-950">Buscar com folga de 10%</button><button onClick={()=>applyBudget(best)} className="flex items-center justify-center gap-2 rounded-2xl bg-rose-600 px-4 py-3 text-xs font-black text-white">Buscar até o limite<ArrowRight className="h-4 w-4"/></button></div>}
+        <p className="mt-4 text-[10px] leading-relaxed text-slate-400">Taxa de {new Intl.NumberFormat('pt-BR',{style:'percent',minimumFractionDigits:2}).format(best.rate.annualRate)} a.a. · {best.rate.indexer} · verificada em {new Date(best.rate.verifiedAt).toLocaleDateString('pt-BR')}. Estimativa sem seguros, CET e aprovação de crédito.</p>
+      </>}
+    </div></div>
+    {!compact&&results.length>1&&<div className="mt-6 overflow-hidden rounded-3xl border border-slate-200 dark:border-slate-800"><div className="border-b border-slate-200 px-5 py-4 dark:border-slate-800"><h3 className="font-['Outfit'] text-lg font-black">Comparação das instituições</h3></div><div className="divide-y divide-slate-100 dark:divide-slate-800">{results.map((result,index)=><div key={result.rate.productId} className="grid gap-3 px-5 py-4 sm:grid-cols-[1fr_auto_auto] sm:items-center"><div className="flex items-start gap-3"><span className="flex h-9 w-9 items-center justify-center rounded-xl bg-rose-50 text-rose-600 dark:bg-rose-950"><Building2 className="h-4 w-4"/></span><div><p className="text-sm font-black">{result.rate.institution}{index===0&&<span className="ml-2 rounded-full bg-emerald-100 px-2 py-0.5 text-[9px] text-emerald-700">Melhor estimativa</span>}</p><p className="text-[11px] text-slate-500">{result.rate.product} · {(result.rate.annualRate*100).toFixed(2).replace('.',',')}% a.a. + {result.rate.indexer}</p></div></div><div><p className="text-[10px] uppercase text-slate-400">{mode==='buying_power'?'Imóvel estimado':'Renda mínima'}</p><p className="text-sm font-black">{money(mode==='buying_power'?result.buyingPower:result.minimumIncome)}</p></div>{result.rate.sourceUrl?<a href={result.rate.sourceUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-xs font-bold text-rose-600">Fonte oficial<ExternalLink className="h-3 w-3"/></a>:<span/>}</div>)}</div></div>}
+  </div>;
+}
+function Result({label,value}:{label:string;value:string}){return <div className="rounded-2xl bg-white/5 p-3"><p className="text-[9px] font-bold uppercase text-slate-400">{label}</p><p className="mt-1 text-sm font-black">{value}</p></div>}
+
