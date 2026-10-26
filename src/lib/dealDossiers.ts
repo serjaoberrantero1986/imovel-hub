@@ -132,6 +132,8 @@ export async function addDealParticipant(dossierId: string, actorId: string, inp
   if (error) throw error;
 }
 
+export async function moveDealDossierStage(dossierId:string,direction:'previous'|'next'):Promise<DealStage>{if(!supabase)throw new Error('Serviço indisponível.');const{data,error}=await supabase.rpc('move_deal_dossier_stage',{p_dossier_id:dossierId,p_direction:direction});if(error)throw error;return String(data) as DealStage;}
+
 export async function loadDealDocumentCatalog(role: string, legalRegime: DealDossier['propertyLegalRegime'] = 'unknown'): Promise<DealDocumentCatalogItem[]> {
   if (!supabase) throw new Error('Serviço indisponível.');
   const { data, error } = await supabase.from('deal_document_catalog').select('*').eq('active', true).order('sort_order');
