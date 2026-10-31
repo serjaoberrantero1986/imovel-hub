@@ -168,6 +168,9 @@ Deno.serve(async (req) => {
         p_contract_version_id: version.id,
         p_pdf_path: version.preview_pdf_path,
         p_pdf_hash: version.preview_pdf_hash,
+        p_participant_ids: Array.isArray(body.participantIds)
+          ? body.participantIds.map(String)
+          : [],
         p_valid_days: Number(body.validDays || 10),
       },
     );
@@ -188,7 +191,7 @@ Deno.serve(async (req) => {
     const sends = await Promise.allSettled(
       prepared.reviewers.map(async (r: any) => {
         const link = `${o}/#contract_review=${r.token}`,
-          html = `<div style="font-family:Arial;max-width:560px;margin:auto;padding:28px"><h1 style="color:#e00038">Revisão da minuta</h1><p>Olá, ${esc(r.name)}.</p><p>A versão ${prepared.version} da minuta está disponível para sua análise. Todos os participantes receberam a mesma versão simultaneamente.</p><p><a href="${esc(link)}" style="display:inline-block;background:#e00038;color:white;padding:14px 20px;border-radius:12px;text-decoration:none;font-weight:bold">Revisar minuta</a></p><p style="color:#64748b;font-size:12px">O link é pessoal. Não o encaminhe.</p></div>`;
+          html = `<div style="font-family:Arial;max-width:560px;margin:auto;padding:28px"><h1 style="color:#e00038">Revisão da minuta</h1><p>Olá, ${esc(r.name)}.</p><p>A versão ${prepared.version} da minuta está disponível para sua análise.</p><p><a href="${esc(link)}" style="display:inline-block;background:#e00038;color:white;padding:14px 20px;border-radius:12px;text-decoration:none;font-weight:bold">Revisar minuta</a></p><p style="color:#64748b;font-size:12px">O link é pessoal. Não o encaminhe.</p></div>`;
         const res = await fetch("https://api.resend.com/emails", {
           method: "POST",
           headers: {
