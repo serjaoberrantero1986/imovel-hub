@@ -13,6 +13,7 @@ export interface DealParticipant {
   isPrimary: boolean;
   status: string;
   source: string;
+  personType:'individual'|'company';cpfCnpj?:string;rg?:string;rgIssuer?:string;nationality?:string;maritalStatus?:string;propertyRegime?:string;profession?:string;postalCode?:string;street?:string;addressNumber?:string;addressComplement?:string;neighborhood?:string;city?:string;state?:string;
 }
 
 export interface DealDossier {
@@ -42,7 +43,7 @@ export interface DealFinding {id:string;dossierId:string;requestItemId?:string;k
 export interface DealContractTemplate{id:string;key:string;version:number;businessType:string;name:string;description:string}
 export interface DealContractClause{id:string;key:string;version:number;title:string;explanation:string;body:string;category:string;required:boolean;defaultEnabled:boolean;dependencies:string[];incompatibilities:string[];sortOrder:number}
 export interface DealContractVersion{id:string;version:number;status:'preliminary'|'ready'|'final';variables:Record<string,string>;content:any;contentHash:string;createdAt:string;previewPdfHash?:string;previewGeneratedAt?:string}
-export interface DealNegotiationVersion{id:string;version:number;kind:'proposal'|'counterproposal'|'consolidated_terms';status:string;title:string;terms:Record<string,string>;notes?:string;contentHash:string;createdAt:string}
+export interface DealNegotiationVersion{id:string;version:number;kind:'proposal'|'counterproposal'|'consolidated_terms';status:string;title:string;terms:Record<string,string>;notes?:string;contentHash:string;createdAt:string;parties?:DealParticipant[]}
 export interface DealCertificateSource{id:string;key:string;label:string;description:string;officialUrl:string;authorityName:string;scope:string;stateCode?:string;cityName?:string;appliesTo:string[];documentCatalogKey?:string;conditionalRule?:string;verifiedAt:string;sourceNotes?:string;active?:boolean}
 
 export interface DealDocumentCatalogItem {
@@ -64,7 +65,7 @@ const mapParticipant = (row: any): DealParticipant => ({
   phone: row.phone || undefined,
   isPrimary: Boolean(row.is_primary),
   status: row.status,
-  source: row.source
+  source: row.source,personType:row.person_type||'individual',cpfCnpj:row.cpf_cnpj||row.document_number||undefined,rg:row.rg||undefined,rgIssuer:row.rg_issuer||undefined,nationality:row.nationality||undefined,maritalStatus:row.marital_status||undefined,propertyRegime:row.property_regime||undefined,profession:row.profession||undefined,postalCode:row.postal_code||undefined,street:row.street||undefined,addressNumber:row.address_number||undefined,addressComplement:row.address_complement||undefined,neighborhood:row.neighborhood||undefined,city:row.city||undefined,state:row.state||undefined
 });
 
 export async function loadDealDossier(leadId: string): Promise<DealDossier | null> {
@@ -105,7 +106,7 @@ export async function loadDealDossier(leadId: string): Promise<DealDossier | nul
   };
 }
 
-export async function loadDealNegotiation(dossierId:string):Promise<DealNegotiationVersion[]>{if(!supabase)throw new Error('Serviço indisponível.');const{data,error}=await supabase.from('deal_negotiation_versions').select('*').eq('dossier_id',dossierId).order('version',{ascending:false});if(error)throw error;return(data||[]).map((r:any)=>({id:r.id,version:r.version,kind:r.kind,status:r.status,title:r.title,terms:r.terms||{},notes:r.notes||undefined,contentHash:r.content_hash,createdAt:r.created_at}));}
+export async function loadDealNegotiation(dossierId:string):Promise<DealNegotiationVersion[]>{if(!supabase)throw new Error('Serviço indisponível.');const{data,error}=await supabase.from('deal_negotiation_versions').select('*').eq('dossier_id',dossierId).order('version',{ascending:false});if(error)throw error;return(data||[]).map((r:any)=>({id:r.id,version:r.version,kind:r.kind,status:r.status,title:r.title,terms:r.terms||{},notes:r.notes||undefined,contentHash:r.content_hash,createdAt:r.created_at,parties:(r.qualification_snapshot||[]).map(mapParticipant)}));}
 export async function loadDealNotificationCount():Promise<number>{if(!supabase)return 0;const{data,error}=await supabase.rpc('get_my_deal_notification_count');if(error)throw error;return Number(data||0)}
 export async function markDealNotificationsRead(dossierId:string):Promise<void>{if(!supabase)return;const{error}=await supabase.rpc('mark_my_deal_notifications_read',{p_dossier_id:dossierId});if(error)throw error;window.dispatchEvent(new Event('deal-notifications-changed'))}
 export async function createDealNegotiationVersion(input:{dossierId:string;kind:DealNegotiationVersion['kind'];title:string;terms:Record<string,string>;notes?:string;status:'draft'|'presented'}):Promise<string>{if(!supabase)throw new Error('Serviço indisponível.');const{data,error}=await supabase.rpc('create_deal_negotiation_version',{p_dossier_id:input.dossierId,p_kind:input.kind,p_title:input.title,p_terms:input.terms,p_notes:input.notes?.trim()||null,p_status:input.status});if(error)throw error;return String(data);}
@@ -131,7 +132,7 @@ export async function addDealParticipant(dossierId: string, actorId: string, inp
   });
   if (error) throw error;
 }
-export async function manageDealParticipant(participant:DealParticipant,action:'update'|'deactivate'|'reactivate'):Promise<{emailChanged:boolean}>{if(!supabase)throw new Error('Serviço indisponível.');const{data,error}=await supabase.rpc('manage_deal_participant',{p_participant_id:participant.id,p_name:participant.name,p_email:participant.email||'',p_phone:participant.phone||'',p_role:participant.role,p_action:action});if(error)throw error;return{emailChanged:Boolean(data?.email_changed)};}
+export async function manageDealParticipant(participant:DealParticipant,action:'update'|'deactivate'|'reactivate'):Promise<{emailChanged:boolean}>{if(!supabase)throw new Error('Serviço indisponível.');const{data,error}=await supabase.rpc('manage_deal_participant',{p_participant_id:participant.id,p_name:participant.name,p_email:participant.email||'',p_phone:participant.phone||'',p_role:participant.role,p_action:action,p_qualification:{person_type:participant.personType,cpf_cnpj:participant.cpfCnpj,rg:participant.rg,rg_issuer:participant.rgIssuer,nationality:participant.nationality,marital_status:participant.maritalStatus,property_regime:participant.propertyRegime,profession:participant.profession,postal_code:participant.postalCode,street:participant.street,address_number:participant.addressNumber,address_complement:participant.addressComplement,neighborhood:participant.neighborhood,city:participant.city,state:participant.state}});if(error)throw error;return{emailChanged:Boolean(data?.email_changed)};}
 
 export async function moveDealDossierStage(dossierId:string,direction:'previous'|'next'):Promise<DealStage>{if(!supabase)throw new Error('Serviço indisponível.');const{data,error}=await supabase.rpc('move_deal_dossier_stage',{p_dossier_id:dossierId,p_direction:direction});if(error)throw error;return String(data) as DealStage;}
 

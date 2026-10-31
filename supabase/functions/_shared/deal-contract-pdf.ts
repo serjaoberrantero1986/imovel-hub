@@ -131,15 +131,16 @@ function participantText(person: any, possessory: boolean) {
         : possessory && person?.role === "buyer"
           ? "CESSIONÁRIO"
           : standardLabel,
-    details = [person?.nationality, person?.marital_status, person?.profession]
+    details = [person?.nationality,person?.marital_status,person?.property_regime&&`sob o regime de ${person.property_regime}`,person?.profession]
       .map(clean)
       .filter(Boolean)
       .join(", "),
     document = clean(
       person?.cpf_cnpj || person?.document_number || person?.tax_id,
     ),
-    address = clean(person?.address || person?.full_address);
-  return `${clean(person?.name) || "PARTE A QUALIFICAR"}, doravante denominado(a) ${label}${details ? `, ${details}` : ""}${document ? `, inscrito(a) no CPF/CNPJ sob nº ${document}` : ""}${address ? `, residente e domiciliado(a) em ${address}` : ""}.`;
+    rg=clean(person?.rg),issuer=clean(person?.rg_issuer),
+    address = clean(person?.address || person?.full_address || [person?.street,person?.address_number&&`nº ${person.address_number}`,person?.address_complement,person?.neighborhood,person?.city,person?.state,person?.postal_code&&`CEP ${person.postal_code}`].filter(Boolean).join(', '));
+  return `${clean(person?.name) || "PARTE A QUALIFICAR"}, doravante denominado(a) ${label}${details ? `, ${details}` : ""}${rg?`, portador(a) do RG nº ${rg}${issuer?` (${issuer})`:''}`:''}${document ? `, inscrito(a) no CPF/CNPJ sob nº ${document}` : ""}${address ? `, residente e domiciliado(a) em ${address}` : ""}.`;
 }
 function compose(content: any) {
   const snapshot = content?.snapshot?.content || {},
