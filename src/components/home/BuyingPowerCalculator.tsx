@@ -8,11 +8,14 @@ const money=(value:number)=>new Intl.NumberFormat('pt-BR',{style:'currency',curr
 const numberValue=(value:string)=>Math.max(0,Number(value.replace(/\D/g,''))||0);
 const fieldClass='w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-900 outline-none transition focus:border-rose-400 focus:ring-4 focus:ring-rose-500/10 dark:border-slate-700 dark:bg-slate-950 dark:text-white';
 
-export function BuyingPowerCalculator({compact=false}:{compact?:boolean}){
+type StoredBuyingPower={budget:number;calculatedAt:string;institution:string;income:number;propertyValue:number;cash:number;fgts:number;months:number;selected:string;mode:'buying_power'|'required_income';comfortable:boolean};
+const storedSimulation=()=>{try{return JSON.parse(sessionStorage.getItem('webimoveis_buying_power')||'null') as StoredBuyingPower|null}catch{return null}};
+export function BuyingPowerCalculator({compact=false,restoreSession=false,onApplied}:{compact?:boolean;restoreSession?:boolean;onApplied?:()=>void}){
   const {setFilters,setCurrentView,addToast}=useApp();
-  const [mode,setMode]=useState<'buying_power'|'required_income'>('buying_power');
-  const [income,setIncome]=useState(0),[propertyValue,setPropertyValue]=useState(0),[cash,setCash]=useState(0),[fgts,setFgts]=useState(0),[months,setMonths]=useState(0);
-  const [rates,setRates]=useState<MortgageRate[]>([]),[selected,setSelected]=useState('all'),[loading,setLoading]=useState(true),[error,setError]=useState('');
+  const restored=restoreSession?storedSimulation():null;
+  const [mode,setMode]=useState<'buying_power'|'required_income'>(restored?.mode||'buying_power');
+  const [income,setIncome]=useState(restored?.income||0),[propertyValue,setPropertyValue]=useState(restored?.propertyValue||0),[cash,setCash]=useState(restored?.cash||0),[fgts,setFgts]=useState(restored?.fgts||0),[months,setMonths]=useState(restored?.months||0);
+  const [rates,setRates]=useState<MortgageRate[]>([]),[selected,setSelected]=useState(restored?.selected||'all'),[loading,setLoading]=useState(true),[error,setError]=useState('');
   useEffect(()=>{let active=true;loadMortgageRates().then(data=>{if(active)setRates(data);}).catch(()=>{if(active)setError('As taxas de referência estão temporariamente indisponíveis.');}).finally(()=>{if(active)setLoading(false);});return()=>{active=false};},[]);
   const comparable=useMemo(()=>{
     const preferred=new Map<string,MortgageRate>();
@@ -27,9 +30,10 @@ export function BuyingPowerCalculator({compact=false}:{compact?:boolean}){
   const applyBudget=(result:BuyingPowerResult,comfortable=false)=>{
     const budget=Math.floor(result.buyingPower*(comfortable?.9:1));
     if(budget<=0){addToast({type:'warning',title:'Entrada insuficiente',message:'Informe uma entrada compatível para gerar uma faixa de imóveis financiável.'});return;}
-    sessionStorage.setItem('webimoveis_buying_power',JSON.stringify({budget,calculatedAt:new Date().toISOString(),institution:result.rate.institution}));
+    sessionStorage.setItem('webimoveis_buying_power',JSON.stringify({budget,calculatedAt:new Date().toISOString(),institution:result.rate.institution,income,propertyValue,cash,fgts,months,selected,mode,comfortable} satisfies StoredBuyingPower));
     setFilters(current=>({...current,purpose:'sale',maxPrice:budget}));setCurrentView('search');window.scrollTo({top:0,behavior:'smooth'});
     addToast({type:'success',title:'Faixa de compra aplicada',message:`Exibindo imóveis à venda de até ${money(budget)}.`});
+    onApplied?.();
   };
   return <div className={`rounded-3xl border border-slate-200 bg-white shadow-xl shadow-slate-900/5 dark:border-slate-800 dark:bg-slate-900 ${compact?'p-5 sm:p-7':'p-5 sm:p-8'}`}>
     <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between"><div className="max-w-2xl"><span className="inline-flex items-center gap-2 text-xs font-black uppercase tracking-wider text-rose-600"><BadgeDollarSign className="h-4 w-4"/>Planeje sua compra</span><h2 className="mt-2 font-['Outfit'] text-2xl font-black text-slate-950 dark:text-white sm:text-3xl">Descubra seu poder de compra</h2><p className="mt-2 text-sm leading-relaxed text-slate-500">Simulação privada, sem cadastro e sem envio dos valores ao portal. Compare referências bancárias e encontre imóveis dentro da sua faixa.</p></div><div className="flex rounded-2xl bg-slate-100 p-1 dark:bg-slate-800"><button onClick={()=>setMode('buying_power')} className={`rounded-xl px-3 py-2 text-xs font-bold ${mode==='buying_power'?'bg-white text-rose-600 shadow-sm dark:bg-slate-950':'text-slate-500'}`}>Quanto posso comprar?</button><button onClick={()=>setMode('required_income')} className={`rounded-xl px-3 py-2 text-xs font-bold ${mode==='required_income'?'bg-white text-rose-600 shadow-sm dark:bg-slate-950':'text-slate-500'}`}>Qual renda preciso?</button></div></div>

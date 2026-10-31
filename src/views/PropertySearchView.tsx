@@ -20,6 +20,9 @@ import { FilterDrawerBottomSheet } from '../components/properties/FilterDrawerBo
 import { PropertyCardSkeleton } from '../components/ui/Skeleton';
 import { Property } from '../types';
 import { filterProperties } from '../lib/propertyFilters';
+import { BuyingPowerCalculator } from '../components/home/BuyingPowerCalculator';
+
+const moneyValue=(value=0)=>new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL',maximumFractionDigits:0}).format(value);
 
 export const PropertySearchView: React.FC = () => {
   const { publicProperties, filters, setFilters, resetFilters } = useApp();
@@ -27,7 +30,8 @@ export const PropertySearchView: React.FC = () => {
   const [hoveredPropertyId, setHoveredPropertyId] = useState<string | null>(null);
   const [isFilterDrawerOpen, setIsFilterDrawerOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const buyingPower = useMemo(() => { try { return JSON.parse(sessionStorage.getItem('webimoveis_buying_power') || 'null') as {budget:number;institution:string}|null; } catch { return null; } }, [filters.maxPrice]);
+  const [buyingPowerExpanded,setBuyingPowerExpanded]=useState(false);
+  const buyingPower = useMemo(() => { try { return JSON.parse(sessionStorage.getItem('webimoveis_buying_power') || 'null') as {budget:number;institution:string;income?:number;cash?:number;fgts?:number;months?:number;comfortable?:boolean}|null; } catch { return null; } }, [filters.maxPrice,buyingPowerExpanded]);
 
   // Set default view mode based on screen width
   useEffect(() => {
@@ -68,7 +72,7 @@ export const PropertySearchView: React.FC = () => {
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 py-4 sm:py-6 transition-colors safe-bottom-padding">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-4 sm:space-y-6">
-        {buyingPower&&filters.purpose==='sale'&&filters.maxPrice===buyingPower.budget&&<div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm dark:border-rose-900 dark:bg-rose-950/30"><div><p className="font-black text-rose-700 dark:text-rose-300">Poder de compra aplicado · até {new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL',maximumFractionDigits:0}).format(buyingPower.budget)}</p><p className="text-xs text-slate-500">Estimativa baseada na referência {buyingPower.institution}.</p></div><button onClick={()=>{sessionStorage.removeItem('webimoveis_buying_power');setFilters(current=>({...current,maxPrice:undefined}));}} className="rounded-xl bg-white px-3 py-2 text-xs font-black text-rose-600 shadow-sm dark:bg-slate-900">Remover limite</button></div>}
+        {buyingPower&&filters.purpose==='sale'&&filters.maxPrice===buyingPower.budget&&<section id="simulacao-poder-compra" className="space-y-3"><div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm dark:border-rose-900 dark:bg-rose-950/30"><div className="flex flex-wrap items-center justify-between gap-3"><div><p className="font-black text-rose-700 dark:text-rose-300">Poder de compra aplicado · até {new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL',maximumFractionDigits:0}).format(buyingPower.budget)}</p><p className="text-xs text-slate-500">{buyingPower.comfortable?'Faixa com folga de 10%':'Busca até o limite estimado'} · referência {buyingPower.institution}.</p></div><div className="flex flex-wrap gap-2"><button onClick={()=>setBuyingPowerExpanded(value=>!value)} className="rounded-xl bg-rose-600 px-3 py-2 text-xs font-black text-white shadow-sm">{buyingPowerExpanded?'Recolher calculadora':'Editar simulação'}</button><button onClick={()=>{sessionStorage.removeItem('webimoveis_buying_power');setBuyingPowerExpanded(false);setFilters(current=>({...current,maxPrice:undefined}));}} className="rounded-xl bg-white px-3 py-2 text-xs font-black text-rose-600 shadow-sm dark:bg-slate-900">Remover limite</button></div></div><div className="mt-3 grid grid-cols-2 gap-2 border-t border-rose-200 pt-3 text-[10px] text-slate-600 dark:border-rose-900 dark:text-slate-300 sm:grid-cols-4"><span><strong>Renda:</strong> {moneyValue(buyingPower.income)}</span><span><strong>Entrada total:</strong> {moneyValue((buyingPower.cash||0)+(buyingPower.fgts||0))}</span><span><strong>Prazo:</strong> {buyingPower.months?`${buyingPower.months/12} anos`:'—'}</span><span><strong>Limite:</strong> {moneyValue(buyingPower.budget)}</span></div></div>{buyingPowerExpanded&&<BuyingPowerCalculator compact restoreSession onApplied={()=>setBuyingPowerExpanded(false)}/>}</section>}
         
         {/* Top Filters Bar (Desktop & Tablet) */}
         <PropertyFilterBar />
@@ -214,15 +218,7 @@ export const PropertySearchView: React.FC = () => {
                 ? 'Não há imóveis disponíveis no banco de dados. Novos anúncios cadastrados aparecerão aqui imediatamente.'
                 : 'Tente ampliar a faixa de preço, selecionar outros bairros ou remover filtros de comodidades para ver mais opções.'}
             </p>
-            {publicProperties.length > 0 && (
-              <button
-                onClick={resetFilters}
-                className="min-h-[44px] px-6 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold shadow-md inline-flex items-center gap-2 active:scale-95 transition-all"
-              >
-                <RotateCcw className="w-3.5 h-3.5" />
-                <span>Limpar todos os filtros</span>
-              </button>
-            )}
+            {publicProperties.length > 0 && <div className="flex flex-wrap justify-center gap-2">{buyingPower&&<button onClick={()=>{setBuyingPowerExpanded(true);document.getElementById('simulacao-poder-compra')?.scrollIntoView({behavior:'smooth',block:'start'})}} className="min-h-[44px] rounded-xl bg-rose-600 px-6 py-2.5 text-xs font-bold text-white shadow-md">Recalcular minha faixa</button>}<button onClick={resetFilters} className={`${buyingPower?'bg-white text-slate-600 border border-slate-200 dark:bg-slate-900 dark:border-slate-700':'bg-rose-600 text-white'} min-h-[44px] px-6 py-2.5 rounded-xl text-xs font-bold shadow-md inline-flex items-center gap-2 active:scale-95 transition-all`}><RotateCcw className="w-3.5 h-3.5"/><span>Limpar todos os filtros</span></button></div>}
           </div>
         ) : (
           <>
