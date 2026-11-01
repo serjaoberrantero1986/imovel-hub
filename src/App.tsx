@@ -37,7 +37,6 @@ import { AppAccessView } from './views/AppAccessView';
 import { MarketingLandingView } from './views/MarketingLandingView';
 import { AdminPlansView } from './views/AdminPlansView';
 import { PlanCheckoutView } from './views/PlanCheckoutView';
-import { getSafePortalReturnUrl } from './lib/appAddress';
 
 const MainContent: React.FC = () => {
   const { currentView, activeLegalTab, currentUser, isAuthenticated, setCurrentView } = useApp();
@@ -73,16 +72,12 @@ const MainContent: React.FC = () => {
     return <><AppAccessView /><AuthModal /><ToastContainer /></>;
   }
 
-  const returnUrl = portal.mode === 'app' ? getSafePortalReturnUrl() : null;
-
   return (
     <div className="flex flex-col min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 transition-colors duration-200 pb-16 lg:pb-0 overflow-x-hidden">
       {/* Offline Status Listener */}
       <OfflineBanner />
 
       <Navbar />
-
-      {returnUrl && <div className="border-b border-rose-100 bg-rose-50 px-4 py-2.5 text-center text-sm text-rose-900 dark:border-rose-950 dark:bg-rose-950/30 dark:text-rose-100">Você entrou com segurança. <a href={returnUrl.toString()} className="font-extrabold underline underline-offset-4">Voltar ao portal de origem</a></div>}
 
       <main className="flex-1">
         {renderedView === 'portal' && <PortalHomeView />}
