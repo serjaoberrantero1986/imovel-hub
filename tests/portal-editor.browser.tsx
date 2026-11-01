@@ -100,7 +100,7 @@ async function run(){
     assert(document.querySelector('.hero-controls')?.textContent?.includes('Intervalo dos anúncios'),'temporizador dos anúncios');
     const direct=Array.from(document.querySelectorAll('.canvas-context-menu .hero-controls label')).map(label=>label.textContent).join('|');
     const host=document.createElement('div');document.body.append(host);const other=createRoot(host);
-    flushSync(()=>other.render(<PortalVisualEditor configuration={DEFAULT_VISUAL_PORTAL_CONFIGURATION} onChange={()=>{}} onClose={()=>{}} onPublish={()=>{}} onPrepareImage={async()=>null}/>));
+    flushSync(()=>other.render(<PortalVisualEditor configuration={DEFAULT_VISUAL_PORTAL_CONFIGURATION} planTier="advanced" onChange={()=>{}} onClose={()=>{}} onPublish={()=>{}} onPrepareImage={async()=>null}/>));
     (Array.from(host.querySelectorAll('button')).find(button=>button.textContent==='Apresentação') as HTMLElement).click();await wait();
     assert(Array.from(host.querySelectorAll('.hero-controls label')).map(label=>label.textContent).join('|')===direct,'opções idênticas nos dois atalhos');
     assert(host.querySelector('.canvas-window-drag'),'painel de modelos arrastável');

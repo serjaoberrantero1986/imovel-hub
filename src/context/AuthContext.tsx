@@ -45,7 +45,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const GUEST_USER: UserProfile = { id: 'guest_buyer', name: 'Visitante Web Imóvel', email: '', role: 'buyer', verified: false };
 const isCaptchaFailure = (error: any) => /captcha|turnstile|challenge/i.test(`${error?.code || ''} ${error?.message || ''}`);
 
-const toProfile = (user: any, row: any, preferences: UserProfile['preferences'] = {}): UserProfile => ({
+const toProfile = (user: any, row: any, preferences: UserProfile['preferences'] = {}, planTier?: UserProfile['planTier']): UserProfile => ({
   id: user.id, name: row.name, email: user.email || row.email, phone: row.phone, whatsapp: row.whatsapp,
   role: row.role, creci: row.creci, creciUf: row.creci_uf, agencyName: row.agency_name,
   agencyLogo: row.agency_logo, verified: row.verified, avatarUrl: row.avatar_url, bio: row.bio,
@@ -54,7 +54,8 @@ const toProfile = (user: any, row: any, preferences: UserProfile['preferences'] 
   creciVerifiedAt: row.creci_verified_at, creciProtocol: row.creci_protocol,
   creciReviewStatus: row.creci_review_status || 'not_requested',
   creciReviewedAt: row.creci_reviewed_at, creciReviewExpiresAt: row.creci_review_expires_at,
-  availableWeekendVisits: row.available_weekend_visits ?? false, authProvider: 'email', preferences
+  availableWeekendVisits: row.available_weekend_visits ?? false, authProvider: 'email', preferences,
+  planTier: planTier || 'basic'
 });
 
 export const AuthProvider: React.FC<{ children: React.ReactNode; addToast: (toast: Omit<Toast, 'id'>) => void }> = ({ children, addToast }) => {
@@ -93,15 +94,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode; addToast: (toas
     }
     const { data, error } = await supabase.from('profiles').select('*').eq('id', user.id).single();
     if (error || !data) { await supabase.auth.signOut(); setIsAuthenticated(false); setCurrentUser(GUEST_USER); return; }
-    const { data: privateData, error: preferencesError } = await supabase
-      .from('profile_preferences').select('preferences').eq('user_id', user.id).maybeSingle();
+    const [{ data: privateData, error: preferencesError }, { data: entitlement }] = await Promise.all([
+      supabase.from('profile_preferences').select('preferences').eq('user_id', user.id).maybeSingle(),
+      (supabase as any).from('portal_plan_entitlements').select('plan_tier').eq('profile_id', user.id).maybeSingle(),
+    ]);
     setPreferencesReady(!preferencesError);
     if (preferencesError) {
       addToast({ type: 'warning', title: 'Preferências indisponíveis', message: 'Não foi possível carregar suas preferências. Recarregue a página antes de editar o perfil.' });
     }
     setMfaChallengeFactorId(null);
     setMfaChallengeFactors([]);
-    setCurrentUser(toProfile(user, data, privateData?.preferences || {})); setIsAuthenticated(true);
+    setCurrentUser(toProfile(user, data, privateData?.preferences || {}, entitlement?.plan_tier)); setIsAuthenticated(true);
     if (sessionStorage.getItem('webimovel_oauth_welcome') === 'pending') {
       sessionStorage.removeItem('webimovel_oauth_welcome');
       addToast({ type: 'success', title: 'Bem-vindo!', message: 'Seu acesso foi concluído. Aproveite o portal!' });

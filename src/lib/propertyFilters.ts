@@ -13,6 +13,8 @@ export function hasActiveFilters(filters: FilterState): boolean {
     Boolean(filters.maxArea) ||
     (filters.parkingSpots && filters.parkingSpots !== 'any') ||
     (filters.amenities && filters.amenities.length > 0) ||
+    Boolean(filters.featuredOnly) ||
+    (filters.neighborhoods && filters.neighborhoods.length > 0) ||
     (filters.city && filters.city !== 'all')
   );
 }
@@ -50,6 +52,10 @@ export function filterProperties(properties: Property[], filters: FilterState): 
         return false;
       }
     }
+
+    if (filters.featuredOnly && !prop.featured) return false;
+
+    if (filters.neighborhoods?.length && !filters.neighborhoods.some(item => item.toLowerCase() === prop.neighborhood.toLowerCase())) return false;
 
     // Types filter
     if (filters.types && filters.types.length > 0) {
@@ -126,6 +132,7 @@ export function filterProperties(properties: Property[], filters: FilterState): 
     if (filters.sortBy === 'price_asc') return a.price - b.price;
     if (filters.sortBy === 'price_desc') return b.price - a.price;
     if (filters.sortBy === 'area_desc') return (b.usefulArea || b.totalArea) - (a.usefulArea || a.totalArea);
+    if (filters.sortBy === 'views_desc') return b.viewsCount - a.viewsCount;
     if (filters.sortBy === 'recent') {
       const dateA = (a as any).createdAt ? new Date((a as any).createdAt).getTime() : 0;
       const dateB = (b as any).createdAt ? new Date((b as any).createdAt).getTime() : 0;

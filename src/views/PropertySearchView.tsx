@@ -67,8 +67,11 @@ export const PropertySearchView: React.FC = () => {
     (filters.minPrice || filters.maxPrice ? 1 : 0) +
     (filters.minArea || filters.maxArea ? 1 : 0) +
     filters.amenities.length +
+    filters.neighborhoods.length +
+    (filters.featuredOnly ? 1 : 0) +
     (filters.searchTerm ? 1 : 0) +
     (filters.propertyCode ? 1 : 0);
+
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 py-4 sm:py-6 transition-colors safe-bottom-padding">
@@ -126,6 +129,7 @@ export const PropertySearchView: React.FC = () => {
         </div>
 
         {/* Results Header & Layout Switcher */}
+        {filters.featuredOnly && <div className="flex items-center justify-between gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs dark:border-amber-900 dark:bg-amber-950/20"><span className="flex items-center gap-2 font-extrabold text-amber-800 dark:text-amber-200"><Sparkles className="h-4 w-4"/>Exibindo somente imóveis em destaque</span><button onClick={()=>setFilters(current=>({...current,featuredOnly:false}))} className="font-bold text-amber-700 underline underline-offset-2 dark:text-amber-300">Remover filtro</button></div>}
         <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
           <div>
             <h1 className="text-lg sm:text-2xl font-extrabold text-slate-900 dark:text-white font-['Outfit'] flex items-center gap-2">
@@ -154,7 +158,8 @@ export const PropertySearchView: React.FC = () => {
                 <option value="price_asc" className="dark:bg-slate-900">Menor Preço</option>
                 <option value="price_desc" className="dark:bg-slate-900">Maior Preço</option>
                 <option value="area_desc" className="dark:bg-slate-900">Maior Área</option>
-                <option value="newest" className="dark:bg-slate-900">Mais Recentes</option>
+                <option value="recent" className="dark:bg-slate-900">Mais Recentes</option>
+                <option value="views_desc" className="dark:bg-slate-900">Mais acessados</option>
               </select>
             </div>
 

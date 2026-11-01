@@ -27,6 +27,8 @@ import { PropertyMap } from '../components/properties/PropertyMap';
 import { PropertyCardSkeleton } from '../components/ui/Skeleton';
 import { filterProperties, hasActiveFilters } from '../lib/propertyFilters';
 import { BuyingPowerCalculator } from '../components/home/BuyingPowerCalculator';
+import type { PropertyShowcase } from '../lib/visualPortalEditor';
+import { filtersForShowcase } from '../lib/propertyShowcases';
 
 
 export const PortalHomeView: React.FC = () => {
@@ -74,10 +76,17 @@ export const PortalHomeView: React.FC = () => {
     }
   }, [filters, isFiltering]);
 
-  // Real featured listings from active properties
-  const featuredProperties = useMemo(() => {
-    return publicProperties.filter(p => p.featured).slice(0, 6);
-  }, [publicProperties]);
+  const visibleShowcases = useMemo(() => activeVisualConfiguration.showcases
+    .filter(showcase => showcase.isVisible)
+    .map(showcase => ({ showcase, matches: filterProperties(publicProperties, filtersForShowcase(showcase)) }))
+    .filter(item => isVisualEditorOpen || item.matches.length > 0),
+  [activeVisualConfiguration.showcases, publicProperties, isVisualEditorOpen]);
+
+  const openShowcase = (showcase: PropertyShowcase) => {
+    setFilters(filtersForShowcase(showcase));
+    setCurrentView('search');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   // Dynamic real neighborhoods extracted directly from active properties
   const dynamicNeighborhoods = useMemo(() => {
@@ -125,7 +134,7 @@ export const PortalHomeView: React.FC = () => {
       <CanvasSections>
         
         {/* Section: Imóveis em Destaque ou Resultados da Busca */}
-        {isVisible('featured_properties') && <CanvasSection sectionId="featured_properties"><EditableBox id="section.featured" label="Imóveis em destaque"><section id="portal-properties-section" className="space-y-6 scroll-mt-20">
+        {isVisible('featured_properties') && <CanvasSection sectionId="featured_properties"><EditableBox id="section.featured" label="Vitrines de imóveis"><section id="portal-properties-section" className="space-y-6 scroll-mt-20">
           {isFiltering ? (
             <div className="space-y-6">
               <div className="flex flex-wrap items-end justify-between gap-4 pb-2 border-b border-slate-200 dark:border-slate-800">
@@ -205,34 +214,7 @@ export const PortalHomeView: React.FC = () => {
                 </div>
               )}
             </div>
-          ) : (
-            <div className="space-y-6">
-              <div className="flex flex-wrap items-end justify-between gap-4">
-                <div>
-                  <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white font-['Outfit']">
-                    <EditableText id="featured.title" label="Imóveis em Destaque">Imóveis em Destaque</EditableText>
-                  </h2>
-                  <p className="text-xs sm:text-sm text-slate-500">
-                    <EditableText id="featured.subtitle" label="Oportunidades selecionadas com alta valo">Oportunidades selecionadas com alta valorização e acabamento nobre</EditableText>
-                  </p>
-                </div>
-
-                {publicProperties.length > 0 && (
-                  <button
-                    onClick={() => {
-                      setFilters(prev => ({ ...prev, purpose: 'sale' }));
-                      setCurrentView('search');
-                    }}
-                    className="flex items-center gap-1.5 text-xs sm:text-sm font-bold text-rose-600 hover:text-rose-700 dark:text-rose-400 group cursor-pointer"
-                  >
-                    <span>Ver todos os {publicProperties.length} imóveis</span>
-                    <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                  </button>
-                )}
-              </div>
-
-              {/* Cards Grid or Clean Empty State */}
-              {publicProperties.length === 0 ? (
+          ) : publicProperties.length === 0 ? (
                 <div className="text-center py-16 px-4 bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 space-y-4 shadow-sm">
                   <div className="w-16 h-16 rounded-full bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 flex items-center justify-center mx-auto">
                     <Home className="w-8 h-8" />
@@ -266,19 +248,11 @@ export const PortalHomeView: React.FC = () => {
                     <span>Publicar Primeiro Imóvel</span>
                   </button>
                 </div>
-              ) : featuredProperties.length > 0 ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {featuredProperties.map(property => (
-                    <PropertyCard key={property.id} property={property} />
-                  ))}
-                </div>
-              ) : (
-                <div className="rounded-3xl border border-dashed border-slate-300 bg-white px-6 py-10 text-center text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-900">
-                  Nenhum imóvel foi selecionado como destaque.
-                </div>
-              )}
-            </div>
-          )}
+          ) : <div className="space-y-16">{visibleShowcases.map(({showcase,matches}) => <section key={showcase.id} className="space-y-6" data-canvas-id={`showcase.${showcase.id}`} data-canvas-kind="box" data-canvas-label={showcase.title}>
+            <div className="flex flex-wrap items-end justify-between gap-4"><div><h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white font-['Outfit']"><EditableText id={`showcase.${showcase.id}.title`} label={showcase.title}>{showcase.title}</EditableText></h2><p className="text-xs sm:text-sm text-slate-500"><EditableText id={`showcase.${showcase.id}.subtitle`} label={showcase.subtitle}>{showcase.subtitle}</EditableText></p></div>
+            {matches.length > 0 && <button onClick={()=>openShowcase(showcase)} className="flex items-center gap-1.5 text-xs sm:text-sm font-bold text-rose-600 hover:text-rose-700 dark:text-rose-400 group cursor-pointer"><span>Ver todos os {matches.length} {matches.length===1?'imóvel':'imóveis'} desta categoria</span><ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform"/></button>}</div>
+            {matches.length > 0 ? <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">{matches.slice(0,showcase.limit).map(property=><PropertyCard key={property.id} property={property}/>)}</div> : isVisualEditorOpen ? <div className="rounded-3xl border border-dashed border-amber-300 bg-amber-50/60 px-6 py-10 text-center text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950/20 dark:text-amber-200">Esta vitrine não encontrou imóveis. Revise seus filtros antes de publicar.</div> : null}
+          </section>)}</div>}
         </section></EditableBox></CanvasSection>}
 
         {/* Section: Bairros Reais dos Imóveis Cadastrados */}

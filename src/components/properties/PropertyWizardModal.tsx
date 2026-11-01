@@ -1126,10 +1126,10 @@ export const PropertyWizardModal: React.FC = () => {
                   {mediaList.length} foto(s) anexada(s) • {selectedAmenities.length} comodidade(s) • área total/terreno: {totalArea > 0 ? totalArea+' m²' : 'não informada'} • construída: {builtArea > 0 ? builtArea+' m²' : 'não informada'}
                 </div>
               </div>
-              <label className="flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50/70 p-4 text-left dark:border-amber-900/60 dark:bg-amber-950/20">
+              {currentUser.planTier !== 'basic' ? <label className="flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50/70 p-4 text-left dark:border-amber-900/60 dark:bg-amber-950/20">
                 <input type="checkbox" checked={featured} onChange={event => setFeatured(event.target.checked)} className="mt-0.5 h-4 w-4 accent-amber-500" />
                 <span><strong className="block text-sm text-slate-900 dark:text-white">Exibir como imóvel em destaque</strong><span className="mt-0.5 block text-xs text-slate-500">Quando ativo e publicado, o anúncio poderá aparecer na seção de destaques e nas composições da hero.</span></span>
-              </label>
+              </label> : <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-xs text-slate-600 dark:border-slate-700 dark:bg-slate-800/50 dark:text-slate-300"><strong className="block text-slate-800 dark:text-white">Vitrine automática do plano Básico</strong><span className="mt-1 block">Este anúncio entrará normalmente entre os imóveis mais recentes. A marcação individual de destaque está disponível nos planos superiores.</span></div>}
               {!editingProperty && !currentUser.verified && <div className="rounded-2xl border border-sky-200 bg-sky-50 p-4 text-xs text-sky-800 dark:border-sky-900 dark:bg-sky-950/30 dark:text-sky-300">Como o perfil profissional ainda não está verificado, o anúncio será enviado para análise antes de aparecer publicamente.</div>}
             </div>
           )}

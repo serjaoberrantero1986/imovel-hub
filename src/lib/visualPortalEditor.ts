@@ -5,6 +5,26 @@ export type PortalTemplateId = 'essencial' | 'signature' | 'urbano' | 'casa_fami
 export type HeroBackgroundMode = 'image' | 'solid' | 'gradient';
 export type HeroPropertySceneStyle = 'route' | 'cards' | 'spotlight';
 export type EditableSectionId = 'hero' | 'featured_properties' | 'neighborhoods' | 'map' | 'buying_power' | 'info_cards' | 'banners';
+export type PortalPlanTier = 'basic' | 'intermediate' | 'advanced';
+export type ShowcasePurpose = 'all' | 'sale' | 'rent' | 'seasonal' | 'launch';
+export type ShowcaseOrder = 'recent' | 'featured' | 'price_asc' | 'price_desc' | 'area_desc' | 'views_desc';
+
+export interface PropertyShowcase {
+  id: string;
+  title: string;
+  subtitle: string;
+  isVisible: boolean;
+  source: 'all' | 'featured';
+  purpose: ShowcasePurpose;
+  types: string[];
+  city?: string;
+  minPrice?: number;
+  maxPrice?: number;
+  minArea?: number;
+  maxArea?: number;
+  order: ShowcaseOrder;
+  limit: number;
+}
 
 export interface EditableSection {
   id: EditableSectionId;
@@ -52,6 +72,7 @@ export interface VisualPortalConfiguration {
     propertySceneStyle: HeroPropertySceneStyle;
   };
   sections: EditableSection[];
+  showcases: PropertyShowcase[];
 }
 
 export interface PortalTemplate {
@@ -64,13 +85,25 @@ export interface PortalTemplate {
 
 const baseSections = (): EditableSection[] => [
   { id: 'hero', label: 'Apresentação principal', isVisible: true },
-  { id: 'featured_properties', label: 'Imóveis em destaque', isVisible: true },
+  { id: 'featured_properties', label: 'Vitrines de imóveis', isVisible: true },
   { id: 'neighborhoods', label: 'Bairros', isVisible: true },
   { id: 'map', label: 'Busca no mapa', isVisible: true },
   { id: 'buying_power', label: 'Poder de compra', isVisible: true },
   { id: 'info_cards', label: 'Diferenciais', isVisible: true },
   { id: 'banners', label: 'Banners de chamada', isVisible: true }
 ];
+
+export const DEFAULT_PROPERTY_SHOWCASE: PropertyShowcase = {
+  id: 'featured',
+  title: 'Imóveis em Destaque',
+  subtitle: 'Oportunidades selecionadas com alta valorização e acabamento nobre',
+  isVisible: true,
+  source: 'featured',
+  purpose: 'all',
+  types: [],
+  order: 'featured',
+  limit: 6,
+};
 
 const configuration = (templateId: PortalTemplateId, hero: Partial<VisualPortalConfiguration['hero']> = {}): VisualPortalConfiguration => ({
   version: 1,
@@ -104,7 +137,8 @@ const configuration = (templateId: PortalTemplateId, hero: Partial<VisualPortalC
     propertySceneStyle: 'route',
     ...hero
   },
-  sections: baseSections()
+  sections: baseSections(),
+  showcases: [{ ...DEFAULT_PROPERTY_SHOWCASE }]
 });
 
 export const PORTAL_TEMPLATES: PortalTemplate[] = [
@@ -146,7 +180,14 @@ export const normaliseVisualConfiguration = (value: Partial<VisualPortalConfigur
       ...(value?.hero?.searchPosition || {})
     }
   },
-  sections: baseSections().map(section => ({ ...section, ...(value?.sections || []).find(item => item.id === section.id) }))
+  sections: baseSections().map(section => ({ ...section, ...(value?.sections || []).find(item => item.id === section.id) })),
+  showcases: (Array.isArray(value?.showcases) && value.showcases.length ? value.showcases : [DEFAULT_PROPERTY_SHOWCASE]).map((item, index) => ({
+    ...DEFAULT_PROPERTY_SHOWCASE,
+    ...item,
+    id: item.id || `vitrine-${index + 1}`,
+    types: Array.isArray(item.types) ? item.types : [],
+    limit: Math.max(1, Math.min(12, Number(item.limit) || 6)),
+  }))
 });
 };
 
@@ -206,6 +247,7 @@ export async function publishMyVisualPortalConfiguration(ownerId: string, draft:
 export const VISUAL_EDITOR_REGISTRY = {
   home: {
     sections: baseSections,
+    showcaseKinds: ['automatic', 'featured', 'filtered'],
     templates: PORTAL_TEMPLATES,
     elementKinds: ['text', 'box', 'image', 'icon'],
     globalElements: ['header.logo'],

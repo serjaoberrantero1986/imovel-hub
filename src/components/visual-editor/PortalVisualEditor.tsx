@@ -4,6 +4,8 @@ import { PORTAL_TEMPLATES, PortalTemplateId, VisualPortalConfiguration, cloneVis
 import { HeroControls, HeroControlsProps } from './HeroControls';
 import { useDraggableSurface } from './useDraggableSurface';
 import { Switch } from '../ui/Switch';
+import { ShowcaseControls } from './ShowcaseControls';
+import type { PortalPlanTier } from '../../lib/visualPortalEditor';
 
 interface Props {
   configuration: VisualPortalConfiguration;
@@ -12,10 +14,11 @@ interface Props {
   onClose: () => void;
   onPublish: () => void;
   onPrepareImage: HeroControlsProps['onPrepareImage'];
+  planTier: PortalPlanTier;
 }
 
 
-export const PortalVisualEditor: React.FC<Props> = ({ configuration, busy = false, onChange, onClose, onPublish, onPrepareImage }) => {
+export const PortalVisualEditor: React.FC<Props> = ({ configuration, busy = false, onChange, onClose, onPublish, onPrepareImage, planTier }) => {
   const [tab, setTab] = useState<'templates' | 'hero' | 'sections'>('templates');
   const movable = useDraggableSurface();
   const selectTemplate = (id: PortalTemplateId) => {
@@ -24,6 +27,7 @@ export const PortalVisualEditor: React.FC<Props> = ({ configuration, busy = fals
       ...next,
       elements: configuration.elements,
       sections: configuration.sections,
+      showcases: configuration.showcases,
       blocks: configuration.blocks,
       hero: {
         ...configuration.hero,
@@ -75,6 +79,7 @@ export const PortalVisualEditor: React.FC<Props> = ({ configuration, busy = fals
         {tab === 'sections' && <>
           <div><h3 className="text-sm font-extrabold text-slate-900 dark:text-white">Visibilidade das seções</h3><p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Clique em uma seção na página e use Espaçamento para alterar sua ordem.</p></div>
           <div className="divide-y divide-slate-100 rounded-2xl border border-slate-200 px-3 dark:divide-slate-800 dark:border-slate-700">{configuration.sections.map(section => <div key={section.id} className="flex items-center justify-between gap-3 py-3"><span className="text-xs font-bold text-slate-700 dark:text-slate-200">{section.label}</span><Switch checked={section.isVisible} onChange={value => updateSection(section.id, value)} label={section.isVisible ? `Ocultar ${section.label}` : `Exibir ${section.label}`} /></div>)}</div>
+          <ShowcaseControls value={configuration.showcases} planTier={planTier} onChange={showcases=>onChange({...configuration,showcases})}/>
         </>}
       </fieldset>
 

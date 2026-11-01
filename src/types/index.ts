@@ -61,6 +61,7 @@ export interface UserProfile {
   servedNeighborhoods?: string[];
   preferences?: ClientPreferences;
   authProvider?: 'email' | 'google';
+  planTier?: 'basic' | 'intermediate' | 'advanced';
 }
 
 export interface PropertyMedia {
@@ -351,7 +352,7 @@ export interface FilterState {
   featuredOnly?: boolean;
   searchTerm?: string;
   propertyCode?: string;
-  sortBy: 'relevance' | 'price_asc' | 'price_desc' | 'area_desc' | 'recent';
+  sortBy: 'relevance' | 'price_asc' | 'price_desc' | 'area_desc' | 'recent' | 'views_desc';
 }
 
 export interface SavedSearch {

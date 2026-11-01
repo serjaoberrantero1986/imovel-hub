@@ -271,7 +271,12 @@ export const MyPropertiesView: React.FC = () => {
     }
   };
   const handleToggleFeatured = async (property: Property) => {
-    await updateProperty(property.id, { featured: !property.featured });
+    if (currentUser.planTier === 'basic') {
+      addToast({ type: 'info', title: 'Recurso disponível em planos superiores', message: 'O plano Básico utiliza uma única vitrine automática, sem marcação de destaques.' });
+      return;
+    }
+    try { await updateProperty(property.id, { featured: !property.featured }); }
+    catch { addToast({ type: 'error', title: 'Destaque não alterado', message: 'Não foi possível alterar o destaque deste anúncio agora.' }); }
   };
 
   // Access Gating for unauthenticated users or buyers
@@ -612,14 +617,14 @@ export const MyPropertiesView: React.FC = () => {
 
                   {/* Actions Button Group */}
                   <div className="flex items-center justify-end gap-1.5 sm:gap-2 flex-wrap">
-                    <button
+                    {currentUser.planTier !== 'basic' && <button
                       onClick={() => setManagingPhotosProperty(prop)}
                       title="Gerenciar Fotos & Mídia"
                       className="p-2 rounded-xl bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/50 dark:hover:bg-rose-900/60 text-rose-600 dark:text-rose-300 transition-colors flex items-center gap-1 text-xs font-bold cursor-pointer"
                     >
                       <ImageIcon className="w-4 h-4" />
                       <span className="hidden sm:inline">Fotos ({prop.media.length})</span>
-                    </button>
+                    </button>}
 
                     {currentUser.role !== 'admin' && <button
                       onClick={() => setPartnershipProperty(prop)}

@@ -14,6 +14,7 @@ import { PortalCanvas } from './PortalCanvas';
 import { PortalVisualEditor } from './PortalVisualEditor';
 import { usePortalSession } from './usePortalSession';
 import { useTenant } from '../../context/TenantContext';
+import { applyPortalPlan, portalPlanErrorMessage } from '../../lib/portalPlans';
 
 interface PortalEditorState {
   configuration: VisualPortalConfiguration;
@@ -44,6 +45,7 @@ export function PortalEditorProvider({ children }: { children: React.ReactNode }
   const [pendingTarget, setPendingTarget] = useState<string | null>(null);
   const ownerRef = useRef(currentUser.id); ownerRef.current = currentUser.id;
   const isProfessional = isAuthenticated && (currentUser.role === 'broker' || currentUser.role === 'agency');
+  const planTier = currentUser.planTier || 'basic';
   const canEdit = !loadingTenant && isProfessional && (portal.mode === 'root' || portal.ownerProfileId === currentUser.id);
   const configuration = sessionOwner === currentUser.id && canEdit ? session.value : published || portal.visualPublished || DEFAULT_VISUAL_PORTAL_CONFIGURATION;
   const unpublished = sessionOwner === currentUser.id && JSON.stringify(session.value) !== JSON.stringify(published);
@@ -82,7 +84,8 @@ export function PortalEditorProvider({ children }: { children: React.ReactNode }
       const ensured = await ensureMyVisualPortalConfiguration(owner);
       const result = await fetchMyVisualPortalConfiguration(owner);
       if (ownerRef.current !== owner) return;
-      session.reset(result.published); setPublished(result.published); setSessionOwner(owner); setEditing(true);
+      const permitted = applyPortalPlan(result.published, planTier);
+      session.reset(permitted); setPublished(result.published); setSessionOwner(owner); setEditing(true);
       if (portal.mode === 'root') addToast({ type: 'info', title: 'Endereço do seu portal', message: ensured.url });
     } catch (error) {
       addToast({ type: 'error', title: 'Editor indisponível', message: error instanceof Error ? error.message : 'Não foi possível abrir o editor.' });
@@ -110,7 +113,7 @@ export function PortalEditorProvider({ children }: { children: React.ReactNode }
   const publish = async () => {
     setBusy(true);
     try {
-      const owner = currentUser.id; const ready = await session.materialize(session.value);
+      const owner = currentUser.id; const ready = applyPortalPlan(await session.materialize(session.value), planTier);
       if (ownerRef.current !== owner) return;
       await publishMyVisualPortalConfiguration(owner, ready);
       if (ownerRef.current !== owner) return;
@@ -118,7 +121,7 @@ export function PortalEditorProvider({ children }: { children: React.ReactNode }
       if (portal.ownerProfileId === owner) await refreshTenant();
       addToast({ type: 'success', title: 'Versão publicada', message: 'Página inicial, rodapé e documentos foram publicados juntos.' });
     } catch (error) {
-      addToast({ type: 'error', title: 'Publicação não concluída', message: error instanceof Error ? error.message : 'Tente novamente.' });
+      addToast({ type: 'error', title: 'Publicação não concluída', message: portalPlanErrorMessage(error) });
     } finally { setBusy(false); }
   };
   const navigateEditor = (page: 'portal'|'terms'|'privacy'|'consumer'|'security'|'cookies') => {
@@ -138,6 +141,6 @@ export function PortalEditorProvider({ children }: { children: React.ReactNode }
     {canEdit && !editing && unpublished && <div className="canvas-preview-status">Prévia privada · alterações não publicadas</div>}
     {canEdit && !editing && !isWizardOpen && (currentView === 'portal' || currentView === 'legal') && createPortal(<button type="button" data-canvas-tools onClick={() => void openEditor(currentView === 'legal' ? `legal.${activeLegalTab}.document` : undefined)} disabled={busy} className="fixed bottom-24 right-4 z-[89] inline-flex items-center gap-2 rounded-2xl bg-slate-900 px-4 py-3 text-xs font-extrabold text-white shadow-xl shadow-slate-950/30 transition-transform hover:-translate-y-0.5 disabled:opacity-60 dark:bg-white dark:text-slate-900 sm:bottom-6 sm:right-6"><Sparkles className="h-4 w-4 text-rose-400" />{busy ? 'Abrindo editor...' : 'Editar portal'}</button>, document.body)}
     {editing && <nav className="canvas-page-switcher" data-canvas-tools aria-label="Páginas do editor"><button onClick={() => navigateEditor('portal')} aria-pressed={currentView === 'portal'}><Home size={15}/>Início</button><details><summary><FileText size={15}/>Documentos</summary><div>{(['terms','privacy','consumer','security','cookies'] as const).map((id,index)=><button key={id} onClick={()=>navigateEditor(id)}>{['Termos','Privacidade','Consumidor','Segurança','Cookies'][index]}</button>)}</div></details></nav>}
-    {editing && settingsOpen && <PortalVisualEditor configuration={session.value} busy={busy || session.preparing} onChange={session.change} onClose={() => setSettingsOpen(false)} onPublish={() => void publish()} onPrepareImage={session.prepareImage}/>} 
+    {editing && settingsOpen && <PortalVisualEditor configuration={session.value} planTier={planTier} busy={busy || session.preparing} onChange={session.change} onClose={() => setSettingsOpen(false)} onPublish={() => void publish()} onPrepareImage={session.prepareImage}/>}
   </PortalEditorContext.Provider>;
 }
