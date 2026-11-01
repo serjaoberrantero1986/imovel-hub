@@ -22,8 +22,6 @@ import {
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { Badge } from '../ui/Badge';
-import { useVisitNotificationCount } from '../../hooks/useVisitNotificationCount';
-import { useDealNotificationCount } from '../../hooks/useDealNotificationCount';
 
 export const UserMenu: React.FC = () => {
   const { 
@@ -40,12 +38,14 @@ export const UserMenu: React.FC = () => {
     conversations,
     savedSearches,
     theme,
-    toggleTheme
+    toggleTheme,
+    unreadVisitNotices,
+    unreadDealNotifications
   } = useApp();
 
   const [isOpen, setIsOpen] = useState(false);
-  const unreadVisits = useVisitNotificationCount(isAuthenticated && currentUser.role !== 'admin');
-  const unreadDeals = useDealNotificationCount(isAuthenticated && currentUser.role === 'broker');
+  const unreadVisits = unreadVisitNotices;
+  const unreadDeals = unreadDealNotifications;
   const profileNotices = unreadVisits + unreadDeals;
   const menuRef = useRef<HTMLDivElement>(null);
 

@@ -23,7 +23,6 @@ import { Button } from '../ui/Button';
 import { Badge } from '../ui/Badge';
 import { cn } from '../../lib/utils';
 import { UserAvatar } from '../ui/UserAvatar';
-import { useDealNotificationCount } from '../../hooks/useDealNotificationCount';
 
 export interface SidebarProps {
   collapsed?: boolean;
@@ -52,7 +51,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
     savedSearches,
     setIsWizardOpen,
     setEditingProperty,
-    addToast
+    addToast,
+    unreadDealNotifications
   } = useApp();
 
   const [isCollapsed, setIsCollapsed] = useState(initialCollapsed);
@@ -63,7 +63,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   };
 
   const totalUnread = conversations.reduce((sum, c) => sum + c.unreadCount, 0);
-  const unreadDeals = useDealNotificationCount(isAuthenticated && currentUser.role === 'broker');
+  const unreadDeals = unreadDealNotifications;
 
   const mainNavItems = [
     { id: 'portal' as AppView, label: 'Portal Inicial', icon: Home },

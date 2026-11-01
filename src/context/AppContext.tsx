@@ -19,6 +19,8 @@ import { CrmProvider, useCrm, CrmContextType } from './CrmContext';
 import { ChatProvider, useChat, ChatContextType } from './ChatContext';
 import { SearchPreferencesProvider, useSearchPreferences, SearchPreferencesContextType } from './SearchPreferencesContext';
 import { CatalogProvider } from './CatalogContext';
+import { loadDealNotificationCount } from '../lib/dealDossiers';
+import { loadVisitNoticeCount } from '../lib/propertyVisits';
 
 export type { AppView, LegalTab, Toast };
 export { DEFAULT_FILTERS };
@@ -34,6 +36,9 @@ export interface AppContextType extends
   setIsDbConnected: (connected: boolean) => void;
   isSyncing: boolean;
   refreshData: () => Promise<void>;
+  unreadDealNotifications: number;
+  unreadVisitNotices: number;
+  refreshNotificationCounts: () => Promise<void>;
 
   // Navigation & View
   currentView: AppView;
@@ -121,6 +126,40 @@ const AppCompositeProvider: React.FC<{
   const crm = useCrm();
   const chat = useChat();
   const searchPref = useSearchPreferences();
+  const [unreadDealNotifications, setUnreadDealNotifications] = useState(0);
+  const [unreadVisitNotices, setUnreadVisitNotices] = useState(0);
+
+  const refreshNotificationCounts = useCallback(async () => {
+    if (!auth.isAuthenticated || document.hidden) return;
+    const [dealResult, visitResult] = await Promise.allSettled([
+      auth.currentUser.role === 'broker' ? loadDealNotificationCount() : Promise.resolve(0),
+      auth.currentUser.role !== 'admin' ? loadVisitNoticeCount() : Promise.resolve(0),
+    ]);
+    setUnreadDealNotifications(dealResult.status === 'fulfilled' ? dealResult.value : 0);
+    setUnreadVisitNotices(visitResult.status === 'fulfilled' ? visitResult.value : 0);
+  }, [auth.isAuthenticated, auth.currentUser.role]);
+
+  useEffect(() => {
+    if (!auth.isAuthenticated) {
+      setUnreadDealNotifications(0);
+      setUnreadVisitNotices(0);
+      return;
+    }
+    void refreshNotificationCounts();
+    const refreshWhenVisible = () => { if (!document.hidden) void refreshNotificationCounts(); };
+    const timer = window.setInterval(refreshWhenVisible, 2 * 60 * 1000);
+    window.addEventListener('focus', refreshWhenVisible);
+    document.addEventListener('visibilitychange', refreshWhenVisible);
+    window.addEventListener('deal-notifications-changed', refreshWhenVisible);
+    window.addEventListener('property-visits-changed', refreshWhenVisible);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener('focus', refreshWhenVisible);
+      document.removeEventListener('visibilitychange', refreshWhenVisible);
+      window.removeEventListener('deal-notifications-changed', refreshWhenVisible);
+      window.removeEventListener('property-visits-changed', refreshWhenVisible);
+    };
+  }, [auth.isAuthenticated, refreshNotificationCounts]);
 
   const refreshData = useCallback(async () => {
     if (!isSupabaseConfigured) return;
@@ -144,6 +183,9 @@ const AppCompositeProvider: React.FC<{
     setIsDbConnected,
     isSyncing,
     refreshData,
+    unreadDealNotifications,
+    unreadVisitNotices,
+    refreshNotificationCounts,
     currentView,
     setCurrentView,
     selectedPropertyId,

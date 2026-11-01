@@ -1,5 +1,5 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import { extractPortalSlug, PublicPortalData, resolvePublicPortal, ROOT_DOMAIN } from '../lib/tenant';
+import { appDefaults, extractPortalSlug, isAppHostname, PublicPortalData, resolvePublicPortal, ROOT_DOMAIN } from '../lib/tenant';
 import { DEFAULT_FOOTER_SETTINGS, DEFAULT_HOME_PAGE_SETTINGS, DEFAULT_PORTAL_IDENTITY } from '../lib/portalSettings';
 import { DEFAULT_VISUAL_PORTAL_CONFIGURATION } from '../lib/visualPortalEditor';
 
@@ -22,6 +22,7 @@ const initialPortal: PublicPortalData = {
 const TenantContext = createContext<TenantContextValue | null>(null);
 
 export function TenantProvider({ children }: { children: React.ReactNode }) {
+  const appHost = useMemo(() => isAppHostname(), []);
   const slug = useMemo(() => extractPortalSlug(), []);
   const [portal, setPortal] = useState<PublicPortalData>(initialPortal);
   const [loading, setLoading] = useState(true);
@@ -31,17 +32,17 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
   const refreshTenant = useCallback(async () => {
     if (!resolvedOnce.current) setLoading(true);
     try {
-      setPortal(await resolvePublicPortal(slug));
+      setPortal(appHost ? appDefaults() : await resolvePublicPortal(slug));
       setError(null);
     } catch (cause) {
       console.warn('Portal tenant resolution failed:', cause);
-      setPortal({ ...initialPortal, mode: slug ? 'not_found' : 'root', slug });
+      setPortal(appHost ? appDefaults() : { ...initialPortal, mode: slug ? 'not_found' : 'root', slug });
       setError('Não foi possível carregar este portal agora. Tente novamente em instantes.');
     } finally {
       resolvedOnce.current = true;
       setLoading(false);
     }
-  }, [slug]);
+  }, [appHost, slug]);
 
   useEffect(() => { void refreshTenant(); }, [refreshTenant]);
 

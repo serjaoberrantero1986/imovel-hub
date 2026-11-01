@@ -13,8 +13,6 @@ import {
   Landmark
 } from 'lucide-react';
 import { useApp, AppView } from '../../context/AppContext';
-import { useVisitNotificationCount } from '../../hooks/useVisitNotificationCount';
-import { useDealNotificationCount } from '../../hooks/useDealNotificationCount';
 
 export const MobileNav: React.FC = () => {
   const { 
@@ -27,12 +25,14 @@ export const MobileNav: React.FC = () => {
     unreadLeadsCount, 
     currentUser,
     isAuthenticated,
-    openAuthModal
+    openAuthModal,
+    unreadVisitNotices,
+    unreadDealNotifications
   } = useApp();
 
   const totalUnread = (conversations || []).reduce((sum, c) => sum + (c.unreadCount || 0), 0);
-  const unreadVisits = useVisitNotificationCount(isAuthenticated && currentUser?.role !== 'admin');
-  const unreadDeals = useDealNotificationCount(isAuthenticated && currentUser?.role === 'broker');
+  const unreadVisits = unreadVisitNotices;
+  const unreadDeals = unreadDealNotifications;
 
   const isBroker = currentUser?.role === 'broker';
 

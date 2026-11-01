@@ -9,7 +9,7 @@ import {
 } from './portalSettings';
 import { supabase } from './supabaseClient';
 
-export type PortalHostMode = 'root' | 'tenant' | 'not_found';
+export type PortalHostMode = 'root' | 'tenant' | 'app' | 'not_found';
 
 export interface PublicPortalProfile {
   id: string;
@@ -55,6 +55,10 @@ export function extractPortalSlug(hostname = window.location.hostname): string |
   return label || '__invalid__';
 }
 
+export function isAppHostname(hostname = window.location.hostname): boolean {
+  return hostname.trim().toLowerCase().replace(/\.$/, '') === `app.${ROOT_DOMAIN}`;
+}
+
 const rootDefaults = (): PublicPortalData => ({
   mode: 'root',
   slug: null,
@@ -65,6 +69,8 @@ const rootDefaults = (): PublicPortalData => ({
   visualPublished: DEFAULT_VISUAL_PORTAL_CONFIGURATION,
   profile: null,
 });
+
+export const appDefaults = (): PublicPortalData => ({ ...rootDefaults(), mode: 'app' });
 
 const asObject = (value: unknown): Record<string, any> => value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, any> : {};
 

@@ -6,6 +6,7 @@ import { Toast } from './appTypes';
 import { isStrongPassword } from '../lib/passwordPolicy';
 import { useCreciReviewNotifications, CreciReviewNotification } from '../hooks/useCreciReviewNotifications';
 import type { PortalAddress } from '../lib/portalAddress';
+import { buildCentralAuthUrl, getCanonicalAppOrigin, isAppHost, isLocalDevelopmentHost } from '../lib/appAddress';
 
 export type LoginResult = 'authenticated' | 'mfa_required' | 'security_error' | false;
 export type SignupResult = 'authenticated' | 'confirmation_required' | false;
@@ -122,9 +123,37 @@ export const AuthProvider: React.FC<{ children: React.ReactNode; addToast: (toas
     return () => subscription.unsubscribe();
   }, [clearLegacy, sync]);
 
+  useEffect(() => {
+    if (!isAppHost() && !isLocalDevelopmentHost()) return;
+    const requestedTab = new URLSearchParams(window.location.search).get('auth');
+    if (requestedTab === 'login' || requestedTab === 'signup' || requestedTab === 'forgot') {
+      setAuthModalTab(requestedTab);
+      setAuthModalOpen(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!isAuthenticated || (!isAppHost() && !isLocalDevelopmentHost())) return;
+    const url = new URL(window.location.href);
+    if (!url.searchParams.has('auth')) return;
+    url.searchParams.delete('auth');
+    window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
+    if (authModalTab !== 'reset' && authModalTab !== 'mfa') setAuthModalOpen(false);
+  }, [isAuthenticated, authModalTab]);
+
   const { notifications: creciNotifications, markRead: markCreciNotificationRead } = useCreciReviewNotifications(isAuthenticated ? currentUser.id : null, addToast, sync);
   const client = () => { if (!supabase || !isSupabaseConfigured) throw new Error('Supabase não configurado na implantação.'); return supabase; };
-  const openAuthModal = useCallback((tab: 'login' | 'signup' | 'forgot' | 'reset' | 'mfa' = 'login') => { setAuthModalTab(tab); setAuthModalOpen(true); }, []);
+  const openAuthModal = useCallback((tab: 'login' | 'signup' | 'forgot' | 'reset' | 'mfa' = 'login') => {
+    if (tab !== 'reset' && tab !== 'mfa') {
+      const centralUrl = buildCentralAuthUrl(tab);
+      if (centralUrl) {
+        window.location.assign(centralUrl);
+        return;
+      }
+    }
+    setAuthModalTab(tab);
+    setAuthModalOpen(true);
+  }, []);
   const closeAuthModal = useCallback(() => setAuthModalOpen(false), []);
   const login = async (email: string, password: string, captchaToken: string): Promise<LoginResult> => {
     sessionStorage.removeItem('webimovel_oauth_welcome');
@@ -153,7 +182,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode; addToast: (toas
       sessionStorage.setItem('webimovel_oauth_welcome', 'pending');
       const { error } = await client().auth.signInWithOAuth({
         provider: 'google',
-        options: { redirectTo: window.location.origin },
+        options: { redirectTo: getCanonicalAppOrigin() },
       });
       if (error) throw error;
       return true;
@@ -171,7 +200,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode; addToast: (toas
   const signUp = async (form: { name: string; email: string; password: string; role: 'broker' | 'buyer'; phone?: string; creci?: string; portalTitle?: string; portalSlug?: string; captchaToken: string }) => {
     sessionStorage.removeItem('webimovel_oauth_welcome');
     if (!isStrongPassword(form.password)) { addToast({ type: 'warning', title: 'Senha insuficiente', message: 'Use pelo menos 10 caracteres, incluindo maiúscula, minúscula, número e símbolo.' }); return false; }
-    try { const { data, error } = await client().auth.signUp({ email: form.email.trim().toLowerCase(), password: form.password, options: { captchaToken: form.captchaToken, emailRedirectTo: window.location.origin, data: { name: form.name.trim(), role: form.role, phone: form.phone || null, creci: form.creci || null, portal_title: form.role === 'broker' ? form.portalTitle?.trim() || null : null, portal_slug: form.role === 'broker' ? form.portalSlug || null : null } } });
+    try { const { data, error } = await client().auth.signUp({ email: form.email.trim().toLowerCase(), password: form.password, options: { captchaToken: form.captchaToken, emailRedirectTo: getCanonicalAppOrigin(), data: { name: form.name.trim(), role: form.role, phone: form.phone || null, creci: form.creci || null, portal_title: form.role === 'broker' ? form.portalTitle?.trim() || null : null, portal_slug: form.role === 'broker' ? form.portalSlug || null : null } } });
       if (error || !data.user) {
         if (error) console.warn('Account registration was not completed:', error.message);
         addToast({ type: 'error', title: isCaptchaFailure(error) ? 'Verificação de segurança recusada' : 'Cadastro não concluído', message: isCaptchaFailure(error) ? 'Atualize a página, conclua novamente o Turnstile e tente cadastrar.' : 'Não foi possível criar a conta agora. Confira os dados e tente novamente.' });
@@ -186,7 +215,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode; addToast: (toas
     const { error } = await client().auth.resend({
       type: 'signup',
       email: email.trim().toLowerCase(),
-      options: { emailRedirectTo: window.location.origin, captchaToken }
+      options: { emailRedirectTo: getCanonicalAppOrigin(), captchaToken }
     });
     if (error) {
       addToast({ type: 'error', title: isCaptchaFailure(error) ? 'Verificação de segurança recusada' : 'Link não reenviado', message: isCaptchaFailure(error) ? 'Conclua novamente o Turnstile e tente reenviar.' : 'Aguarde alguns instantes e tente novamente.' });
@@ -196,7 +225,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode; addToast: (toas
     return true;
   };
   const requestPasswordReset = async (email: string, captchaToken: string) => {
-    const { error } = await client().auth.resetPasswordForEmail(email.trim().toLowerCase(), { redirectTo: window.location.origin, captchaToken });
+    const { error } = await client().auth.resetPasswordForEmail(email.trim().toLowerCase(), { redirectTo: getCanonicalAppOrigin(), captchaToken });
     if (error) { addToast({ type: 'error', title: isCaptchaFailure(error) ? 'Verificação de segurança recusada' : 'Recuperação não enviada', message: isCaptchaFailure(error) ? 'Conclua novamente o Turnstile e tente outra vez.' : 'Aguarde alguns instantes e tente novamente.' }); return false; }
     return true;
   };

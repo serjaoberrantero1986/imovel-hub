@@ -33,7 +33,7 @@ export function useCreciReviewNotifications(userId: string | null, addToast: (to
     };
     const onVisibility = () => { if (document.visibilityState === 'visible') void load(); };
     void load();
-    const timer = window.setInterval(() => void load(), 30_000);
+    const timer = window.setInterval(onVisibility, 2 * 60_000);
     document.addEventListener('visibilitychange', onVisibility);
     return () => { active = false; window.clearInterval(timer); document.removeEventListener('visibilitychange', onVisibility); };
   }, [userId, addToast, refreshProfile]);
