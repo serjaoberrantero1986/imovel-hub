@@ -34,23 +34,31 @@ import { PublicDocumentRequestView } from './views/PublicDocumentRequestView';
 import { PublicContractReviewView } from './views/PublicContractReviewView';
 import { PublicNegotiationReviewView } from './views/PublicNegotiationReviewView';
 import { AppAccessView } from './views/AppAccessView';
+import { MarketingLandingView } from './views/MarketingLandingView';
+import { AdminPlansView } from './views/AdminPlansView';
 import { getSafePortalReturnUrl } from './lib/appAddress';
 
 const MainContent: React.FC = () => {
   const { currentView, activeLegalTab, currentUser, isAuthenticated, setCurrentView } = useApp();
   const { portal, loading, error, canonicalRootUrl } = useTenant();
   const isAdmin = isAuthenticated && currentUser.role === 'admin';
-  const renderedView = isAdmin && !['admin_portals','admin_creci','admin_mortgage_rates','admin_certificate_sources','profile','visits'].includes(currentView) ? 'admin_portals' : currentView;
+  const renderedView = isAdmin && !['admin_portals','admin_plans','admin_creci','admin_mortgage_rates','admin_certificate_sources','profile','visits'].includes(currentView) ? 'admin_portals' : currentView;
   React.useEffect(()=>{
-    if(isAdmin && !['admin_portals','admin_creci','admin_mortgage_rates','admin_certificate_sources','profile','visits'].includes(currentView)) setCurrentView('admin_portals');
+    if(isAdmin && !['admin_portals','admin_plans','admin_creci','admin_mortgage_rates','admin_certificate_sources','profile','visits'].includes(currentView)) setCurrentView('admin_portals');
   },[isAdmin,currentView,setCurrentView]);
 
   React.useEffect(() => {
     if (portal.mode !== 'app' || !isAuthenticated || currentView !== 'portal') return;
     if (currentUser.role === 'admin') setCurrentView('admin_portals');
-    else if (currentUser.role === 'broker' || currentUser.role === 'agency') setCurrentView('dashboard');
+    else if (currentUser.role === 'broker' || currentUser.role === 'agency') setCurrentView(currentUser.verified && currentUser.creciReviewStatus === 'approved' ? 'crm_leads' : 'profile');
     else setCurrentView('favorites');
-  }, [portal.mode, isAuthenticated, currentUser.role, currentView, setCurrentView]);
+  }, [portal.mode, isAuthenticated, currentUser.role, currentUser.verified, currentUser.creciReviewStatus, currentView, setCurrentView]);
+
+  React.useEffect(() => {
+    if (portal.mode !== 'app' || !isAuthenticated) return;
+    const destination = getSafePortalReturnUrl();
+    if (destination) window.location.replace(destination.toString());
+  }, [portal.mode, isAuthenticated]);
 
   if (loading) {
     return <div className="flex min-h-screen items-center justify-center bg-slate-50 dark:bg-slate-950"><div className="text-center"><span className="mx-auto block h-9 w-9 animate-spin rounded-full border-4 border-slate-200 border-t-rose-600"/><p className="mt-4 text-sm font-bold text-slate-600 dark:text-slate-300">Carregando portal...</p></div></div>;
@@ -92,6 +100,7 @@ const MainContent: React.FC = () => {
         {renderedView === 'profile' && <ProfileView />}
         {renderedView === 'admin_creci' && <AdminCreciReviewView />}
         {renderedView === 'admin_portals' && <AdminPortalsView />}
+        {renderedView === 'admin_plans' && <AdminPlansView />}
         {renderedView === 'admin_mortgage_rates' && <AdminMortgageRatesView />}
         {renderedView === 'admin_certificate_sources' && <AdminCertificateSourcesView />}
         {renderedView === 'legal' && <InstitutionalLegalView initialTab={activeLegalTab} />}
@@ -114,6 +123,10 @@ export default function App() {
   if (contractReviewToken) return <PublicContractReviewView token={contractReviewToken} />;
   const documentRequestToken = publicParams.get('document_request');
   if (documentRequestToken) return <PublicDocumentRequestView token={documentRequestToken} />;
+  const hostname = window.location.hostname.toLowerCase();
+  const isLocalMarketingPreview = import.meta.env.DEV && (hostname === 'localhost' || hostname === '127.0.0.1' || hostname === 'terminal.local') && !new URLSearchParams(window.location.search).has('tenant');
+  const isMarketingRoot = hostname === 'webimoveis.site' || hostname === 'www.webimoveis.site' || isLocalMarketingPreview;
+  if (isMarketingRoot) return <MarketingLandingView />;
   return (
     <TenantProvider>
       <AppProvider>

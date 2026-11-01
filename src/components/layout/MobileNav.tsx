@@ -11,6 +11,7 @@ import {
   Globe2,
   ShieldCheck,
   Landmark
+  ,WalletCards
 } from 'lucide-react';
 import { useApp, AppView } from '../../context/AppContext';
 
@@ -44,6 +45,7 @@ export const MobileNav: React.FC = () => {
     badgeColor?: string;
   }[] = currentUser?.role === 'admin' ? [
     {id:'admin_portals',label:'Portais',icon:Globe2},
+    {id:'admin_plans',label:'Planos',icon:WalletCards},
     {id:'admin_creci',label:'CRECI',icon:ShieldCheck},
     {id:'admin_mortgage_rates',label:'Taxas',icon:Landmark},
     {id:'admin_certificate_sources',label:'Fontes',icon:Landmark},

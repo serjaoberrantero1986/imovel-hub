@@ -19,7 +19,8 @@ import {
   Home,
   Loader2,
   AlertCircle,
-  Search
+  Search,
+  ShieldCheck
 } from 'lucide-react';
 import { useApp, useCatalog } from '../../context/AppContext';
 import { Property, PropertyType, PropertyPurpose, PropertyMedia, PropertyStatus } from '../../types';
@@ -56,7 +57,8 @@ export const PropertyWizardModal: React.FC = () => {
     addProperty, 
     updateProperty,
     openPropertyDetail,
-    currentUser
+    currentUser,
+    setCurrentView
   } = useApp();
   const currentInactiveType = editingProperty ? propertyTypes.find(item => item.id === editingProperty.type && !item.isActive) : undefined;
   const availablePropertyTypes = propertyTypesError ? DEFAULT_PROPERTY_TYPES : currentInactiveType ? [...activePropertyTypes, currentInactiveType] : activePropertyTypes;
@@ -215,6 +217,7 @@ export const PropertyWizardModal: React.FC = () => {
   }, [isWizardOpen]);
 
   if (!isWizardOpen) return null;
+  if (!editingProperty && (!currentUser.verified || currentUser.creciReviewStatus !== 'approved')) return <div role="dialog" aria-modal="true" aria-label="Credenciamento necessário" className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 backdrop-blur-md"><div className="w-full max-w-md rounded-3xl border border-slate-200 bg-white p-7 text-center shadow-2xl dark:border-slate-800 dark:bg-slate-900"><ShieldCheck className="mx-auto h-12 w-12 text-rose-500"/><h2 className="mt-4 text-2xl font-black text-slate-950 dark:text-white">Confirme seu CRECI primeiro</h2><p className="mt-3 text-sm leading-6 text-slate-600 dark:text-slate-300">Para proteger os clientes e a identidade profissional do portal, o primeiro anúncio será liberado depois que o CRECI for aprovado.</p><div className="mt-6 flex flex-col gap-2 sm:flex-row"><button type="button" onClick={()=>{setIsWizardOpen(false);setEditingProperty(null);}} className="flex-1 rounded-xl border border-slate-200 px-4 py-3 text-sm font-bold dark:border-slate-700">Agora não</button><button type="button" onClick={()=>{setIsWizardOpen(false);setEditingProperty(null);setCurrentView('profile');}} className="flex-1 rounded-xl bg-rose-600 px-4 py-3 text-sm font-black text-white">Confirmar CRECI</button></div></div></div>;
 
   const steps = [
     { number: 1, title: 'Finalidade & Tipo', icon: Building },
