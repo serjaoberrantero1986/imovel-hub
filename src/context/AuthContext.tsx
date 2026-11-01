@@ -261,7 +261,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode; addToast: (toas
     return true;
   };
   const cancelMfaChallenge = async () => {
-    await client().auth.signOut();
+    await client().auth.signOut({ scope: 'local' });
     setMfaChallengeFactorId(null); setMfaChallengeFactors([]); setMfaReturnTab(null); setAuthModalOpen(false); setAuthModalTab('login');
     setIsAuthenticated(false); setCurrentUser(GUEST_USER); setPreferencesReady(false);
   };
@@ -288,7 +288,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode; addToast: (toas
     if (error) { addToast({ type: 'error', title: 'Não foi possível desativar', message: 'Confirme novamente sua sessão e tente outra vez.' }); return false; }
     addToast({ type: 'success', title: 'Autenticação em duas etapas desativada' }); return true;
   };
-  const logout = async () => { if (supabase) await supabase.auth.signOut(); setMfaChallengeFactorId(null); setMfaChallengeFactors([]); setMfaReturnTab(null); setIsAuthenticated(false); setCurrentUser(GUEST_USER); setPreferencesReady(false); };
+  const logout = async () => { if (supabase) await supabase.auth.signOut({ scope: 'local' }); setMfaChallengeFactorId(null); setMfaChallengeFactors([]); setMfaReturnTab(null); setIsAuthenticated(false); setCurrentUser(GUEST_USER); setPreferencesReady(false); };
   const updateUserProfile = async (patch: Partial<UserProfile>, portalAddress?: PortalAddress) => {
     if (!isAuthenticated) throw new Error('Faça login para editar o perfil.');
     if (!preferencesReady) throw new Error('Recarregue suas preferências antes de salvar.');

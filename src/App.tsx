@@ -61,12 +61,6 @@ const MainContent: React.FC = () => {
     else setCurrentView('favorites');
   }, [portal.mode, isAuthenticated, currentUser.role, currentUser.verified, currentUser.creciReviewStatus, currentView, setCurrentView]);
 
-  React.useEffect(() => {
-    if (portal.mode !== 'app' || !isAuthenticated) return;
-    const destination = getSafePortalReturnUrl();
-    if (destination) window.location.replace(destination.toString());
-  }, [portal.mode, isAuthenticated]);
-
   if (loading) {
     return <div className="flex min-h-screen items-center justify-center bg-slate-50 dark:bg-slate-950"><div className="text-center"><span className="mx-auto block h-9 w-9 animate-spin rounded-full border-4 border-slate-200 border-t-rose-600"/><p className="mt-4 text-sm font-bold text-slate-600 dark:text-slate-300">Carregando portal...</p></div></div>;
   }
