@@ -36,6 +36,7 @@ import { PublicNegotiationReviewView } from './views/PublicNegotiationReviewView
 import { AppAccessView } from './views/AppAccessView';
 import { MarketingLandingView } from './views/MarketingLandingView';
 import { AdminPlansView } from './views/AdminPlansView';
+import { PlanCheckoutView } from './views/PlanCheckoutView';
 import { getSafePortalReturnUrl } from './lib/appAddress';
 
 const MainContent: React.FC = () => {
@@ -49,6 +50,12 @@ const MainContent: React.FC = () => {
 
   React.useEffect(() => {
     if (portal.mode !== 'app' || !isAuthenticated || currentView !== 'portal') return;
+    const params = new URLSearchParams(window.location.search);
+    const billingJourney = params.get('intent') === 'signup' || params.has('billing');
+    if (billingJourney && (currentUser.role === 'broker' || currentUser.role === 'agency')) {
+      setCurrentView('plan_checkout');
+      return;
+    }
     if (currentUser.role === 'admin') setCurrentView('admin_portals');
     else if (currentUser.role === 'broker' || currentUser.role === 'agency') setCurrentView(currentUser.verified && currentUser.creciReviewStatus === 'approved' ? 'crm_leads' : 'profile');
     else setCurrentView('favorites');
@@ -101,6 +108,7 @@ const MainContent: React.FC = () => {
         {renderedView === 'admin_creci' && <AdminCreciReviewView />}
         {renderedView === 'admin_portals' && <AdminPortalsView />}
         {renderedView === 'admin_plans' && <AdminPlansView />}
+        {renderedView === 'plan_checkout' && <PlanCheckoutView />}
         {renderedView === 'admin_mortgage_rates' && <AdminMortgageRatesView />}
         {renderedView === 'admin_certificate_sources' && <AdminCertificateSourcesView />}
         {renderedView === 'legal' && <InstitutionalLegalView initialTab={activeLegalTab} />}

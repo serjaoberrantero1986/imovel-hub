@@ -22,7 +22,7 @@ export interface AuthContextType {
   openAuthModal: (tab?: 'login' | 'signup' | 'forgot' | 'reset' | 'mfa') => void; closeAuthModal: () => void;
   login: (email: string, password: string, captchaToken: string) => Promise<LoginResult>;
   loginWithGoogle: () => Promise<boolean>;
-  signUp: (data: { name: string; email: string; password: string; role: 'broker' | 'buyer'; phone?: string; creci?: string; portalTitle?: string; portalSlug?: string; captchaToken: string }) => Promise<SignupResult>;
+  signUp: (data: { name: string; email: string; password: string; role: 'broker' | 'buyer'; phone?: string; creci?: string; portalTitle?: string; portalSlug?: string; selectedPlan?: string; captchaToken: string }) => Promise<SignupResult>;
   resendSignupConfirmation: (email: string, captchaToken: string) => Promise<boolean>;
   requestPasswordReset: (email: string, captchaToken: string) => Promise<boolean>;
   changePassword: (newPassword: string, currentPassword?: string) => Promise<boolean>;
@@ -125,7 +125,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode; addToast: (toas
 
   useEffect(() => {
     if (!isAppHost() && !isLocalDevelopmentHost()) return;
-    const requestedTab = new URLSearchParams(window.location.search).get('auth');
+    const params = new URLSearchParams(window.location.search);
+    const requestedTab = params.get('intent') === 'signup' ? 'signup' : params.get('auth');
     if (requestedTab === 'login' || requestedTab === 'signup' || requestedTab === 'forgot') {
       setAuthModalTab(requestedTab);
       setAuthModalOpen(true);
@@ -197,10 +198,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode; addToast: (toas
       return false;
     }
   };
-  const signUp = async (form: { name: string; email: string; password: string; role: 'broker' | 'buyer'; phone?: string; creci?: string; portalTitle?: string; portalSlug?: string; captchaToken: string }) => {
+  const signUp = async (form: { name: string; email: string; password: string; role: 'broker' | 'buyer'; phone?: string; creci?: string; portalTitle?: string; portalSlug?: string; selectedPlan?: string; captchaToken: string }) => {
     sessionStorage.removeItem('webimovel_oauth_welcome');
     if (!isStrongPassword(form.password)) { addToast({ type: 'warning', title: 'Senha insuficiente', message: 'Use pelo menos 10 caracteres, incluindo maiúscula, minúscula, número e símbolo.' }); return false; }
-    try { const { data, error } = await client().auth.signUp({ email: form.email.trim().toLowerCase(), password: form.password, options: { captchaToken: form.captchaToken, emailRedirectTo: getCanonicalAppOrigin(), data: { name: form.name.trim(), role: form.role, phone: form.phone || null, creci: form.creci || null, portal_title: form.role === 'broker' ? form.portalTitle?.trim() || null : null, portal_slug: form.role === 'broker' ? form.portalSlug || null : null } } });
+    try {
+      const emailRedirect = new URL(getCanonicalAppOrigin());
+      if (form.role === 'broker' && form.selectedPlan) {
+        emailRedirect.searchParams.set('intent','signup');
+        emailRedirect.searchParams.set('plan',form.selectedPlan);
+      }
+      const { data, error } = await client().auth.signUp({ email: form.email.trim().toLowerCase(), password: form.password, options: { captchaToken: form.captchaToken, emailRedirectTo: emailRedirect.toString(), data: { name: form.name.trim(), role: form.role, phone: form.phone || null, creci: form.creci || null, selected_plan: form.role === 'broker' ? form.selectedPlan || null : null, portal_title: form.role === 'broker' ? form.portalTitle?.trim() || null : null, portal_slug: form.role === 'broker' ? form.portalSlug || null : null } } });
       if (error || !data.user) {
         if (error) console.warn('Account registration was not completed:', error.message);
         addToast({ type: 'error', title: isCaptchaFailure(error) ? 'Verificação de segurança recusada' : 'Cadastro não concluído', message: isCaptchaFailure(error) ? 'Atualize a página, conclua novamente o Turnstile e tente cadastrar.' : 'Não foi possível criar a conta agora. Confira os dados e tente novamente.' });
@@ -212,10 +219,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode; addToast: (toas
     } catch (e: any) { addToast({ type: 'error', title: 'Erro de conexão', message: e.message }); return false; }
   };
   const resendSignupConfirmation = async (email: string, captchaToken: string) => {
+    const emailRedirect = new URL(getCanonicalAppOrigin());
+    const currentPlan = new URLSearchParams(window.location.search).get('plan');
+    if (currentPlan === 'basic' || currentPlan === 'intermediate' || currentPlan === 'advanced') {
+      emailRedirect.searchParams.set('intent','signup');
+      emailRedirect.searchParams.set('plan',currentPlan);
+    }
     const { error } = await client().auth.resend({
       type: 'signup',
       email: email.trim().toLowerCase(),
-      options: { emailRedirectTo: getCanonicalAppOrigin(), captchaToken }
+      options: { emailRedirectTo: emailRedirect.toString(), captchaToken }
     });
     if (error) {
       addToast({ type: 'error', title: isCaptchaFailure(error) ? 'Verificação de segurança recusada' : 'Link não reenviado', message: isCaptchaFailure(error) ? 'Conclua novamente o Turnstile e tente reenviar.' : 'Aguarde alguns instantes e tente novamente.' });

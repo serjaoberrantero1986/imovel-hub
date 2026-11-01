@@ -17,7 +17,7 @@ Este arquivo é a referência de continuidade da transformação do Web Imóveis
 
 ## Etapa 1 — Landing e catálogo comercial
 
-Estado: em implementação.
+Estado: concluída e publicada em 1º de novembro de 2026.
 
 - Landing moderna no domínio raiz.
 - Catálogo de planos armazenado no Supabase.
@@ -29,7 +29,7 @@ Critério de conclusão: landing publicada e responsiva; administrador consegue 
 
 ## Etapa 2 — Navegação e credenciamento
 
-Estado: em implementação parcial.
+Estado: base implementada; validação completa dos quatro perfis permanece como ajuste fino.
 
 - Login iniciado em portal retorna ao portal.
 - Login direto no app abre CRM & Leads.
@@ -52,13 +52,23 @@ Critério de conclusão: todas as permissões são validadas no servidor e exibi
 
 ## Etapa 4 — Asaas
 
-Estado: decidido; não iniciado.
+Estado: fundação Sandbox em implementação.
 
 - Cadastro pendente vinculado ao plano.
 - Checkout hospedado.
 - Webhook com assinatura verificada, idempotência e auditoria.
 - Ativação, renovação, atraso, tolerância, cancelamento, upgrade e downgrade.
 - Portal de cobrança e compras adicionais.
+
+### Entrega 4.1 — Fundação Sandbox
+
+- Jornada definida: plano → conta profissional → confirmação de e-mail/login → checkout Asaas → webhook → ativação.
+- Checkout recorrente hospedado, inicialmente por cartão de crédito.
+- Tentativas, assinaturas e eventos persistidos separadamente.
+- Retorno do navegador apenas informa andamento; não ativa o plano.
+- Webhook validado por `asaas-access-token`, com evento único e reprocessamento seguro.
+- Chaves esperadas no Supabase: `ASAAS_SANDBOX_API_KEY` e `ASAAS_SANDBOX_WEBHOOK_TOKEN`.
+- Endpoint público: `/functions/v1/asaas-webhook`; endpoint autenticado: `/functions/v1/asaas-create-checkout`.
 
 Critério de conclusão: fluxo Sandbox completo e posteriormente uma cobrança real controlada.
 

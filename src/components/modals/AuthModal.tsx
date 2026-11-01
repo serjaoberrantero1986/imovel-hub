@@ -24,6 +24,8 @@ import { TurnstileWidget, TURNSTILE_SITE_KEY } from '../auth/TurnstileWidget';
 import { PortalAddressFields, PortalAddressCheck } from '../profile/PortalAddressFields';
 
 export const AuthModal: React.FC = () => {
+  const selectedPlan = new URLSearchParams(window.location.search).get('plan');
+  const hasProfessionalPlan = selectedPlan === 'basic' || selectedPlan === 'intermediate' || selectedPlan === 'advanced';
   const { 
     authModalOpen, 
     closeAuthModal, 
@@ -68,6 +70,8 @@ export const AuthModal: React.FC = () => {
   useEffect(() => {
     if (!authModalOpen) return;
 
+    if (authModalTab === 'signup' && hasProfessionalPlan) setRole('broker');
+
     try {
       const rawDraft = sessionStorage.getItem('imovelhub_pending_property_contact');
       if (!rawDraft) return;
@@ -92,7 +96,7 @@ export const AuthModal: React.FC = () => {
     } catch {
       sessionStorage.removeItem('imovelhub_pending_property_contact');
     }
-  }, [authModalOpen]);
+  }, [authModalOpen, authModalTab, hasProfessionalPlan]);
 
   if (!authModalOpen) return null;
 
@@ -236,6 +240,9 @@ export const AuthModal: React.FC = () => {
       if (role === 'broker' && !isValidProfessionalCreci(creci)) {
         setErrorMessage('Informe o CRECI com 4 a 7 dígitos e o sufixo F ou J. Exemplo: 123456-F.'); return;
       }
+      if (role === 'broker' && !hasProfessionalPlan) {
+        setErrorMessage('Escolha um plano profissional antes de concluir o cadastro.'); return;
+      }
       if (role === 'broker' && (portalTitle.trim().length < 3 || portalAddressStatus !== 'available')) {
         setErrorMessage('Informe o título do site e escolha um endereço disponível.'); return;
       }
@@ -255,6 +262,7 @@ export const AuthModal: React.FC = () => {
           creci: role === 'broker' ? creci.trim() : undefined,
           portalTitle: role === 'broker' ? portalTitle.trim() : undefined,
           portalSlug: role === 'broker' ? portalSlug : undefined,
+          selectedPlan: role === 'broker' ? selectedPlan || undefined : undefined,
           captchaToken
         });
 
@@ -343,14 +351,14 @@ export const AuthModal: React.FC = () => {
 
           <h2 className="text-xl font-extrabold text-slate-900 dark:text-white">
             {authModalTab === 'login' && 'Acesse sua conta'}
-            {authModalTab === 'signup' && 'Crie sua conta gratuita'}
+            {authModalTab === 'signup' && (hasProfessionalPlan ? 'Crie sua conta profissional' : 'Crie sua conta')}
             {authModalTab === 'forgot' && 'Recuperar senha'}
             {authModalTab === 'reset' && 'Defina uma nova senha'}
             {authModalTab === 'mfa' && 'Confirme sua identidade'}
           </h2>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
             {authModalTab === 'login' && 'Entre para gerenciar seus imóveis, leads e buscas salvas.'}
-            {authModalTab === 'signup' && 'Junte-se a corretores, imobiliárias e compradores em todo o Brasil.'}
+            {authModalTab === 'signup' && (hasProfessionalPlan ? 'Cadastre-se para validar o CRECI e concluir a contratação do plano escolhido.' : 'Compradores podem criar uma conta sem custo. Profissionais escolhem um plano antes do cadastro.')}
             {authModalTab === 'forgot' && 'Informe seu e-mail cadastrado para receber as instruções.'}
             {authModalTab === 'reset' && 'Crie uma senha forte e exclusiva para proteger sua conta.'}
             {authModalTab === 'mfa' && 'Digite o código atual de 6 dígitos do seu aplicativo autenticador.'}
@@ -491,7 +499,7 @@ export const AuthModal: React.FC = () => {
           ) : (
             <>
               <form onSubmit={handleSubmit} className="space-y-3.5">
-                {(authModalTab === 'login' || authModalTab === 'signup') && (
+                {(authModalTab === 'login' || (authModalTab === 'signup' && !hasProfessionalPlan)) && (
                   <>
                     <button
                       type="button"
@@ -557,6 +565,12 @@ export const AuthModal: React.FC = () => {
                         </p>
                       </button>
                     </div>
+                  </div>
+                )}
+
+                {authModalTab === 'signup' && role === 'broker' && !hasProfessionalPlan && (
+                  <div className="rounded-2xl border border-amber-200 bg-amber-50 p-3 text-[11px] leading-5 text-amber-900 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-100">
+                    O cadastro profissional não possui modalidade gratuita. <a href="https://www.webimoveis.site/#planos" className="font-black underline">Compare os planos</a> para continuar.
                   </div>
                 )}
 
@@ -761,7 +775,7 @@ export const AuthModal: React.FC = () => {
                 <button
                   id="btn-auth-submit"
                   type="submit"
-                  disabled={isLoading || (authModalTab === 'signup' && role === 'broker' && portalAddressStatus !== 'available')}
+                  disabled={isLoading || (authModalTab === 'signup' && role === 'broker' && (!hasProfessionalPlan || portalAddressStatus !== 'available'))}
                   className="w-full py-3 px-4 rounded-2xl bg-gradient-to-r from-rose-600 to-indigo-600 hover:from-rose-700 hover:to-indigo-700 text-white text-xs font-extrabold shadow-lg shadow-rose-500/20 flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-60"
                 >
                   {isLoading ? (

@@ -18,6 +18,7 @@ export type AppView =
   | 'admin_creci'
   | 'admin_portals'
   | 'admin_plans'
+  | 'plan_checkout'
   | 'admin_mortgage_rates'
   | 'admin_certificate_sources'
   | 'legal';
