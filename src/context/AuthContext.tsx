@@ -78,6 +78,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode; addToast: (toas
     if (!supabase) return false;
     const user = candidate || (await supabase.auth.getUser()).data.user;
     if (!user) { setIsAuthenticated(false); setCurrentUser(GUEST_USER); setPreferencesReady(false); return false; }
+    const portalSlug = isAppHostname() ? null : extractPortalSlug();
+    const { data: preflightAccess, error: preflightAccessError } = await (supabase as any).rpc('preflight_my_portal_access', { p_portal_slug: portalSlug });
+    if (preflightAccessError) throw preflightAccessError;
+    if (!preflightAccess) {
+      await supabase.auth.signOut({ scope: 'local' });
+      setIsAuthenticated(false); setCurrentUser(GUEST_USER); setPreferencesReady(false);
+      setMfaChallengeFactorId(null); setMfaChallengeFactors([]); setMfaReturnTab(null);
+      return 'address_denied';
+    }
     const { data: assurance, error: assuranceError } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
     if (assuranceError) throw assuranceError;
     if (assurance?.nextLevel === 'aal2' && assurance.currentLevel !== 'aal2') {
@@ -97,14 +106,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode; addToast: (toas
     }
     const { data, error } = await supabase.from('profiles').select('*').eq('id', user.id).single();
     if (error || !data) { await supabase.auth.signOut({ scope: 'local' }); setIsAuthenticated(false); setCurrentUser(GUEST_USER); return false; }
-    const portalSlug = isAppHostname() ? null : extractPortalSlug();
     const { data: portalAccess, error: portalAccessError } = await (supabase as any).rpc('authorize_my_portal_access', { p_portal_slug: portalSlug });
     if (portalAccessError) throw portalAccessError;
     if (!portalAccess?.allowed) {
       await supabase.auth.signOut({ scope: 'local' });
       setIsAuthenticated(false); setCurrentUser(GUEST_USER); setPreferencesReady(false);
       setMfaChallengeFactorId(null); setMfaChallengeFactors([]); setMfaReturnTab(null);
-      addToast({ type: 'error', title: 'Conta não encontrada', message: 'Esta conta não existe neste endereço.' });
       return 'address_denied';
     }
     const [{ data: privateData, error: preferencesError }, { data: entitlement }] = await Promise.all([
