@@ -124,7 +124,11 @@ Deno.serve(async (request: Request) => {
 
     return response(origin, { deleted: true, cleanupPending: cleanupErrors.length > 0 });
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
+    const message = error instanceof Error
+      ? error.message
+      : error && typeof error === 'object'
+        ? JSON.stringify(error)
+        : String(error);
     if (queueId && !databaseDeleted) {
       await serviceClient.from('account_deletion_cleanup_queue').update({
         status: 'database_failed', error_message: message.slice(0, 2000), updated_at: new Date().toISOString(),
