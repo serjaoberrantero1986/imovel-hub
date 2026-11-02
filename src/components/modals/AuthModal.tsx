@@ -293,6 +293,9 @@ export const AuthModal: React.FC = () => {
         } else if (result === 'mfa_required') {
           setPassword('');
           setErrorMessage(null);
+        } else if (result === 'address_denied') {
+          setPassword('');
+          setErrorMessage('Esta conta não existe neste endereço.');
         } else if (result === 'security_error') {
           setErrorMessage('A verificação Cloudflare não foi aceita. Atualize a página e conclua um novo desafio antes de entrar.');
         } else {

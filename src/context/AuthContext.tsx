@@ -7,9 +7,11 @@ import { isStrongPassword } from '../lib/passwordPolicy';
 import { useCreciReviewNotifications, CreciReviewNotification } from '../hooks/useCreciReviewNotifications';
 import type { PortalAddress } from '../lib/portalAddress';
 import { getAuthRedirectUrl, isAppHost, isLocalDevelopmentHost } from '../lib/appAddress';
+import { extractPortalSlug, isAppHostname } from '../lib/tenant';
 
-export type LoginResult = 'authenticated' | 'mfa_required' | 'security_error' | false;
+export type LoginResult = 'authenticated' | 'mfa_required' | 'address_denied' | 'security_error' | false;
 export type SignupResult = 'authenticated' | 'confirmation_required' | false;
+type SyncResult = 'authenticated' | 'mfa_required' | 'address_denied' | false;
 export interface TotpFactorSummary { id: string; friendlyName: string; createdAt?: string; }
 export interface TotpEnrollment { factorId: string; qrCode: string; secret: string; }
 
@@ -72,10 +74,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode; addToast: (toas
   const clearLegacy = useCallback(() => {
     ['imovelhub_is_authenticated','imovelhub_current_user','imovelhub_registered_accounts','imovelhub_deleted_accounts','imovelhub_supabase_url','imovelhub_supabase_anon_key','imovelhub_supabase_bucket'].forEach(k => localStorage.removeItem(k));
   }, []);
-  const sync = useCallback(async (candidate?: any) => {
-    if (!supabase) return;
+  const sync = useCallback(async (candidate?: any): Promise<SyncResult> => {
+    if (!supabase) return false;
     const user = candidate || (await supabase.auth.getUser()).data.user;
-    if (!user) { setIsAuthenticated(false); setCurrentUser(GUEST_USER); setPreferencesReady(false); return; }
+    if (!user) { setIsAuthenticated(false); setCurrentUser(GUEST_USER); setPreferencesReady(false); return false; }
     const { data: assurance, error: assuranceError } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
     if (assuranceError) throw assuranceError;
     if (assurance?.nextLevel === 'aal2' && assurance.currentLevel !== 'aal2') {
@@ -91,10 +93,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode; addToast: (toas
       setPreferencesReady(false);
       setAuthModalTab('mfa');
       setAuthModalOpen(true);
-      return false;
+      return 'mfa_required';
     }
     const { data, error } = await supabase.from('profiles').select('*').eq('id', user.id).single();
-    if (error || !data) { await supabase.auth.signOut(); setIsAuthenticated(false); setCurrentUser(GUEST_USER); return; }
+    if (error || !data) { await supabase.auth.signOut({ scope: 'local' }); setIsAuthenticated(false); setCurrentUser(GUEST_USER); return false; }
+    const portalSlug = isAppHostname() ? null : extractPortalSlug();
+    const { data: portalAccess, error: portalAccessError } = await (supabase as any).rpc('authorize_my_portal_access', { p_portal_slug: portalSlug });
+    if (portalAccessError) throw portalAccessError;
+    if (!portalAccess?.allowed) {
+      await supabase.auth.signOut({ scope: 'local' });
+      setIsAuthenticated(false); setCurrentUser(GUEST_USER); setPreferencesReady(false);
+      setMfaChallengeFactorId(null); setMfaChallengeFactors([]); setMfaReturnTab(null);
+      addToast({ type: 'error', title: 'Conta não encontrada', message: 'Esta conta não existe neste endereço.' });
+      return 'address_denied';
+    }
     const [{ data: privateData, error: preferencesError }, { data: entitlement }] = await Promise.all([
       supabase.from('profile_preferences').select('preferences').eq('user_id', user.id).maybeSingle(),
       (supabase as any).from('portal_plan_entitlements').select('plan_tier').eq('profile_id', user.id).maybeSingle(),
@@ -110,7 +122,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode; addToast: (toas
       sessionStorage.removeItem('webimovel_oauth_welcome');
       addToast({ type: 'success', title: 'Bem-vindo!', message: 'Seu acesso foi concluído. Aproveite o portal!' });
     }
-    return true;
+    return 'authenticated';
   }, []);
   useEffect(() => {
     clearLegacy();
@@ -162,9 +174,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode; addToast: (toas
         return false;
       }
       setMfaReturnTab(null);
-      const fullyAuthenticated = await sync(data.user);
-      if (fullyAuthenticated) addToast({ type: 'success', title: 'Bem-vindo de volta!', message: 'Seu acesso foi realizado com sucesso.' });
-      return fullyAuthenticated ? 'authenticated' : 'mfa_required';
+      const syncResult = await sync(data.user);
+      if (syncResult === 'authenticated') addToast({ type: 'success', title: 'Bem-vindo de volta!', message: 'Seu acesso foi realizado com sucesso.' });
+      return syncResult;
     } catch (e: any) {
       console.warn('Authentication connection error:', e?.message || e);
       addToast({ type: 'error', title: 'Não foi possível entrar', message: 'Não foi possível conectar ao serviço de acesso. Tente novamente em instantes.' });
@@ -196,17 +208,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode; addToast: (toas
     if (!isStrongPassword(form.password)) { addToast({ type: 'warning', title: 'Senha insuficiente', message: 'Use pelo menos 10 caracteres, incluindo maiúscula, minúscula, número e símbolo.' }); return false; }
     try {
       const emailRedirect = new URL(getAuthRedirectUrl());
+      const originPortalSlug = isAppHostname() ? null : extractPortalSlug();
       if (form.role === 'broker' && form.selectedPlan) {
         emailRedirect.searchParams.set('intent','signup');
         emailRedirect.searchParams.set('plan',form.selectedPlan);
       }
-      const { data, error } = await client().auth.signUp({ email: form.email.trim().toLowerCase(), password: form.password, options: { captchaToken: form.captchaToken, emailRedirectTo: emailRedirect.toString(), data: { name: form.name.trim(), role: form.role, phone: form.phone || null, creci: form.creci || null, selected_plan: form.role === 'broker' ? form.selectedPlan || null : null, portal_title: form.role === 'broker' ? form.portalTitle?.trim() || null : null, portal_slug: form.role === 'broker' ? form.portalSlug || null : null } } });
+      const { data, error } = await client().auth.signUp({ email: form.email.trim().toLowerCase(), password: form.password, options: { captchaToken: form.captchaToken, emailRedirectTo: emailRedirect.toString(), data: { name: form.name.trim(), role: form.role, phone: form.phone || null, creci: form.creci || null, selected_plan: form.role === 'broker' ? form.selectedPlan || null : null, portal_title: form.role === 'broker' ? form.portalTitle?.trim() || null : null, portal_slug: form.role === 'broker' ? form.portalSlug || null : null, origin_portal_slug: form.role === 'buyer' ? originPortalSlug : null } } });
       if (error || !data.user) {
         if (error) console.warn('Account registration was not completed:', error.message);
         addToast({ type: 'error', title: isCaptchaFailure(error) ? 'Verificação de segurança recusada' : 'Cadastro não concluído', message: isCaptchaFailure(error) ? 'Atualize a página, conclua novamente o Turnstile e tente cadastrar.' : 'Não foi possível criar a conta agora. Confira os dados e tente novamente.' });
         return false;
       }
-      if (data.session) await sync(data.user);
+      if (data.session && await sync(data.user) !== 'authenticated') return false;
       addToast({ type: 'success', title: 'Bem-vindo!', message: data.session ? 'Sua conta foi criada. Aproveite o portal!' : 'Seu cadastro foi recebido. Confirme seu e-mail para começar.' });
       return data.session ? 'authenticated' : 'confirmation_required';
     } catch (e: any) { addToast({ type: 'error', title: 'Erro de conexão', message: e.message }); return false; }
@@ -248,7 +261,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode; addToast: (toas
     const { error } = await client().auth.mfa.challengeAndVerify({ factorId: mfaChallengeFactorId, code: code.replace(/\D/g, '') });
     if (error) { addToast({ type: 'error', title: 'Código inválido', message: 'Confira o código do aplicativo autenticador e tente novamente.' }); return false; }
     const { data: userData } = await client().auth.getUser();
-    await sync(userData.user);
+    if (await sync(userData.user) !== 'authenticated') return false;
     if (mfaReturnTab === 'reset') { setMfaReturnTab(null); setAuthModalTab('reset'); setAuthModalOpen(true); }
     else { setAuthModalOpen(false); addToast({ type: 'success', title: 'Bem-vindo de volta!', message: 'Sua identidade foi confirmada. Aproveite o portal!' }); }
     return true;
