@@ -23,6 +23,52 @@ const response = (origin: string, body: Record<string, unknown>, status = 200) =
 );
 
 type StorageItem = { bucket: string; path: string };
+type Subscription = { id: string; environment: 'sandbox' | 'production'; asaas_subscription_id: string };
+
+async function cancelAsaasSubscriptions(admin: any, userId: string) {
+  const { data, error } = await admin.from('commercial_subscriptions')
+    .select('id,environment,asaas_subscription_id')
+    .eq('profile_id', userId)
+    .in('status', ['pending', 'active', 'past_due', 'suspended'])
+    .not('asaas_subscription_id', 'is', null);
+  if (error) throw error;
+
+  const subscriptions = (data || []) as Subscription[];
+  const credentials = new Map<string, string>();
+  for (const subscription of subscriptions) {
+    const secretName = subscription.environment === 'production' ? 'ASAAS_API_KEY' : 'ASAAS_SANDBOX_API_KEY';
+    const apiKey = Deno.env.get(secretName);
+    if (!apiKey) throw new Error('subscription_cancellation_unavailable');
+    credentials.set(subscription.environment, apiKey);
+  }
+
+  for (const subscription of subscriptions) {
+    const baseUrl = subscription.environment === 'production'
+      ? 'https://api.asaas.com/v3'
+      : 'https://api-sandbox.asaas.com/v3';
+    let remote: Response;
+    try {
+      remote = await fetch(`${baseUrl}/subscriptions/${encodeURIComponent(subscription.asaas_subscription_id)}`, {
+        method: 'DELETE',
+        headers: {
+          access_token: credentials.get(subscription.environment)!,
+          Accept: 'application/json',
+          'User-Agent': 'WebImoveis/1.0',
+        },
+      });
+    } catch {
+      throw new Error('subscription_cancellation_failed');
+    }
+    if (!remote.ok && remote.status !== 404) throw new Error('subscription_cancellation_failed');
+
+    const { error: updateError } = await admin.from('commercial_subscriptions').update({
+      status: 'canceled',
+      canceled_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    }).eq('id', subscription.id);
+    if (updateError) throw updateError;
+  }
+}
 
 async function listFolder(storage: any, bucket: string, prefix: string): Promise<string[]> {
   const { data, error } = await storage.from(bucket).list(prefix, { limit: 1000 });
@@ -69,6 +115,10 @@ Deno.serve(async (request: Request) => {
       .from('profiles').select('role').eq('id', user.id).single();
     if (profileError || !profile) throw new Error('profile_not_found');
     if (profile.role === 'admin') return response(origin, { code: 'administrative_account' }, 403);
+
+    // Stop future charges before any irreversible local deletion. A provider
+    // failure leaves the account intact so the user can retry safely.
+    await cancelAsaasSubscriptions(serviceClient, user.id);
 
     const storageItems: StorageItem[] = [];
     const { data: documents, error: documentsError } = await serviceClient
@@ -135,6 +185,9 @@ Deno.serve(async (request: Request) => {
       }).eq('id', queueId);
     }
     console.error('Account deletion failed', { userId: user.id, databaseDeleted, message });
-    return response(origin, { code: databaseDeleted ? 'cleanup_pending' : 'database_deletion_failed' }, databaseDeleted ? 200 : 409);
+    const code = message === 'subscription_cancellation_unavailable' || message === 'subscription_cancellation_failed'
+      ? message
+      : databaseDeleted ? 'cleanup_pending' : 'database_deletion_failed';
+    return response(origin, { code }, databaseDeleted ? 200 : code === 'subscription_cancellation_unavailable' ? 503 : 409);
   }
 });

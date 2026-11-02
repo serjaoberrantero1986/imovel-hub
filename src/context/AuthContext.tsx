@@ -345,6 +345,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode; addToast: (toas
       console.warn('Account deletion was not confirmed:', error?.message || data?.code || 'Unexpected server response');
       if (data?.code === 'administrative_account') throw new Error('Contas administrativas não podem ser excluídas.');
       if (data?.code === 'authentication_required') throw new Error('Sua sessão expirou. Faça login novamente antes de excluir a conta.');
+      if (data?.code === 'subscription_cancellation_unavailable') throw new Error('Não foi possível acessar o provedor da assinatura agora. Sua conta e seu plano foram preservados; tente novamente em instantes.');
+      if (data?.code === 'subscription_cancellation_failed') throw new Error('Não foi possível cancelar sua assinatura no provedor. Sua conta foi preservada para evitar novas cobranças indevidas; tente novamente em instantes.');
       throw new Error('O banco não confirmou a exclusão. Seus dados foram preservados; tente novamente em instantes.');
     }
     try { await authClient.auth.signOut({ scope: 'local' }); } catch { /* The Auth row is already gone. */ }

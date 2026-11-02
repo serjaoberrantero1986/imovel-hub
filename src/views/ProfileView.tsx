@@ -1118,7 +1118,7 @@ export const ProfileView: React.FC = () => {
                   Confirmar Exclusão de Conta?
                 </h3>
                 <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-                  Esta ação <b>apagará definitivamente</b> seus dados de perfil (<span className="font-semibold text-slate-800 dark:text-slate-200">{currentUser.email}</span>), anúncios, favoritos, leads e mensagens do banco de dados. O acesso a esta conta será desativado permanentemente.
+                  Esta ação <b>apagará definitivamente</b> seus dados de perfil (<span className="font-semibold text-slate-800 dark:text-slate-200">{currentUser.email}</span>), anúncios, favoritos, leads e mensagens. Se houver plano ativo, ele será cancelado antes da exclusão. Registros financeiros, contratuais e de auditoria serão preservados sem identificar sua conta.
                 </p>
               </div>
 
@@ -1187,7 +1187,7 @@ export const ProfileView: React.FC = () => {
                   ) : (
                     <Trash2 className="w-4 h-4" />
                   )}
-                  <span>{isDeletingAccount ? 'Excluindo...' : 'Excluir Definitivamente'}</span>
+                  <span>{isDeletingAccount ? 'Cancelando e excluindo...' : 'Excluir Definitivamente'}</span>
                 </button>
               </div>
             </div>
