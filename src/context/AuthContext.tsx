@@ -47,6 +47,12 @@ export interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const GUEST_USER: UserProfile = { id: 'guest_buyer', name: 'Visitante Web Imóvel', email: '', role: 'buyer', verified: false };
 const isCaptchaFailure = (error: any) => /captcha|turnstile|challenge/i.test(`${error?.code || ''} ${error?.message || ''}`);
+const signupFailureMessage = (error: any) => {
+  const details = `${error?.code || ''} ${error?.message || ''}`;
+  if (/BASIC_SHOWCASE_LIMIT|INVALID_SHOWCASES/i.test(details)) return 'Não foi possível preparar a vitrine inicial do seu site. Nenhuma conta foi criada; tente novamente.';
+  if (/portal slug|portal address|duplicate key|unique constraint/i.test(details)) return 'O endereço do site acabou de ser utilizado. Escolha outro endereço e tente novamente.';
+  return 'Não foi possível criar a conta agora. Nenhuma cobrança foi realizada; confira os dados e tente novamente.';
+};
 
 const toProfile = (user: any, row: any, preferences: UserProfile['preferences'] = {}, planTier?: UserProfile['planTier']): UserProfile => ({
   id: user.id, name: row.name, email: user.email || row.email, phone: row.phone, whatsapp: row.whatsapp,
@@ -223,7 +229,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode; addToast: (toas
       const { data, error } = await client().auth.signUp({ email: form.email.trim().toLowerCase(), password: form.password, options: { captchaToken: form.captchaToken, emailRedirectTo: emailRedirect.toString(), data: { name: form.name.trim(), role: form.role, phone: form.phone || null, creci: form.creci || null, selected_plan: form.role === 'broker' ? form.selectedPlan || null : null, portal_title: form.role === 'broker' ? form.portalTitle?.trim() || null : null, portal_slug: form.role === 'broker' ? form.portalSlug || null : null, origin_portal_slug: form.role === 'buyer' ? originPortalSlug : null } } });
       if (error || !data.user) {
         if (error) console.warn('Account registration was not completed:', error.message);
-        addToast({ type: 'error', title: isCaptchaFailure(error) ? 'Verificação de segurança recusada' : 'Cadastro não concluído', message: isCaptchaFailure(error) ? 'Atualize a página, conclua novamente o Turnstile e tente cadastrar.' : 'Não foi possível criar a conta agora. Confira os dados e tente novamente.' });
+        addToast({ type: 'error', title: isCaptchaFailure(error) ? 'Verificação de segurança recusada' : 'Cadastro não concluído', message: isCaptchaFailure(error) ? 'Atualize a página, conclua novamente o Turnstile e tente cadastrar.' : signupFailureMessage(error) });
         return false;
       }
       if (data.session && await sync(data.user) !== 'authenticated') return false;
