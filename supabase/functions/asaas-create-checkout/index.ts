@@ -138,7 +138,9 @@ Deno.serve(async (req) => {
       }).eq("id", attemptId);
       return response(headers, { error: "O Asaas não conseguiu iniciar o checkout. Confira os dados e tente novamente." }, 502);
     }
-    const checkoutUrl = `https://asaas.com/checkoutSession/show?id=${encodeURIComponent(result.id)}`;
+    // The API key is Sandbox, so the hosted checkout must use the Sandbox host too.
+    // A production-hosted URL cannot resolve a checkout created in Sandbox.
+    const checkoutUrl = `https://sandbox.asaas.com/checkoutSession/show?id=${encodeURIComponent(result.id)}`;
     await admin.from("commercial_checkout_attempts").update({
       asaas_checkout_id: String(result.id), checkout_url: checkoutUrl, status: "pending", updated_at: new Date().toISOString(),
     }).eq("id", attemptId);
