@@ -42,13 +42,15 @@ const MainContent: React.FC = () => {
   const { currentView, activeLegalTab, currentUser, isAuthenticated, setCurrentView } = useApp();
   const { portal, loading, error, canonicalRootUrl } = useTenant();
   const isAdmin = isAuthenticated && currentUser.role === 'admin';
-  const renderedView = isAdmin && !['admin_portals','admin_plans','admin_creci','admin_mortgage_rates','admin_certificate_sources','profile','visits'].includes(currentView) ? 'admin_portals' : currentView;
+  const needsPayment = isAuthenticated && ['broker','agency'].includes(currentUser.role) && currentUser.commercialAccess !== true;
+  const renderedView = needsPayment && !['profile','legal'].includes(currentView) ? 'plan_checkout' : isAdmin && !['admin_portals','admin_plans','admin_creci','admin_mortgage_rates','admin_certificate_sources','profile','visits'].includes(currentView) ? 'admin_portals' : currentView;
   React.useEffect(()=>{
     if(isAdmin && !['admin_portals','admin_plans','admin_creci','admin_mortgage_rates','admin_certificate_sources','profile','visits'].includes(currentView)) setCurrentView('admin_portals');
   },[isAdmin,currentView,setCurrentView]);
 
   React.useEffect(() => {
     if (portal.mode !== 'app' || !isAuthenticated || currentView !== 'portal') return;
+    if (needsPayment) { setCurrentView('plan_checkout'); return; }
     const params = new URLSearchParams(window.location.search);
     const billingJourney = params.get('intent') === 'signup' || params.has('billing');
     if (billingJourney && (currentUser.role === 'broker' || currentUser.role === 'agency')) {
@@ -58,7 +60,7 @@ const MainContent: React.FC = () => {
     if (currentUser.role === 'admin') setCurrentView('admin_portals');
     else if (currentUser.role === 'broker' || currentUser.role === 'agency') setCurrentView(currentUser.verified && currentUser.creciReviewStatus === 'approved' ? 'crm_leads' : 'profile');
     else setCurrentView('favorites');
-  }, [portal.mode, isAuthenticated, currentUser.role, currentUser.verified, currentUser.creciReviewStatus, currentView, setCurrentView]);
+  }, [portal.mode, isAuthenticated, needsPayment, currentUser.role, currentUser.verified, currentUser.creciReviewStatus, currentView, setCurrentView]);
 
   if (loading) {
     return <div className="flex min-h-screen items-center justify-center bg-slate-50 dark:bg-slate-950"><div className="text-center"><span className="mx-auto block h-9 w-9 animate-spin rounded-full border-4 border-slate-200 border-t-rose-600"/><p className="mt-4 text-sm font-bold text-slate-600 dark:text-slate-300">Carregando portal...</p></div></div>;
@@ -105,7 +107,7 @@ const MainContent: React.FC = () => {
 
       {!isAdmin && portal.mode !== 'app' && <Footer />}
       <MobileNav />
-      <PropertyWizardModal />
+      {!needsPayment && <PropertyWizardModal />}
       <AuthModal />
       <ToastContainer />
     </div>
@@ -132,3 +134,4 @@ export default function App() {
     </TenantProvider>
   );
 }
+

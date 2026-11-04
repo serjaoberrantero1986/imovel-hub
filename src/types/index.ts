@@ -27,6 +27,7 @@ export interface ClientPreferences {
 }
 
 export interface UserProfile {
+  commercialAccess?: boolean;
   id: string;
   name: string;
   email: string;
@@ -372,3 +373,4 @@ export interface AnalyticsMetric {
   favorites: number;
   contacts: number;
 }
+

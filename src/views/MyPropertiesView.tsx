@@ -159,22 +159,7 @@ export const MyPropertiesView: React.FC = () => {
     if (currentUser?.role === 'admin') return true;
 
     const currentId = currentUser?.id?.toLowerCase().trim();
-    const currentEmail = currentUser?.email?.toLowerCase().trim();
-    const propUserId = p.userId?.toLowerCase().trim();
-    const propAdvertiserId = p.advertiser?.id?.toLowerCase().trim();
-    const propAdvertiserEmail = p.advertiser?.email?.toLowerCase().trim();
-
-    // 1. Direct ID match (userId or advertiser.id matches current logged-in user id)
-    if (currentId && (propUserId === currentId || propAdvertiserId === currentId)) {
-      return true;
-    }
-
-    // 2. Direct email match (advertiser email matches current user email)
-    if (currentEmail && propAdvertiserEmail && propAdvertiserEmail === currentEmail) {
-      return true;
-    }
-
-    return false;
+    return p.userId === currentUser.id;
   });
 
   // Count per status tab
@@ -852,4 +837,5 @@ export const MyPropertiesView: React.FC = () => {
     </div>
   );
 };
+
 

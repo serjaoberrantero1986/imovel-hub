@@ -65,7 +65,13 @@ export async function getSelectedCommercialPlan():Promise<CommercialPlanTier|nul
 export async function startAsaasCheckout(planTier:CommercialPlanTier):Promise<{checkoutUrl?:string;active?:boolean;message?:string}>{
   if(!supabase) throw new Error('Serviço de contratação indisponível.');
   const {data,error}=await supabase.functions.invoke('asaas-create-checkout',{body:{planTier}});
-  if(error) throw new Error(data?.error || 'Não foi possível iniciar o checkout.');
+  if(error) {
+    let message = data?.error;
+    if (!message && error.context instanceof Response) {
+      try { message = (await error.context.json())?.error; } catch { /* Use safe fallback. */ }
+    }
+    throw new Error(typeof message === 'string' ? message : 'Não foi possível iniciar o pagamento. Tente novamente.');
+  }
   if(data?.error) throw new Error(String(data.error));
   return data || {};
 }
@@ -75,3 +81,4 @@ export function clearBillingNavigationParams(){
   ['intent','billing'].forEach(key=>url.searchParams.delete(key));
   window.history.replaceState({},'',`${url.pathname}${url.search}${url.hash}`);
 }
+

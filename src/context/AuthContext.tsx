@@ -130,7 +130,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode; addToast: (toas
     }
     setMfaChallengeFactorId(null);
     setMfaChallengeFactors([]);
-    setCurrentUser(toProfile(user, data, privateData?.preferences || {}, entitlement?.plan_tier)); setIsAuthenticated(true);
+    const { data: commercialAccess, error: commercialAccessError } = await supabase.rpc('has_my_commercial_access');
+    if (commercialAccessError) {
+      setCurrentUser(previous => ({ ...previous, commercialAccess: false }));
+      throw commercialAccessError;
+    }
+    setCurrentUser({ ...toProfile(user, data, privateData?.preferences || {}, entitlement?.plan_tier), commercialAccess: commercialAccess === true }); setIsAuthenticated(true);
     if (sessionStorage.getItem('webimovel_oauth_welcome') === 'pending') {
       sessionStorage.removeItem('webimovel_oauth_welcome');
       addToast({ type: 'success', title: 'Bem-vindo!', message: 'Seu acesso foi concluído. Aproveite o portal!' });
@@ -147,6 +152,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode; addToast: (toas
     });
     return () => subscription.unsubscribe();
   }, [clearLegacy, sync]);
+
+  useEffect(() => {
+    const refreshBilling = () => { void sync().catch(() => {
+      setCurrentUser(previous => ({ ...previous, commercialAccess: false }));
+    }); };
+    window.addEventListener('webimoveis_billing_refreshed', refreshBilling);
+    return () => window.removeEventListener('webimoveis_billing_refreshed', refreshBilling);
+  }, [sync]);
 
   useEffect(() => {
     if (!isAppHost() && !isLocalDevelopmentHost()) return;
@@ -366,3 +379,4 @@ export const AuthProvider: React.FC<{ children: React.ReactNode; addToast: (toas
   return <AuthContext.Provider value={{ creciNotifications, markCreciNotificationRead, currentUser, isAuthenticated, authModalOpen, setAuthModalOpen, authModalTab, setAuthModalTab, openAuthModal, closeAuthModal, login, loginWithGoogle, signUp, resendSignupConfirmation, requestPasswordReset, changePassword, mfaChallengeFactors, selectMfaChallengeFactor: setMfaChallengeFactorId, verifyMfaChallenge, cancelMfaChallenge, listTotpFactors, enrollTotp, verifyTotpEnrollment, cancelTotpEnrollment, unenrollTotp, logout, deleteAccount, updateUserProfile, verifyCreci, requestCreciReview, switchUserRole }}>{children}</AuthContext.Provider>;
 };
 export const useAuth = () => { const context = useContext(AuthContext); if (!context) throw new Error('useAuth must be used within an AuthProvider'); return context; };
+

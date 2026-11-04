@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { Lead, LeadTask, LeadInteraction, Property } from '../types';
 import { 
   fetchLeadsFromSupabase,
@@ -43,7 +43,10 @@ export const CrmProvider: React.FC<{
   addToast: (toast: Omit<Toast, 'id'>) => void;
 }> = ({ children, currentUser, properties, setProperties, addToast }) => {
   const [leads, setLeads] = useState<Lead[]>([]);
-  const canAccessCrm = currentUser.role === 'admin' || currentUser.role === 'broker' || currentUser.role === 'agency';
+  const canAccessCrm = currentUser.role === 'admin' || ((currentUser.role === 'broker' || currentUser.role === 'agency') && currentUser.commercialAccess === true);
+
+  const sessionIdentity = useRef(currentUser.id);
+  sessionIdentity.current = currentUser.id;
 
   // Track leads viewed by the current user to compute accurate unread counts
   const [viewedLeadIds, setViewedLeadIds] = useState<string[]>(() => {
@@ -109,20 +112,22 @@ export const CrmProvider: React.FC<{
   }, []);
 
   const refreshLeads = useCallback(async () => {
-    if (!isSupabaseConfigured) return;
+    if (!isSupabaseConfigured || !canAccessCrm) return;
+    const identity = currentUser.id;
     try {
       const remoteLeads = await fetchLeadsFromSupabase();
-      if (remoteLeads !== null) {
+      if (remoteLeads !== null && sessionIdentity.current === identity) {
         setLeads(remoteLeads);
       }
     } catch (e) {
       console.warn('Error fetching leads from Supabase:', e);
     }
-  }, []);
+  }, [currentUser.id, canAccessCrm]);
 
   // Realtime keeps the CRM current. A five-minute refresh is retained only as
   // a recovery path when a browser misses a live event.
   useEffect(() => {
+    setLeads([]);
     if (isSupabaseConfigured && canAccessCrm) {
       void refreshLeads();
 
@@ -508,3 +513,4 @@ export const useCrm = () => {
   }
   return context;
 };
+

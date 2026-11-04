@@ -26,6 +26,11 @@ on:
       - 'src/context/AppContext.tsx'
       - 'src/views/MyPropertiesView.tsx'
       - 'supabase/migrations/*valuation*'
+      - 'scripts/test-commercial-access.mjs'
+      - 'src/lib/commercialBilling.ts'
+      - 'src/views/PlanCheckoutView.tsx'
+      - 'supabase/functions/asaas-create-checkout/**'
+      - 'supabase/migrations/*commercial_access*'
       - '.github/workflows/valuation-wizard.yml'
 
 jobs:
@@ -45,5 +50,8 @@ jobs:
         run: |
           npm install --prefix "$RUNNER_TEMP/visit-db" --no-save @electric-sql/pglite@0.5.11
           VISITS_PGLITE_ROOT="$RUNNER_TEMP/visit-db/node_modules/@electric-sql/pglite" node --test scripts/test-property-visits.mjs
+      - name: Pagamento e isolamento de contas em PostgreSQL isolado
+        run: COMMERCIAL_PGLITE_ROOT="$RUNNER_TEMP/visit-db/node_modules/@electric-sql/pglite/dist/index.js" node --test scripts/test-commercial-access.mjs
       - name: Build
         run: bun run build
+

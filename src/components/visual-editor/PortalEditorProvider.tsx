@@ -44,7 +44,7 @@ export function PortalEditorProvider({ children }: { children: React.ReactNode }
   const [published, setPublished] = useState<VisualPortalConfiguration | null>(null);
   const [pendingTarget, setPendingTarget] = useState<string | null>(null);
   const ownerRef = useRef(currentUser.id); ownerRef.current = currentUser.id;
-  const isProfessional = isAuthenticated && (currentUser.role === 'broker' || currentUser.role === 'agency');
+  const isProfessional = isAuthenticated && currentUser.commercialAccess === true && (currentUser.role === 'broker' || currentUser.role === 'agency');
   const planTier = currentUser.planTier || 'basic';
   const canEdit = !loadingTenant && isProfessional && (portal.mode === 'root' || portal.ownerProfileId === currentUser.id);
   const configuration = sessionOwner === currentUser.id && canEdit ? session.value : published || portal.visualPublished || DEFAULT_VISUAL_PORTAL_CONFIGURATION;
@@ -144,3 +144,4 @@ export function PortalEditorProvider({ children }: { children: React.ReactNode }
     {editing && settingsOpen && <PortalVisualEditor configuration={session.value} planTier={planTier} busy={busy || session.preparing} onChange={session.change} onClose={() => setSettingsOpen(false)} onPublish={() => void publish()} onPrepareImage={session.prepareImage}/>}
   </PortalEditorContext.Provider>;
 }
+

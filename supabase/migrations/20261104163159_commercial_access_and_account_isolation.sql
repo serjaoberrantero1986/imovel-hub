@@ -1,0 +1,117 @@
+begin;
+
+-- Preserve professionals that predate the billing rollout, without trusting JWT metadata.
+create table public.commercial_legacy_access (
+  profile_id uuid primary key references public.profiles(id) on delete cascade,
+  granted_at timestamptz not null default now()
+);
+alter table public.commercial_legacy_access enable row level security;
+revoke all on public.commercial_legacy_access from public, anon, authenticated;
+insert into public.commercial_legacy_access(profile_id)
+select id from public.profiles where role::text in ('broker','agency')
+  and created_at < timestamptz '2026-11-01 21:46:58+00';
+
+create or replace function public.has_my_commercial_access()
+returns boolean language sql stable security definer set search_path='' as $$
+  select exists (
+    select 1 from public.profiles p where p.id=auth.uid() and p.is_active
+    and (p.role::text in ('buyer','admin') or (
+      p.role::text in ('broker','agency') and (
+        exists(select 1 from public.commercial_subscriptions s where s.profile_id=p.id
+          and s.status='active' and (s.current_period_end is null or s.current_period_end>now()))
+        or (exists(select 1 from public.commercial_legacy_access l where l.profile_id=p.id)
+          and not exists(select 1 from public.commercial_subscriptions s where s.profile_id=p.id))
+      )
+    ))
+  );
+$$;
+revoke all on function public.has_my_commercial_access() from public, anon;
+grant execute on function public.has_my_commercial_access() to authenticated;
+
+-- Blocks writes made by authenticated unpaid professionals even through definer RPCs.
+-- Service/webhook work has no end-user JWT; existing ownership and MFA rules still apply.
+create or replace function public.guard_commercial_operation()
+returns trigger language plpgsql security definer set search_path='' as $$
+begin
+  if auth.uid() is not null and not public.has_my_commercial_access()
+    and not (tg_op in ('UPDATE','DELETE') and coalesce(current_setting('webimovel.account_deletion_profile_id',true),'')=auth.uid()::text) then
+    raise exception 'SUBSCRIPTION_REQUIRED' using errcode='42501';
+  end if;
+  if tg_op='DELETE' then return old; end if;
+  return new;
+end;
+$$;
+revoke all on function public.guard_commercial_operation() from public,anon,authenticated;
+
+do $$
+declare t text;
+begin
+  foreach t in array array['properties','property_images','property_features','property_locations',
+    'leads','lead_crm','lead_contact_events','conversations','messages','valuation_assessments',
+    'valuation_candidates','valuation_comparables','deal_dossiers','deal_participants','deal_documents',
+    'deal_document_requests','deal_document_request_items','deal_contracts','deal_contract_versions',
+    'deal_negotiation_versions','deal_negotiation_decisions','property_partnership_offers',
+    'property_partnership_negotiations','property_partnerships','partnership_visits',
+    'property_visit_working_hours','property_visit_unavailability']
+  loop
+    execute format('create trigger commercial_write_guard before insert or update or delete on public.%I for each row execute function public.guard_commercial_operation()',t);
+  end loop;
+  foreach t in array array['leads','lead_crm','lead_contact_events','conversations','messages',
+    'valuation_assessments','valuation_candidates','valuation_comparables','deal_dossiers',
+    'deal_participants','deal_documents','deal_document_requests','deal_document_request_items',
+    'deal_contracts','deal_contract_versions','deal_negotiation_versions','deal_negotiation_decisions']
+  loop
+    execute format('create policy "commercial access required" on public.%I as restrictive for all to authenticated using ((select public.has_my_commercial_access())) with check ((select public.has_my_commercial_access()))',t);
+  end loop;
+end;
+$$;
+
+create or replace function public.can_manage_my_valuations(p_owner_id uuid)
+returns boolean language sql stable security definer set search_path='' as $$
+  select p_owner_id=auth.uid() and public.has_satisfied_mfa()
+    and public.has_my_commercial_access() and exists(
+      select 1 from public.profiles p where p.id=auth.uid() and p.is_active and p.role::text in ('broker','agency'));
+$$;
+
+create or replace function public.owns_deal_dossier(p_dossier_id uuid)
+returns boolean language sql stable security definer set search_path='' as $$
+  select public.has_my_commercial_access() and exists(
+    select 1 from public.deal_dossiers d where d.id=p_dossier_id and d.owner_id=auth.uid());
+$$;
+
+create trigger commercial_visual_guard before update of visual_draft,visual_published
+on public.portal_settings for each row execute function public.guard_commercial_operation();
+
+-- Never restore historical contacts merely because an email address was reused.
+-- Logged-in contact/visit creation continues to bind the authenticated buyer explicitly.
+drop trigger if exists on_auth_user_link_visitor_leads on auth.users;
+
+-- Detach only conversations demonstrably generated by signup from older leads.
+-- Keep all messages and advertiser history; the new professional is not their buyer.
+create temporary table signup_contact_repair on commit drop as
+select distinct c.id as conversation_id, p.id as profile_id, l.id as lead_id
+from public.profiles p join public.leads l on l.buyer_id=p.id
+join public.conversations c on c.buyer_id=p.id and c.advertiser_id=l.advertiser_id
+  and c.property_id is not distinct from l.property_id and c.created_at=p.created_at
+where p.role::text in ('broker','agency') and p.created_at>=timestamptz '2026-11-01 21:46:58+00'
+  and l.created_at<p.created_at and lower(l.email)=lower(p.email);
+create table public.commercial_signup_link_repairs (
+  id bigint generated always as identity primary key,
+  profile_id uuid references public.profiles(id) on delete set null,
+  conversation_id uuid references public.conversations(id) on delete set null,
+  lead_id uuid references public.leads(id) on delete set null,
+  repaired_at timestamptz not null default now()
+);
+alter table public.commercial_signup_link_repairs enable row level security;
+revoke all on public.commercial_signup_link_repairs from public,anon,authenticated;
+insert into public.commercial_signup_link_repairs(profile_id,conversation_id,lead_id)
+select profile_id,conversation_id,lead_id from signup_contact_repair;
+update public.messages m set sender_id=null
+from signup_contact_repair r where m.conversation_id=r.conversation_id and m.sender_id=r.profile_id
+  and m.created_at=(select p.created_at from public.profiles p where p.id=r.profile_id);
+update public.conversations c set buyer_id=null, buyer_unread_count=0
+where c.id in(select conversation_id from signup_contact_repair);
+update public.leads l set buyer_id=null where l.id in(select lead_id from signup_contact_repair);
+
+commit;
+

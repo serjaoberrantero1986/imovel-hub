@@ -333,7 +333,7 @@ const PropertyBridge: React.FC<{
     >
       <ChatProvider
         currentUser={auth.currentUser}
-        isAuthenticated={auth.isAuthenticated}
+        isAuthenticated={auth.isAuthenticated && (auth.currentUser.role === 'buyer' || auth.currentUser.role === 'admin' || auth.currentUser.commercialAccess === true)}
         openAuthModal={auth.openAuthModal}
         properties={propertyCtx.properties}
         setCurrentView={setCurrentView}
@@ -393,3 +393,4 @@ export const useApp = () => {
 // Re-export slice hooks for components that only need specific domains
 export { useAuth, useProperties, useCrm, useChat, useSearchPreferences };
 export { useCatalog } from './CatalogContext';
+

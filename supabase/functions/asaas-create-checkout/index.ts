@@ -107,7 +107,7 @@ Deno.serve(async (req) => {
       expiredUrl: `${APP_URL}/?billing=expired&plan=${encodeURIComponent(planTier)}`,
     },
     items: [{
-      name: `Plano ${plan.name} - Web Imóveis`,
+      name: Array.from(`Plano ${plan.name}`).slice(0, 30).join(""),
       description: plan.description,
       quantity: 1,
       value: Number(plan.monthly_price_cents) / 100,
@@ -151,3 +151,4 @@ Deno.serve(async (req) => {
     return response(headers, { error: "Não foi possível conectar ao checkout do Asaas agora." }, 503);
   }
 });
+

@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Property, PropertyStatus } from '../types';
 import { 
   fetchPropertiesFromSupabase,
@@ -42,6 +42,8 @@ export const PropertyProvider: React.FC<{
       return [];
     }
   });
+  const sessionIdentity = useRef(currentUser.id);
+  sessionIdentity.current = currentUser.id;
   const publicProperties = useMemo(() => properties.filter(property => property.status === 'active'), [properties]);
 
   // Do not purge real broker properties
@@ -56,6 +58,8 @@ export const PropertyProvider: React.FC<{
 
   const refreshProperties = useCallback(async () => {
     if (loadingTenant) return;
+    const identity = currentUser.id;
+    if (portal.mode === 'app' && identity === 'guest_buyer') { setProperties([]); return; }
     if (portal.mode === 'not_found') { setProperties([]); return; }
     if (!isSupabaseConfigured) {
       try {
@@ -68,8 +72,8 @@ export const PropertyProvider: React.FC<{
     }
 
     try {
-      const remoteProps = await fetchPropertiesFromSupabase(portal.ownerProfileId || undefined);
-      if (remoteProps !== null) {
+      const remoteProps = await fetchPropertiesFromSupabase(portal.mode === 'app' ? currentUser.id : portal.ownerProfileId || undefined);
+      if (remoteProps !== null && sessionIdentity.current === identity) {
         // Fonte única da verdade: apenas o que existe no banco Supabase
         setProperties(remoteProps);
         try {
@@ -81,10 +85,11 @@ export const PropertyProvider: React.FC<{
     } catch (e) {
       console.warn('Error fetching properties from Supabase:', e);
     }
-  }, [loadingTenant, portal.mode, portal.ownerProfileId]);
+  }, [loadingTenant, portal.mode, portal.ownerProfileId, currentUser.id]);
 
   // Initial load from Supabase if configured and whenever user changes
   useEffect(() => {
+    setProperties([]);
     refreshProperties();
   }, [refreshProperties, currentUser?.id]);
 
@@ -293,3 +298,4 @@ export const useProperties = () => {
   }
   return context;
 };
+
