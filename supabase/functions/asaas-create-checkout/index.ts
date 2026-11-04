@@ -79,7 +79,17 @@ Deno.serve(async (req) => {
     .eq("profile_id", user.id).eq("plan_tier", planTier).eq("environment", "sandbox")
     .in("status", ["creating","pending"]).gte("created_at", cutoff)
     .order("created_at", { ascending: false }).limit(1).maybeSingle();
-  if (reusable?.checkout_url) return response(headers, { checkoutUrl: reusable.checkout_url, reused: true });
+  if (reusable?.checkout_url?.startsWith("https://sandbox.asaas.com/")) {
+    return response(headers, { checkoutUrl: reusable.checkout_url, reused: true });
+  }
+  if (reusable?.checkout_url) {
+    await admin.from("commercial_checkout_attempts").update({
+      status: "failed",
+      failure_code: "CHECKOUT_HOST_MIGRATED",
+      failure_message: "Checkout antigo apontava para o host de produção do Asaas e foi substituído pelo checkout Sandbox.",
+      updated_at: new Date().toISOString(),
+    }).eq("id", reusable.id);
+  }
 
   const attemptId = crypto.randomUUID();
   const externalReference = `webimoveis:${attemptId}`;
@@ -153,4 +163,3 @@ Deno.serve(async (req) => {
     return response(headers, { error: "Não foi possível conectar ao checkout do Asaas agora." }, 503);
   }
 });
-
