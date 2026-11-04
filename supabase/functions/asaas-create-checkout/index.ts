@@ -115,6 +115,7 @@ Deno.serve(async (req) => {
       successUrl: `${APP_URL}/?billing=success&plan=${encodeURIComponent(planTier)}`,
       cancelUrl: `${APP_URL}/?billing=canceled&plan=${encodeURIComponent(planTier)}`,
       expiredUrl: `${APP_URL}/?billing=expired&plan=${encodeURIComponent(planTier)}`,
+      autoRedirect: true,
     },
     items: [{
       name: Array.from(`Plano ${plan.name}`).slice(0, 30).join(""),

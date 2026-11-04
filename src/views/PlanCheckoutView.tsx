@@ -3,6 +3,7 @@ import {ArrowLeft,CheckCircle2,Clock3,CreditCard,ExternalLink,Loader2,RefreshCw,
 import {useApp} from '../context/AppContext';
 import {CommercialPlan,CommercialPlanTier,formatPlanPrice,loadCommercialPlans,planHighlights} from '../lib/commercialPlans';
 import {clearBillingNavigationParams,CommercialCheckoutSummary,CommercialSubscriptionSummary,getSelectedCommercialPlan,loadMyCommercialBilling,startAsaasCheckout} from '../lib/commercialBilling';
+import {supabase} from '../lib/supabaseClient';
 
 const statusCopy:Record<string,string>={
   active:'Ativo',pending:'Aguardando confirmação',past_due:'Pagamento em atraso',suspended:'Suspenso',canceled:'Cancelado',expired:'Expirado',
@@ -30,10 +31,28 @@ export const PlanCheckoutView:React.FC=()=>{
   };
   useEffect(()=>{clearBillingNavigationParams();void refresh();},[]);
   useEffect(()=>{
-    if(callbackStatus==='success')addToast({type:'info',title:'Pagamento enviado para confirmação',message:'Seu plano será ativado assim que o pagamento for confirmado.'});
+    if(callbackStatus==='success')addToast({type:'info',title:'Pagamento recebido',message:'Estamos confirmando sua assinatura automaticamente.'});
     if(callbackStatus==='canceled')addToast({type:'warning',title:'Pagamento cancelado',message:'Nenhuma ativação foi realizada. Você pode retomar quando quiser.'});
     if(callbackStatus==='expired')addToast({type:'warning',title:'Pagamento expirado',message:'Inicie uma nova contratação para continuar.'});
   },[callbackStatus,addToast]);
+  useEffect(()=>{
+    if(callbackStatus!=='success'||!supabase)return;
+    let disposed=false;
+    let channel:any=null;
+    const timers:number[]=[];
+    const sync=async()=>{if(!disposed)await refresh();};
+    void (async()=>{
+      const {data}=await supabase.auth.getUser();
+      const userId=data.user?.id;
+      if(disposed||!userId)return;
+      channel=supabase.channel(`billing-return-${userId}-${Date.now()}`)
+        .on('postgres_changes',{event:'*',schema:'public',table:'commercial_subscriptions',filter:`profile_id=eq.${userId}`},sync)
+        .on('postgres_changes',{event:'*',schema:'public',table:'commercial_checkout_attempts',filter:`profile_id=eq.${userId}`},sync)
+        .subscribe();
+      [3000,9000,20000].forEach(delay=>timers.push(window.setTimeout(sync,delay)));
+    })();
+    return()=>{disposed=true;timers.forEach(window.clearTimeout);if(channel)supabase.removeChannel(channel);};
+  },[callbackStatus]);
 
   const plan=useMemo(()=>plans.find(item=>item.tier===selected)||plans.find(item=>item.tier===subscription?.planTier)||null,[plans,selected,subscription]);
   const begin=async()=>{
@@ -53,7 +72,7 @@ export const PlanCheckoutView:React.FC=()=>{
   return <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-12">
     <header className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end"><div><button onClick={leave} className="mb-4 inline-flex items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-rose-600"><ArrowLeft className="h-4 w-4"/>Ir para o painel</button><p className="text-[10px] font-black uppercase tracking-[.18em] text-rose-600">Contratação segura</p><h1 className="mt-2 font-['Outfit'] text-3xl font-black text-slate-950 dark:text-white">Seu plano Web Imóveis</h1><p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">Revise seu plano e continue para o pagamento seguro. A ativação ocorre após a confirmação do pagamento.</p></div><button onClick={()=>void refresh()} className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs font-bold dark:border-slate-700 dark:bg-slate-900"><RefreshCw className="h-4 w-4"/>Atualizar situação</button></header>
 
-    {callbackStatus&&<section className="mt-7 rounded-2xl border border-sky-200 bg-sky-50 p-4 text-sm text-sky-900 dark:border-sky-900 dark:bg-sky-950/30 dark:text-sky-100"><div className="flex gap-3"><Clock3 className="mt-0.5 h-5 w-5 shrink-0"/><div><strong>Retorno do ambiente de pagamento</strong><p className="mt-1 text-xs leading-5 opacity-80">Estamos consultando a confirmação do pagamento. Se você já concluiu, clique em Atualizar situação.</p></div></div></section>}
+    {callbackStatus&&<section className="mt-7 rounded-2xl border border-sky-200 bg-sky-50 p-4 text-sm text-sky-900 dark:border-sky-900 dark:bg-sky-950/30 dark:text-sky-100"><div className="flex gap-3"><Clock3 className="mt-0.5 h-5 w-5 shrink-0"/><div><strong>Retorno do ambiente de pagamento</strong><p className="mt-1 text-xs leading-5 opacity-80">A confirmação está sendo atualizada automaticamente. Você não precisa realizar nenhuma ação.</p></div></div></section>}
 
     <div className="mt-8 grid gap-6 lg:grid-cols-[1fr_.75fr]">
       <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:p-8">
@@ -68,4 +87,3 @@ export const PlanCheckoutView:React.FC=()=>{
     </div>
   </div>;
 };
-
